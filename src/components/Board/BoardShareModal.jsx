@@ -130,9 +130,9 @@ export default function BoardShareModal({
     try {
       const wsId = selectedWsId || currentWorkspace?.id;
       const res = await inviteMembers(inviteEmail.trim(), Number(wsId), selectedBoardIds);
-      const inviteUrl = res.invite_token
+      const inviteUrl = res.invite_url || (res.invite_token
         ? `${window.location.origin}/register?invite_token=${res.invite_token}&email=${encodeURIComponent(inviteEmail.trim())}`
-        : null;
+        : null);
 
       if (res.requires_registration) {
         setInviteResult({

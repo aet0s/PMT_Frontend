@@ -13,6 +13,7 @@ const CreateWorkspaceModal = React.lazy(() => import('../components/Sidebar/Crea
 const ArchivePage = React.lazy(() => import('../components/Archive/ArchivePage'));
 const NotificationsPage = React.lazy(() => import('../components/Notifications/NotificationsPage'));
 const BoardShareModal = React.lazy(() => import('../components/Board/BoardShareModal'));
+const InviteModal = React.lazy(() => import('../components/Board/InviteModal'));
 const WorkspaceHomePage = React.lazy(() => import('../pages/WorkspaceHomePage'));
 const MembersPage = React.lazy(() => import('../pages/MembersPage'));
 const ActivityPage = React.lazy(() => import('../pages/ActivityPage'));
@@ -1531,8 +1532,29 @@ export default function BoardPage() {
             />
           )}
 
-          {/* Board Share & Permissions Modal - driven by ?modal=share or ?modal=invite */}
-          {(searchParams.get('modal') === 'share' || searchParams.get('modal') === 'invite') && (
+          {/* Workspace Member Invite Modal - driven by ?modal=invite */}
+          {searchParams.get('modal') === 'invite' && (
+            <InviteModal
+              isOpen={true}
+              onClose={() => {
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.delete('modal');
+                  return next;
+                });
+              }}
+              workspaces={workspaces}
+              currentWorkspace={activeWorkspace}
+              currentBoard={boardData}
+              onSuccess={() => {
+                if (activeWorkspace) loadBoards(activeWorkspace.id);
+                if (activeBoardIdRef.current) loadActiveBoard(activeBoardIdRef.current);
+              }}
+            />
+          )}
+
+          {/* Board Share & Permissions Modal - driven by ?modal=share */}
+          {searchParams.get('modal') === 'share' && (
             <BoardShareModal
               isOpen={true}
               onClose={() => {

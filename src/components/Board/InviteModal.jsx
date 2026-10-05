@@ -104,9 +104,9 @@ export default function InviteModal({
     setIsSubmitting(true);
     try {
       const res = await inviteMembers(email.trim(), Number(selectedWsId), selectedBoardIds);
-      const inviteUrl = res.invite_token
+      const inviteUrl = res.invite_url || (res.invite_token
         ? `${window.location.origin}/register?invite_token=${res.invite_token}&email=${encodeURIComponent(email.trim())}`
-        : null;
+        : null);
 
       if (res.requires_registration) {
         setInviteResult({
