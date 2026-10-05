@@ -12,8 +12,8 @@ export default function DataTab({ workspace }) {
   const handleExportJson = async () => {
     setIsExporting(true);
     try {
-      // Fetch full workspace data dump
-      const data = await apiFetch(`/api/workspaces/${workspace.id}`);
+      // Fetch workspace boards and cards data dump
+      const data = await apiFetch(`/api/boards?workspace_id=${workspace.id}`);
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

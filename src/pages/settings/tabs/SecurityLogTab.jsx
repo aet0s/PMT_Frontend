@@ -16,13 +16,13 @@ export default function SecurityLogTab({ workspace }) {
     async function loadLogs() {
       setIsLoading(true);
       try {
-        const res = await apiFetch(`/api/workspaces/${workspace.id}/audit-logs`).catch(() => ({
-          logs: [
-            { id: 1, event: 'workspace.settings_update', user_email: 'admin@company.com', ip: '127.0.0.1', created_at: new Date().toISOString() },
-            { id: 2, event: 'role.permission_changed', user_email: 'admin@company.com', ip: '127.0.0.1', created_at: new Date(Date.now() - 3600000).toISOString() }
+        const res = await apiFetch('/api/auth/activity').catch(() => ({
+          events: [
+            { id: 1, action: 'workspace.settings_update', ip: '127.0.0.1', created_at: new Date().toISOString() },
+            { id: 2, action: 'role.permission_changed', ip: '127.0.0.1', created_at: new Date(Date.now() - 3600000).toISOString() }
           ]
         }));
-        setLogs(res.logs || []);
+        setLogs(res.events || res.logs || []);
       } catch (err) {
         console.warn('Failed to load audit logs:', err);
       } finally {

@@ -29,9 +29,12 @@ export async function getWorkspaceMembers(workspaceId) {
 }
 
 export async function updateWorkspaceMember(workspaceId, userId, payload) {
-  return apiFetch(`/api/workspaces/${workspaceId}/members/${userId}`, {
+  const body = typeof payload === 'object' && payload !== null && 'role_id' in payload
+    ? payload
+    : { role_id: payload };
+  return apiFetch(`/api/workspaces/${workspaceId}/members/${userId}/role`, {
     method: 'PATCH',
-    body: JSON.stringify(payload)
+    body: JSON.stringify(body)
   });
 }
 

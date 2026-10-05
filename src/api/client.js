@@ -183,7 +183,8 @@ export async function apiFetch(url, options = {}, isRetry = false) {
     const isAuthRoute = url.includes('/api/auth/login') ||
                         url.includes('/api/auth/refresh') ||
                         url.includes('/api/auth/register') ||
-                        url.includes('/api/auth/logout');
+                        url.includes('/api/auth/logout') ||
+                        url.includes('/api/auth/me');
 
     if (response.status === 401 && !isAuthRoute && !isRetry) {
       const refreshed = await refreshAuthToken();
