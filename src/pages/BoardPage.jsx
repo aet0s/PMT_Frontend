@@ -675,7 +675,7 @@ export default function BoardPage() {
       id: tempId,
       workspace_id: wsId,
       name,
-      background_color: bgColor || '#0d9488',
+      background_color: bgColor || 'bg-board-neutral',
       lists: []
     };
 
@@ -842,12 +842,21 @@ export default function BoardPage() {
     }
   };
 
-  // Handler: Update List
+  // Handler: Update List (optimistic with rollback)
   const handleUpdateList = async (listId, updates) => {
+    const prevBoardData = boardData;
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      const updatedLists = prev.lists.map((l) =>
+        l.id === listId ? { ...l, ...updates } : l
+      );
+      return { ...prev, lists: updatedLists };
+    });
     try {
       await updateList(listId, updates);
       loadActiveBoard(activeBoardIdRef.current);
     } catch (err) {
+      setBoardData(prevBoardData);
       toast.error(err?.message || 'Failed to update list');
     }
   };

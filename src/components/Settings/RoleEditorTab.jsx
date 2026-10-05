@@ -3,8 +3,10 @@ import { apiFetch } from '../../api/client';
 import { Shield, Plus, Edit2, Trash2, CheckSquare, Square, Info, AlertTriangle, Copy, LayoutGrid, List, Check, X } from 'lucide-react';
 import Button from '../ui/Button';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { useSocket } from '../../context/SocketProvider';
 
 export default function RoleEditorTab({ workspaceId, onToast }) {
+  const { socket, originId } = useSocket();
   const [roles, setRoles] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,40 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
       fetchData();
     }
   }, [workspaceId]);
+
+  useEffect(() => {
+    if (!socket || !workspaceId) return;
+    socket.emit('join_workspace', { workspaceId });
+
+    const onRoleCreated = ({ role, originId: senderOrigin }) => {
+      if (senderOrigin && senderOrigin === originId) return;
+      setRoles((prev) => {
+        if (prev.some((r) => r.id === role.id)) return prev;
+        return [...prev.filter((r) => !String(r.id).startsWith('temp-')), role];
+      });
+    };
+
+    const onRoleUpdated = ({ role, originId: senderOrigin }) => {
+      if (senderOrigin && senderOrigin === originId) return;
+      setRoles((prev) => prev.map((r) => (r.id === role.id ? role : r)));
+    };
+
+    const onRoleDeleted = ({ roleId, originId: senderOrigin }) => {
+      if (senderOrigin && senderOrigin === originId) return;
+      setRoles((prev) => prev.filter((r) => r.id !== roleId));
+    };
+
+    socket.on('workspace:role_created', onRoleCreated);
+    socket.on('workspace:role_updated', onRoleUpdated);
+    socket.on('workspace:role_deleted', onRoleDeleted);
+
+    return () => {
+      socket.off('workspace:role_created', onRoleCreated);
+      socket.off('workspace:role_updated', onRoleUpdated);
+      socket.off('workspace:role_deleted', onRoleDeleted);
+      socket.emit('leave_workspace', { workspaceId });
+    };
+  }, [socket, workspaceId, originId]);
 
   const handleOpenCreate = () => {
     setEditingRole(null);
@@ -101,10 +137,34 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
   };
 
   const executeSave = async () => {
+    const prevRoles = roles;
+    const isEdit = !!editingRole;
+    const tempId = isEdit ? editingRole.id : `temp-${Date.now()}`;
+    const optimisticRole = {
+      id: tempId,
+      name: roleName.trim(),
+      is_system: 0,
+      is_editable: 1,
+      permission_keys: selectedPermissions,
+      member_count: isEdit ? (editingRole.member_count || 0) : 0
+    };
+
+    // Apply optimistic update immediately
+    setRoles((prev) => {
+      if (isEdit) {
+        return prev.map((r) => (r.id === editingRole.id ? { ...r, ...optimisticRole } : r));
+      }
+      return [...prev, optimisticRole];
+    });
+
+    setShowDiffModal(false);
+    setShowModal(false);
+
     try {
       setSaving(true);
-      if (editingRole) {
-        await apiFetch(`/api/roles/${editingRole.id}`, {
+      let res;
+      if (isEdit) {
+        res = await apiFetch(`/api/roles/${editingRole.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
             name: roleName.trim(),
@@ -113,7 +173,7 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
         });
         onToast?.('Custom role updated successfully', 'success');
       } else {
-        await apiFetch(`/api/workspaces/${workspaceId}/roles`, {
+        res = await apiFetch(`/api/workspaces/${workspaceId}/roles`, {
           method: 'POST',
           body: JSON.stringify({
             name: roleName.trim(),
@@ -123,10 +183,12 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
         onToast?.('Custom role created successfully', 'success');
       }
 
-      setShowDiffModal(false);
-      setShowModal(false);
-      fetchData();
+      if (res?.role) {
+        setRoles((prev) => prev.map((r) => (r.id === tempId ? res.role : r)));
+      }
     } catch (err) {
+      // Rollback on failure
+      setRoles(prevRoles);
       onToast?.(err.message || 'Failed to save role', 'error');
     } finally {
       setSaving(false);
@@ -626,13 +688,19 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
         isLoading={!!deletingId}
         onConfirm={async () => {
           if (!roleToDelete) return;
+          const targetId = roleToDelete.id;
+          const prevRoles = roles;
+          // Optimistically remove role immediately
+          setRoles((prev) => prev.filter((r) => r.id !== targetId));
+          setRoleToDelete(null);
+
           try {
-            setDeletingId(roleToDelete.id);
-            await apiFetch(`/api/roles/${roleToDelete.id}`, { method: 'DELETE' });
+            setDeletingId(targetId);
+            await apiFetch(`/api/roles/${targetId}`, { method: 'DELETE' });
             onToast?.('Custom role deleted successfully', 'success');
-            setRoleToDelete(null);
-            fetchData();
           } catch (err) {
+            // Rollback on failure
+            setRoles(prevRoles);
             onToast?.(err.message || 'Failed to delete role', 'error');
           } finally {
             setDeletingId(null);

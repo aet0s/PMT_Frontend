@@ -1,4 +1,3 @@
-// client/src/pages/settings/tabs/InvitationsTab.jsx
 import React, { useState, useEffect } from 'react';
 import { Mail, Copy, Check, Trash2, Clock, Sparkles } from 'lucide-react';
 import Button from '../../../components/ui/Button';
@@ -7,10 +6,12 @@ import { useToast } from '../../../components/ui/Toast';
 import { getWorkspaceInvitations, revokeInvitation } from '../../../api/invitations';
 import { formatDate } from '../../../lib/dateFormat';
 import { usePermissions } from '../../../context/PermissionContext';
+import { useSocket } from '../../../context/SocketProvider';
 
 export default function InvitationsTab({ workspace, onOpenInvite }) {
   const toast = useToast();
   const { hasPermission } = usePermissions();
+  const { socket, originId } = useSocket();
   const canInvite = hasPermission('workspace.invite_members');
 
   const [invitations, setInvitations] = useState([]);
@@ -34,6 +35,35 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
     loadInvitations();
   }, [workspace?.id]);
 
+  useEffect(() => {
+    if (!socket || !workspace?.id) return;
+    socket.emit('join_workspace', { workspaceId: workspace.id });
+
+    const onInviteCreated = ({ invitation, originId: senderOrigin }) => {
+      if (senderOrigin && senderOrigin === originId) return;
+      if (invitation) {
+        setInvitations((prev) => {
+          if (prev.some((i) => i.id === invitation.id)) return prev;
+          return [invitation, ...prev];
+        });
+      }
+    };
+
+    const onInviteRevoked = ({ invitationId, originId: senderOrigin }) => {
+      if (senderOrigin && senderOrigin === originId) return;
+      setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+    };
+
+    socket.on('workspace:invitation_created', onInviteCreated);
+    socket.on('workspace:invitation_revoked', onInviteRevoked);
+
+    return () => {
+      socket.off('workspace:invitation_created', onInviteCreated);
+      socket.off('workspace:invitation_revoked', onInviteRevoked);
+      socket.emit('leave_workspace', { workspaceId: workspace.id });
+    };
+  }, [socket, workspace?.id, originId]);
+
   const handleCopyLink = (inv) => {
     const inviteUrl = `${window.location.origin}/invite?invite_token=${inv.token}`;
     navigator.clipboard.writeText(inviteUrl);
@@ -43,11 +73,16 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
   };
 
   const handleRevoke = async (invId) => {
+    const prevInvitations = invitations;
+    // Optimistic revoke
+    setInvitations((prev) => prev.filter((i) => i.id !== invId));
+
     try {
       await revokeInvitation(invId);
       toast.show('Invitation revoked', 'success');
-      setInvitations((prev) => prev.filter((i) => i.id !== invId));
     } catch (err) {
+      // Rollback on failure
+      setInvitations(prevInvitations);
       toast.show(err.message || 'Failed to revoke invitation', 'error');
     }
   };

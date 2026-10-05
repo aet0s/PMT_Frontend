@@ -1,4 +1,3 @@
-// client/src/pages/settings/tabs/MembersTab.jsx
 import React, { useState, useEffect } from 'react';
 import { Users, UserX, Shield, UserPlus, Search } from 'lucide-react';
 import Avatar from '../../../components/ui/Avatar';
@@ -8,10 +7,12 @@ import { useToast } from '../../../components/ui/Toast';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { getWorkspaceMembers, updateWorkspaceMember, removeWorkspaceMember } from '../../../api/workspaces';
 import { usePermissions } from '../../../context/PermissionContext';
+import { useSocket } from '../../../context/SocketProvider';
 
 export default function MembersTab({ workspace, onOpenInvite }) {
   const toast = useToast();
   const { hasPermission } = usePermissions();
+  const { socket, originId } = useSocket();
   const canManageMembers = hasPermission('workspace.manage_members');
 
   const [members, setMembers] = useState([]);
@@ -43,14 +44,57 @@ export default function MembersTab({ workspace, onOpenInvite }) {
     loadMembers();
   }, [workspace?.id]);
 
+  useEffect(() => {
+    if (!socket || !workspace?.id) return;
+    socket.emit('join_workspace', { workspaceId: workspace.id });
+
+    const onMemberAdded = ({ member, originId: senderOrigin }) => {
+      if (senderOrigin && senderOrigin === originId) return;
+      if (member) {
+        setMembers((prev) => {
+          if (prev.some((m) => m.id === member.id)) return prev;
+          return [...prev, member];
+        });
+      }
+    };
+
+    const onMemberUpdated = ({ targetUserId, roleId, role, originId: senderOrigin }) => {
+      if (senderOrigin && senderOrigin === originId) return;
+      setMembers((prev) =>
+        prev.map((m) => (m.id === targetUserId ? { ...m, role: role || m.role, role_id: roleId || m.role_id } : m))
+      );
+    };
+
+    const onMemberRemoved = ({ targetUserId, originId: senderOrigin }) => {
+      if (senderOrigin && senderOrigin === originId) return;
+      setMembers((prev) => prev.filter((m) => m.id !== targetUserId));
+    };
+
+    socket.on('workspace:member_added', onMemberAdded);
+    socket.on('workspace:member_updated', onMemberUpdated);
+    socket.on('workspace:member_removed', onMemberRemoved);
+
+    return () => {
+      socket.off('workspace:member_added', onMemberAdded);
+      socket.off('workspace:member_updated', onMemberUpdated);
+      socket.off('workspace:member_removed', onMemberRemoved);
+      socket.emit('leave_workspace', { workspaceId: workspace.id });
+    };
+  }, [socket, workspace?.id, originId]);
+
   const handleRoleChange = async (memberId, newRole) => {
+    const prevMembers = members;
+    // Optimistic update
+    setMembers((prev) =>
+      prev.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
+    );
+
     try {
       await updateWorkspaceMember(workspace.id, memberId, newRole);
       toast.show('Member role updated', 'success');
-      setMembers((prev) =>
-        prev.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
-      );
     } catch (err) {
+      // Rollback on failure
+      setMembers(prevMembers);
       toast.show(err.message || 'Failed to update member role', 'error');
     }
   };
@@ -63,11 +107,16 @@ export default function MembersTab({ workspace, onOpenInvite }) {
       confirmText: 'Remove',
       variant: 'danger',
       onConfirm: async () => {
+        const prevMembers = members;
+        // Optimistic removal
+        setMembers((prev) => prev.filter((m) => m.id !== member.id));
+
         try {
           await removeWorkspaceMember(workspace.id, member.id);
           toast.show(`${member.name} removed from workspace`, 'success');
-          setMembers((prev) => prev.filter((m) => m.id !== member.id));
         } catch (err) {
+          // Rollback on failure
+          setMembers(prevMembers);
           toast.show(err.message || 'Failed to remove member', 'error');
         }
       }

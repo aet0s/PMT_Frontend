@@ -1,4 +1,3 @@
-// client/src/pages/settings/tabs/GeneralTab.jsx
 import React, { useState, useEffect } from 'react';
 import { Briefcase, AlertTriangle, Archive, Trash2, Check, Sparkles } from 'lucide-react';
 import Button from '../../../components/ui/Button';
@@ -7,6 +6,7 @@ import { useToast } from '../../../components/ui/Toast';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { updateWorkspace } from '../../../api/workspaces';
 import { usePermissions } from '../../../context/PermissionContext';
+import { useSocket } from '../../../context/SocketProvider';
 
 export default function GeneralTab({
   workspace,
@@ -17,6 +17,7 @@ export default function GeneralTab({
 }) {
   const toast = useToast();
   const { hasPermission } = usePermissions();
+  const { socket, originId } = useSocket();
   const canEdit = hasPermission('workspace.edit_settings');
   const canDelete = hasPermission('workspace.delete');
 
@@ -38,6 +39,27 @@ export default function GeneralTab({
     setFormDirty?.(false);
   }, [workspace, setFormDirty]);
 
+  useEffect(() => {
+    if (!socket || !workspace?.id) return;
+    socket.emit('join_workspace', { workspaceId: workspace.id });
+
+    const onWorkspaceUpdatedEvent = ({ workspace: updatedWs, originId: senderOrigin }) => {
+      if (senderOrigin && senderOrigin === originId) return;
+      if (updatedWs) {
+        if (updatedWs.name !== undefined) setName(updatedWs.name);
+        if (updatedWs.description !== undefined) setDescription(updatedWs.description);
+        onWorkspaceUpdated?.(updatedWs);
+      }
+    };
+
+    socket.on('workspace:updated', onWorkspaceUpdatedEvent);
+
+    return () => {
+      socket.off('workspace:updated', onWorkspaceUpdatedEvent);
+      socket.emit('leave_workspace', { workspaceId: workspace.id });
+    };
+  }, [socket, workspace?.id, originId, onWorkspaceUpdated]);
+
   const handleNameChange = (e) => {
     setName(e.target.value);
     setFormDirty?.(e.target.value !== (workspace?.name || ''));
@@ -54,13 +76,28 @@ export default function GeneralTab({
       toast.show('Workspace name cannot be empty', 'error');
       return;
     }
+
+    const prevName = workspace?.name || '';
+    const prevDescription = workspace?.description || '';
+    const optimisticWs = { ...workspace, name: name.trim(), description: description.trim() };
+
+    // Optimistically notify parent
+    onWorkspaceUpdated?.(optimisticWs);
+    setFormDirty?.(false);
+
     setIsSaving(true);
     try {
       const res = await updateWorkspace(workspace.id, { name: name.trim(), description: description.trim() });
       toast.show('Workspace details updated successfully', 'success');
-      setFormDirty?.(false);
-      onWorkspaceUpdated?.(res.workspace || { ...workspace, name: name.trim(), description: description.trim() });
+      if (res?.workspace) {
+        onWorkspaceUpdated?.(res.workspace);
+      }
     } catch (err) {
+      // Rollback on failure
+      setName(prevName);
+      setDescription(prevDescription);
+      onWorkspaceUpdated?.(workspace);
+      setFormDirty?.(true);
       toast.show(err.message || 'Failed to update workspace', 'error');
     } finally {
       setIsSaving(false);
