@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { io } from 'socket.io-client';
 import { useAuth } from '../hooks/useAuth';
 import { apiFetch, refreshAuthToken } from '../api/client';
+import { SOCKET_URL } from '../api/config';
 
 const SocketContext = createContext(null);
 
@@ -67,9 +68,7 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    const host = window.location.hostname;
-    const serverUrl = import.meta.env.VITE_SERVER_URL || `${protocol}//${host}:5000`;
+    const serverUrl = SOCKET_URL;
 
     const socketInstance = io(serverUrl, {
       withCredentials: true,

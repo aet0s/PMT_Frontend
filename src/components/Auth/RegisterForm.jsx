@@ -98,6 +98,7 @@ export default function RegisterForm({ onSwitchToLogin }) {
         <Input
           label="Full Name"
           type="text"
+          autoComplete="name"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -108,6 +109,7 @@ export default function RegisterForm({ onSwitchToLogin }) {
         <Input
           label="Work Email"
           type="email"
+          autoComplete="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -118,6 +120,7 @@ export default function RegisterForm({ onSwitchToLogin }) {
         <Input
           label="Password"
           type="password"
+          autoComplete="new-password"
           required
           minLength={6}
           value={password}

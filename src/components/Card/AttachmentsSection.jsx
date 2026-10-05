@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Lightbox from '../shared/Lightbox';
 import { formatDate, formatRelativeTime } from '../../lib/dateFormat';
+import { getFileUrl } from '../../api/config';
 import {
   Paperclip,
   Trash2,
@@ -21,7 +22,7 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
   if (!attachments || attachments.length === 0) return null;
 
   const handleOpenPreview = (att, isVideo) => {
-    setLightboxSrc(att.file_url);
+    setLightboxSrc(getFileUrl(att.file_url));
     setLightboxTitle(att.file_name);
     setLightboxType(isVideo ? 'video' : 'image');
   };
@@ -35,6 +36,7 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {attachments.map((att) => {
+          const resolvedFileUrl = getFileUrl(att.file_url);
           const isImage =
             att.file_type?.startsWith('image/') ||
             /\.(png|jpe?g|webp|gif|svg)$/i.test(att.file_url);
@@ -63,7 +65,7 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
                     if (isImage || isVideo) {
                       handleOpenPreview(att, isVideo);
                     } else {
-                      window.open(att.file_url, '_blank');
+                      window.open(resolvedFileUrl, '_blank');
                     }
                   }}
                   className="w-16 h-16 rounded-md bg-surface-muted overflow-hidden shrink-0 border border-border flex items-center justify-center cursor-pointer relative group/thumb"
@@ -71,7 +73,7 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
                 >
                   {isImage ? (
                     <img
-                      src={att.file_url}
+                      src={resolvedFileUrl}
                       alt={att.file_name}
                       className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
                     />
@@ -104,7 +106,7 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
                 {/* Info & Meta */}
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <a
-                    href={att.file_url}
+                    href={resolvedFileUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs font-semibold text-text-primary hover:text-primary truncate block transition-colors"
@@ -125,7 +127,7 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
                 {/* Actions */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <a
-                    href={att.file_url}
+                    href={resolvedFileUrl}
                     target="_blank"
                     rel="noreferrer"
                     title="Open in new tab"
@@ -147,7 +149,7 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
               {/* Inline Audio Player for audio files */}
               {isAudio && (
                 <div className="mt-1 pt-1 border-t border-border">
-                  <audio controls src={att.file_url} className="w-full h-7 rounded-md" />
+                  <audio controls src={resolvedFileUrl} className="w-full h-7 rounded-md" />
                 </div>
               )}
             </div>

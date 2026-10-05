@@ -1,4 +1,5 @@
 import React from 'react';
+import { getFileUrl } from '../../api/config';
 
 const COLOR_PAIRS = [
   'bg-blue-600 text-white',
@@ -27,7 +28,8 @@ function stringToColorIndex(str = '') {
 }
 
 export default function Avatar({ name, email, avatarUrl, avatar_url, size = 'md', className = '' }) {
-  const url = avatarUrl || avatar_url;
+  const rawUrl = avatarUrl || avatar_url;
+  const url = rawUrl ? getFileUrl(rawUrl) : null;
   const [imgError, setImgError] = React.useState(false);
 
   const initials = getInitials(name || email);

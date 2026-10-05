@@ -53,6 +53,7 @@ export default function LoginForm({ onSwitchToRegister }) {
         <Input
           label="Email Address"
           type="email"
+          autoComplete="username"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -63,6 +64,7 @@ export default function LoginForm({ onSwitchToRegister }) {
         <Input
           label="Password"
           type="password"
+          autoComplete="current-password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}

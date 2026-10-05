@@ -1,3 +1,5 @@
+import { getApiUrl, getFileUrl, API_BASE_URL, SOCKET_URL } from './config';
+
 // Single-flight refresh coordination within tab and across tabs
 let inFlightRefreshPromise = null;
 const REFRESH_CHANNEL_NAME = 'pm_auth_refresh_channel';
@@ -21,7 +23,7 @@ export async function refreshAuthToken() {
   inFlightRefreshPromise = (async () => {
     if (typeof window === 'undefined') {
       // In non-browser environments, direct fetch
-      const res = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+      const res = await fetch(getApiUrl('/api/auth/refresh'), { method: 'POST', credentials: 'include' });
       return res.ok;
     }
 
@@ -54,7 +56,7 @@ export async function refreshAuthToken() {
     }
 
     try {
-      const response = await fetch('/api/auth/refresh', {
+      const response = await fetch(getApiUrl('/api/auth/refresh'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
@@ -165,7 +167,8 @@ export async function apiFetch(url, options = {}, isRetry = false) {
     credentials: 'include' // Send httpOnly JWT cookie
   };
 
-  const response = await fetch(url, config);
+  const fullUrl = getApiUrl(url);
+  const response = await fetch(fullUrl, config);
 
   let data;
   try {
@@ -214,3 +217,4 @@ export async function apiFetch(url, options = {}, isRetry = false) {
   return data;
 }
 
+export { getApiUrl, getFileUrl, API_BASE_URL, SOCKET_URL };
