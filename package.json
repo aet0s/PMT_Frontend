@@ -12,6 +12,7 @@
     "lint:theme": "node scripts/lint-theme.js",
     "lint:ui": "node scripts/lint-ui.js",
     "test:unit": "vitest run",
+    "test:security-console": "node scripts/test_security_console.js",
     "test": "npm run lint:theme && npm run check:contrast && npm run lint:ui && npm run test:unit",
     "preview": "vite preview"
   },
