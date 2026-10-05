@@ -1,0 +1,52 @@
+{
+  "name": "trello-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "check:contrast": "node scripts/check-contrast.js",
+    "check:prod-bundle": "node scripts/check-prod-bundle.js",
+    "lint:theme": "node scripts/lint-theme.js",
+    "lint:ui": "node scripts/lint-ui.js",
+    "test:unit": "vitest run",
+    "test": "npm run lint:theme && npm run check:contrast && npm run lint:ui && npm run test:unit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.1.0",
+    "@dnd-kit/sortable": "^8.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@floating-ui/react": "^0.27.20",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@tiptap/extension-image": "^3.29.2",
+    "@tiptap/extension-link": "^3.29.2",
+    "@tiptap/react": "^3.29.2",
+    "@tiptap/starter-kit": "^3.29.2",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "lucide-react": "^0.428.0",
+    "react": "^18.3.1",
+    "react-day-picker": "^10.0.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "react-router-dom": "^6.30.6",
+    "socket.io-client": "^4.8.3",
+    "tailwind-merge": "^2.5.2"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@vitejs/plugin-react": "^4.3.1",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.63.0",
+    "tailwindcss": "^4.0.0",
+    "vite": "^5.4.1",
+    "vitest": "^2.1.9"
+  }
+}

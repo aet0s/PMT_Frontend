@@ -1,0 +1,236 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+:root {
+  color-scheme: light;
+}
+
+@theme {
+  --font-sans: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+
+  /* App Canvas & Surfaces */
+  --color-app: #F5F6F8;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #EEF0F4;
+  --color-surface-hover: #F8F9FA;
+  --color-surface-active: #E9ECEF;
+
+  /* Borders */
+  --color-border: #E1E4EA;
+  --color-border-strong: #CDD2DB;
+  --color-border-focus: #5865C9;
+
+  /* Typography */
+  --color-text-primary: #1F2A37;
+  --color-text-secondary: #5A6572;
+  --color-text-muted: #5F6B7A;
+
+  /* Brand / Primary */
+  --color-primary: #5865C9;
+  --color-primary-hover: #4A57B5;
+  --color-primary-active: #3F4BA3;
+  --color-primary-tint: #ECEEFB;
+  --color-primary-text: #37419A;
+
+  /* Status Colors */
+  --color-success: #3D9A72;
+  --color-success-hover: #328360;
+  --color-success-tint: #E5F4EC;
+  --color-success-text: #226749;
+
+  --color-warning: #C28A1E;
+  --color-warning-hover: #A87618;
+  --color-warning-tint: #FBF1DB;
+  --color-warning-text: #825A0B;
+
+  --color-danger: #C54343;
+  --color-danger-hover: #B03838;
+  --color-danger-tint: #FBE8E8;
+  --color-danger-text: #963535;
+
+  --color-info: #3F8FB4;
+  --color-info-hover: #327696;
+  --color-info-tint: #E5F1F7;
+  --color-info-text: #26607C;
+
+  /* Pastel Label Palette */
+  --color-label-blue: #E8F1FC;
+  --color-label-blue-text: #1E4E8C;
+  --color-label-green: #E8F6ED;
+  --color-label-green-text: #1B6535;
+  --color-label-purple: #F1EDFA;
+  --color-label-purple-text: #502E91;
+  --color-label-amber: #FDF3E5;
+  --color-label-amber-text: #7C4707;
+  --color-label-rose: #FCECEF;
+  --color-label-rose-text: #8C2237;
+  --color-label-teal: #E6F7F5;
+  --color-label-teal-text: #135E55;
+  --color-label-slate: #EEF0F3;
+  --color-label-slate-text: #2B3847;
+
+  /* 10 Soft Light Board Backgrounds */
+  --color-board-neutral: #F5F6F8;
+  --color-board-mist-blue: #EBF1F6;
+  --color-board-lavender: #EFEFF9;
+  --color-board-sage: #EDF3EE;
+  --color-board-sand: #F7F4EE;
+  --color-board-blush: #FAEFF1;
+  --color-board-sky: #E8F3FA;
+  --color-board-mint: #E9F6F2;
+  --color-board-stone: #EFEFEF;
+  --color-board-peach: #FAF0E8;
+  --color-board-lilac: #F3EEF8;
+
+  /* Board Dot Indicators */
+  --color-board-dot-neutral: #CDD2DB;
+  --color-board-dot-mist-blue: #A2B7CC;
+  --color-board-dot-lavender: #ACB3E3;
+  --color-board-dot-sage: #9EBFA5;
+  --color-board-dot-sand: #D4C3A3;
+  --color-board-dot-blush: #E5A8B2;
+  --color-board-dot-sky: #95C3E5;
+  --color-board-dot-mint: #97D5C2;
+  --color-board-dot-stone: #B8B8B8;
+  --color-board-dot-peach: #EBB696;
+  --color-board-dot-lilac: #C8A8E2;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(31, 42, 55, 0.06);
+  --shadow-md: 0 4px 12px rgba(31, 42, 55, 0.06);
+  --shadow-lg: 0 8px 24px rgba(31, 42, 55, 0.08);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-app);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    padding: 0;
+  }
+
+  ::selection {
+    background-color: var(--color-primary-tint);
+    color: var(--color-primary-text);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+  }
+}
+
+/* Light, thin scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Focus Ring Utility */
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Rich Text Formatting Styles for Description and Tiptap Content */
+.prose h1 {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+  color: var(--color-text-primary) !important;
+}
+
+.prose h2 {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.35rem !important;
+  color: var(--color-text-primary) !important;
+}
+
+.prose p {
+  color: var(--color-text-primary) !important;
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.prose ul {
+  list-style-type: disc !important;
+  padding-left: 1.25rem !important;
+  margin-top: 0.35rem !important;
+  margin-bottom: 0.35rem !important;
+  color: var(--color-text-primary) !important;
+}
+
+.prose ol {
+  list-style-type: decimal !important;
+  padding-left: 1.25rem !important;
+  margin-top: 0.35rem !important;
+  margin-bottom: 0.35rem !important;
+  color: var(--color-text-primary) !important;
+}
+
+.prose li {
+  margin-top: 0.15rem !important;
+  margin-bottom: 0.15rem !important;
+  color: var(--color-text-primary) !important;
+}
+
+.prose a {
+  color: var(--color-primary) !important;
+  text-decoration: underline !important;
+}
+
+.prose img {
+  max-width: 100% !important;
+  border-radius: var(--radius-md) !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.prose code {
+  background: var(--color-surface-muted) !important;
+  color: var(--color-text-primary) !important;
+  padding: 0.15rem 0.35rem !important;
+  border-radius: 4px !important;
+  font-size: 0.875em !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.prose pre {
+  background: var(--color-surface-muted) !important;
+  color: var(--color-text-primary) !important;
+  padding: 0.75rem !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--color-border) !important;
+  overflow-x: auto !important;
+}
