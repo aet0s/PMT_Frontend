@@ -786,7 +786,7 @@ export default function BoardPage() {
         } catch (err) {
           setBoards(prevBoards);
           const readableMsg = err?.data?.error?.message || err?.message || 'Failed to delete board';
-          toast.error(readableMsg);
+          toast.error(readableMsg, { requestId: err?.requestId });
         }
       }
     });
@@ -799,7 +799,7 @@ export default function BoardPage() {
       if (activeWorkspace) await loadBoards(activeWorkspace.id);
       toast.success('Board restored');
     } catch (err) {
-      toast.error(err?.message || 'Failed to restore board');
+      toast.error(err?.message || 'Failed to restore board', { requestId: err?.requestId });
     }
   };
 
@@ -820,7 +820,7 @@ export default function BoardPage() {
         } catch (err) {
           setBoards(prevBoards);
           const readableMsg = err?.data?.error?.message || err?.message || 'Failed to delete board';
-          toast.error(readableMsg);
+          toast.error(readableMsg, { requestId: err?.requestId });
         }
       }
     });

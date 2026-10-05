@@ -42,7 +42,18 @@ export function ToastProvider({ children }) {
   );
 
   const success = useCallback((message, options = {}) => showToast({ type: 'success', message, ...options }), [showToast]);
-  const error = useCallback((message, options = {}) => showToast({ type: 'error', message, ...options }), [showToast]);
+  const error = useCallback((content, options = {}) => {
+    let message = content;
+    let requestId = options.requestId;
+    if (content && typeof content === 'object') {
+      message = content.message || 'An error occurred';
+      requestId = requestId || content.requestId;
+    }
+    if (requestId && typeof message === 'string' && !message.includes(requestId)) {
+      message = `${message} [Req: ${requestId.slice(0, 8)}]`;
+    }
+    return showToast({ type: 'error', message, ...options });
+  }, [showToast]);
   const warning = useCallback((message, options = {}) => showToast({ type: 'warning', message, ...options }), [showToast]);
   const info = useCallback((message, options = {}) => showToast({ type: 'info', message, ...options }), [showToast]);
   const show = useCallback((message, type = 'info') => {

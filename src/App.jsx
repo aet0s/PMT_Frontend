@@ -227,7 +227,12 @@ const router = createBrowserRouter([
       }
     ]
   }
-]);
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true
+  }
+});
 
 export default function App() {
   return (
@@ -235,7 +240,7 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <SocketProvider>
-            <RouterProvider router={router} />
+            <RouterProvider router={router} future={{ v7_startTransition: true }} />
           </SocketProvider>
         </AuthProvider>
       </ToastProvider>

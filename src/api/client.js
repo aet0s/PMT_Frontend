@@ -207,10 +207,14 @@ export async function apiFetch(url, options = {}, isRetry = false) {
       }
     }
 
+    const requestId = data?.error?.requestId || response.headers.get('x-request-id');
     const error = data?.error || {
       message: `Request failed with status ${response.status}`,
       code: 'HTTP_ERROR'
     };
+    if (requestId) {
+      error.requestId = requestId;
+    }
     throw error;
   }
 
