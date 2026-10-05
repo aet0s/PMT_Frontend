@@ -25,6 +25,11 @@ export default function SecurityTab({ setFormDirty }) {
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
   const [recoveryCodes, setRecoveryCodes] = useState([]);
 
+  // Disable 2FA state
+  const [isDisabling2Fa, setIsDisabling2Fa] = useState(false);
+  const [showDisableForm, setShowDisableForm] = useState(false);
+  const [disablePassword, setDisablePassword] = useState('');
+
   useEffect(() => {
     setTotpEnabled(Boolean(user?.two_factor_enabled));
   }, [user]);
@@ -86,17 +91,25 @@ export default function SecurityTab({ setFormDirty }) {
     }
   };
 
-  const handleDisable2Fa = async () => {
-    const password = prompt('Enter your current password to disable 2FA:');
-    if (!password) return;
+  const handleDisable2Fa = async (e) => {
+    e.preventDefault();
+    if (!disablePassword) {
+      toast.show('Please enter your password', 'error');
+      return;
+    }
+    setIsDisabling2Fa(true);
     try {
-      await disable2Fa(password);
+      await disable2Fa(disablePassword);
       setTotpEnabled(false);
       setSetupData(null);
+      setShowDisableForm(false);
+      setDisablePassword('');
       await refreshUser();
       toast.show('Two-factor authentication disabled', 'info');
     } catch (err) {
       toast.show(err.message || 'Failed to disable 2FA', 'error');
+    } finally {
+      setIsDisabling2Fa(false);
     }
   };
 
@@ -118,8 +131,10 @@ export default function SecurityTab({ setFormDirty }) {
 
         <form onSubmit={handlePasswordSubmit} className="space-y-3.5">
           <Input
+            id="current-password"
             label="Current Password"
             type="password"
+            autoComplete="current-password"
             required
             value={currentPassword}
             onChange={(e) => {
@@ -131,8 +146,10 @@ export default function SecurityTab({ setFormDirty }) {
           />
 
           <Input
+            id="new-password"
             label="New Password"
             type="password"
+            autoComplete="new-password"
             required
             minLength={6}
             value={newPassword}
@@ -145,8 +162,10 @@ export default function SecurityTab({ setFormDirty }) {
           />
 
           <Input
+            id="confirm-new-password"
             label="Confirm New Password"
             type="password"
+            autoComplete="new-password"
             required
             value={confirmPassword}
             onChange={(e) => {
@@ -192,14 +211,53 @@ export default function SecurityTab({ setFormDirty }) {
 
         {totpEnabled ? (
           <div className="pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDisable2Fa}
-              className="text-danger border-danger/30 hover:bg-danger-tint"
-            >
-              Disable Two-Factor Authentication
-            </Button>
+            {!showDisableForm ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDisableForm(true)}
+                className="text-danger border-danger/30 hover:bg-danger-tint"
+              >
+                Disable Two-Factor Authentication
+              </Button>
+            ) : (
+              <form onSubmit={handleDisable2Fa} className="p-4 bg-surface-muted/50 rounded-xl space-y-3 border border-border max-w-md">
+                <p className="text-xs font-semibold text-text-primary">
+                  Enter your current password to confirm disabling 2FA:
+                </p>
+                <Input
+                  id="disable-2fa-password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={disablePassword}
+                  onChange={(e) => setDisablePassword(e.target.value)}
+                  placeholder="Current password"
+                  leftIcon={<Lock className="w-4 h-4 text-text-secondary" />}
+                />
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    type="submit"
+                    variant="danger"
+                    size="sm"
+                    isLoading={isDisabling2Fa}
+                  >
+                    Confirm & Disable
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowDisableForm(false);
+                      setDisablePassword('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
         ) : isSettingUp2Fa && setupData ? (
           <form onSubmit={handleConfirm2Fa} className="p-4 bg-surface-muted/50 rounded-xl space-y-4 border border-border">
@@ -216,6 +274,10 @@ export default function SecurityTab({ setFormDirty }) {
             </p>
             <div className="flex items-center gap-2 max-w-xs">
               <Input
+                id="totp-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 value={confirmCodeInput}
                 onChange={(e) => setConfirmCodeInput(e.target.value)}
                 maxLength={6}
