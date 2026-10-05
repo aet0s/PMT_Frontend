@@ -558,13 +558,17 @@ export default function BoardPage() {
       const data = await createWorkspace(name);
       if (data?.workspace) {
         localStorage.setItem('activeWorkspaceId', data.workspace.id);
+        setWorkspaces((prev) => [...prev, data.workspace]);
         setActiveWorkspace(data.workspace);
-        await loadWorkspaces();
-        await loadBoards(data.workspace.id);
+        loadWorkspaces();
+        loadBoards(data.workspace.id);
         toast.success('Workspace created');
+        return data.workspace;
       }
+      return null;
     } catch (err) {
       toast.error(err?.message || 'Failed to create workspace');
+      return null;
     }
   };
 
@@ -660,19 +664,45 @@ export default function BoardPage() {
   };
 
   // Handler: Create Board
-  const handleCreateBoard = async (name, bgColor) => {
-    if (!activeWorkspace) return;
+  const handleCreateBoard = async (wsIdOrName, nameOrColor, color) => {
+    const wsId = color !== undefined ? Number(wsIdOrName) : activeWorkspace?.id;
+    const name = color !== undefined ? nameOrColor : wsIdOrName;
+    const bgColor = color !== undefined ? color : nameOrColor;
+    if (!wsId || !name) return null;
+
+    const tempId = 'temp-' + Date.now();
+    const optimisticBoard = {
+      id: tempId,
+      workspace_id: wsId,
+      name,
+      background_color: bgColor || '#0d9488',
+      lists: []
+    };
+
+    if (wsId === activeWorkspace?.id) {
+      setBoards((prev) => [...prev, optimisticBoard]);
+    }
+
     try {
-      const data = await createBoard(activeWorkspace.id, name, bgColor);
+      const data = await createBoard(wsId, name, bgColor);
       if (data?.board) {
+        if (wsId === activeWorkspace?.id) {
+          setBoards((prev) => prev.map((b) => (b.id === tempId ? data.board : b)));
+        }
         localStorage.setItem('activeBoardId', data.board.id);
         setActiveBoardId(data.board.id);
-        await loadBoards(activeWorkspace.id);
-        await loadActiveBoard(data.board.id);
+        loadBoards(wsId);
+        loadActiveBoard(data.board.id);
         toast.success('Board created');
+        return data.board;
       }
+      return null;
     } catch (err) {
+      if (wsId === activeWorkspace?.id) {
+        setBoards((prev) => prev.filter((b) => b.id !== tempId));
+      }
       toast.error(err?.message || 'Failed to create board');
+      return null;
     }
   };
 
@@ -702,12 +732,14 @@ export default function BoardPage() {
       confirmText: 'Archive Board',
       variant: 'warning',
       onConfirm: async () => {
+        const archivedBoardId = activeBoardId;
+        const prevBoards = boards;
+        setBoards((prev) => prev.filter((b) => b.id !== archivedBoardId));
+        localStorage.removeItem('activeBoardId');
+        setActiveBoardId(null);
+        setBoardData(null);
         try {
-          const archivedBoardId = activeBoardId;
           await updateBoard(archivedBoardId, { is_archived: true });
-          localStorage.removeItem('activeBoardId');
-          setActiveBoardId(null);
-          setBoardData(null);
           if (activeWorkspace) await loadBoards(activeWorkspace.id);
           if (isArchiveOpen) await loadArchive();
           toast.success('Board archived', {
@@ -725,6 +757,7 @@ export default function BoardPage() {
             }
           });
         } catch (err) {
+          setBoards(prevBoards);
           toast.error(err?.message || 'Failed to archive board');
         }
       }
@@ -739,16 +772,21 @@ export default function BoardPage() {
       confirmText: 'Delete Board',
       variant: 'danger',
       onConfirm: async () => {
+        const targetBoardId = activeBoardId;
+        const prevBoards = boards;
+        setBoards((prev) => prev.filter((b) => b.id !== targetBoardId));
+        localStorage.removeItem('activeBoardId');
+        setActiveBoardId(null);
+        setBoardData(null);
         try {
-          await deleteBoard(activeBoardId);
-          localStorage.removeItem('activeBoardId');
-          setActiveBoardId(null);
-          setBoardData(null);
+          await deleteBoard(targetBoardId);
           if (activeWorkspace) await loadBoards(activeWorkspace.id);
           if (isArchiveOpen) await loadArchive();
-          toast.success('Board deleted');
+          toast.success('Board deleted successfully');
         } catch (err) {
-          toast.error(err?.message || 'Failed to delete board');
+          setBoards(prevBoards);
+          const readableMsg = err?.data?.error?.message || err?.message || 'Failed to delete board';
+          toast.error(readableMsg);
         }
       }
     });
@@ -772,13 +810,17 @@ export default function BoardPage() {
       confirmText: 'Delete',
       variant: 'danger',
       onConfirm: async () => {
+        const prevBoards = boards;
+        setBoards((prev) => prev.filter((b) => b.id !== boardId));
         try {
           await deleteBoard(boardId);
           await loadArchive();
           if (activeWorkspace) await loadBoards(activeWorkspace.id);
-          toast.success('Board deleted');
+          toast.success('Board deleted successfully');
         } catch (err) {
-          toast.error(err?.message || 'Failed to delete board');
+          setBoards(prevBoards);
+          const readableMsg = err?.data?.error?.message || err?.message || 'Failed to delete board';
+          toast.error(readableMsg);
         }
       }
     });
@@ -787,7 +829,13 @@ export default function BoardPage() {
   // Handler: Create List
   const handleCreateList = async (boardId, name) => {
     try {
-      await createList(boardId, name);
+      const data = await createList(boardId, name);
+      if (data?.list) {
+        setBoardData((prev) => {
+          if (!prev || prev.id !== boardId) return prev;
+          return { ...prev, lists: [...(prev.lists || []), { ...data.list, cards: [] }] };
+        });
+      }
       loadActiveBoard(boardId);
     } catch (err) {
       toast.error(err?.message || 'Failed to create list');
@@ -823,11 +871,17 @@ export default function BoardPage() {
 
   // Handler: Delete List
   const handleDeleteList = async (listId) => {
+    const prevBoardData = boardData;
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      return { ...prev, lists: (prev.lists || []).filter((l) => l.id !== listId) };
+    });
     try {
       await deleteList(listId);
       loadActiveBoard(activeBoardIdRef.current);
       toast.success('List deleted');
     } catch (err) {
+      setBoardData(prevBoardData);
       toast.error(err?.message || 'Failed to delete list');
     }
   };
@@ -1206,7 +1260,13 @@ export default function BoardPage() {
   const handleCreateBoardLabel = async (name, color) => {
     if (!activeBoardIdRef.current) return;
     try {
-      await createBoardLabel(activeBoardIdRef.current, name, color);
+      const res = await createBoardLabel(activeBoardIdRef.current, name, color);
+      if (res?.label) {
+        setBoardData((prev) => {
+          if (!prev) return prev;
+          return { ...prev, labels: [...(prev.labels || []), res.label] };
+        });
+      }
       loadActiveBoard(activeBoardIdRef.current);
     } catch (err) {
       toast.error(err?.message || 'Failed to create label');
@@ -1493,7 +1553,10 @@ export default function BoardPage() {
               }}
               workspaces={workspaces}
               activeWorkspace={activeWorkspace}
-              onCreateBoard={async (wsId, name, color) => {
+              onCreateBoard={async (nameOrWsId, colorOrName, maybeColor) => {
+                const wsId = maybeColor !== undefined ? nameOrWsId : activeWorkspace?.id;
+                const name = maybeColor !== undefined ? colorOrName : nameOrWsId;
+                const color = maybeColor !== undefined ? maybeColor : colorOrName;
                 const newBoard = await handleCreateBoard(wsId, name, color);
                 setSearchParams((prev) => {
                   const next = new URLSearchParams(prev);
