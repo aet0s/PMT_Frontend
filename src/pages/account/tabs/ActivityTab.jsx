@@ -12,12 +12,7 @@ export default function ActivityTab() {
     async function loadActivity() {
       setIsLoading(true);
       try {
-        const data = await apiFetch('/api/auth/activity').catch(() => ({
-          events: [
-            { id: 1, action: 'User logged in', ip: '127.0.0.1', created_at: new Date().toISOString() },
-            { id: 2, action: 'Session created', ip: '127.0.0.1', created_at: new Date(Date.now() - 7200000).toISOString() }
-          ]
-        }));
+        const data = await apiFetch('/api/auth/activity');
         setEvents(data.events || []);
       } catch (err) {
         console.warn('Failed to load user activity:', err);
