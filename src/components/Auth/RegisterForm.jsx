@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { UserPlus, User, Mail, Lock, AlertCircle, Sparkles, LayoutGrid } from 'lucide-react';
+import { UserPlus, User, Mail, Lock, AlertCircle, Sparkles, LayoutGrid, Building } from 'lucide-react';
 import { verifyInvitationToken } from '../../api/invitations';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -12,6 +12,7 @@ export default function RegisterForm({ onSwitchToLogin }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [inviteInfo, setInviteInfo] = useState(null);
@@ -63,7 +64,7 @@ export default function RegisterForm({ onSwitchToLogin }) {
     setIsSubmitting(true);
 
     try {
-      await registerUser(name, email, password, inviteInfo?.token);
+      await registerUser(name, email, password, inviteInfo?.token, companyName);
       navigate('/');
     } catch (err) {
       setErrorMsg(err.message || 'Registration failed.');
@@ -134,6 +135,17 @@ export default function RegisterForm({ onSwitchToLogin }) {
           placeholder="sarah@company.com"
           leftIcon={<Mail className="w-4 h-4" />}
         />
+
+        {!inviteDetails && !inviteInfo && (
+          <Input
+            label="Company or Team Name (Optional)"
+            type="text"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder="e.g. Acme Corp or Solarman"
+            leftIcon={<Building className="w-4 h-4" />}
+          />
+        )}
 
         <Input
           label="Password"

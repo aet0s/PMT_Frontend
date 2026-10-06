@@ -4,11 +4,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import InviteModal from '../components/Board/InviteModal';
 import * as invitationsApi from '../api/invitations';
 import * as boardsApi from '../api/boards';
+import * as workspacesApi from '../api/workspaces';
 
 describe('InviteModal and Members Page Wiring', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(boardsApi, 'getBoards').mockResolvedValue({ boards: [] });
+    vi.spyOn(workspacesApi, 'getWorkspaceRoles').mockResolvedValue({ roles: [] });
   });
 
   it('renders InviteModal with workspace context even when board is null', () => {
@@ -82,6 +84,54 @@ describe('InviteModal and Members Page Wiring', () => {
     expect(writeTextMock).toHaveBeenCalledWith('https://pmt.solarman.in/register?invite_token=acme.token123.sig456&email=colleague%40company.com');
     await waitFor(() => {
       expect(screen.getByText(/Copied!/i)).toBeInTheDocument();
+    });
+  });
+
+  it('renders roles from matrix in InviteModal and passes selected role_id', async () => {
+    const mockWorkspace = { id: 10, name: 'Engineering Workspace' };
+    const mockRoles = [
+      { id: 1, name: 'Owner', is_system: 1, permission_keys: ['all'] },
+      { id: 2, name: 'Project Manager', is_system: 0, permission_keys: ['project.view', 'task.create'] },
+      { id: 3, name: 'Team Member', is_system: 1, permission_keys: ['project.view'] }
+    ];
+
+    vi.spyOn(workspacesApi, 'getWorkspaceRoles').mockResolvedValue({ roles: mockRoles });
+    const inviteSpy = vi.spyOn(invitationsApi, 'inviteMembers').mockResolvedValue({
+      requires_registration: true,
+      invite_token: 'token123',
+      role_name: 'Team Member'
+    });
+
+    render(
+      <InviteModal
+        isOpen={true}
+        onClose={vi.fn()}
+        currentWorkspace={mockWorkspace}
+        workspaces={[mockWorkspace]}
+        currentBoard={null}
+      />
+    );
+
+    // Wait for roles to load
+    await waitFor(() => {
+      expect(screen.getByText(/Team Member/i)).toBeInTheDocument();
+    });
+
+    // Enter email
+    const emailInput = screen.getByPlaceholderText('user@company.com');
+    fireEvent.change(emailInput, { target: { value: 'pm@company.com' } });
+
+    // Submit
+    const submitBtn = screen.getByRole('button', { name: /Send Invitation/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(inviteSpy).toHaveBeenCalledWith(
+        'pm@company.com',
+        10,
+        [],
+        expect.any(Number)
+      );
     });
   });
 });

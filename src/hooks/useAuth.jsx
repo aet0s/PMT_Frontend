@@ -67,10 +67,10 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const registerUser = async (name, email, password, inviteToken) => {
+  const registerUser = async (name, email, password, inviteToken, companyName) => {
     setError(null);
     try {
-      const data = await register(name, email, password, inviteToken);
+      const data = await register(name, email, password, inviteToken, companyName);
       if (data.initial_workspace_id) {
         localStorage.setItem('activeWorkspaceId', data.initial_workspace_id);
       }

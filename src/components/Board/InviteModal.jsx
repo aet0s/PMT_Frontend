@@ -4,9 +4,10 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Checkbox from '../ui/Checkbox';
 import Select from '../ui/Select';
-import { Mail, LayoutGrid, Copy, Check, Sparkles, UserPlus } from 'lucide-react';
+import { Mail, LayoutGrid, Copy, Check, Sparkles, UserPlus, Shield } from 'lucide-react';
 import { inviteMembers } from '../../api/invitations';
 import { getBoards } from '../../api/boards';
+import { getWorkspaceRoles } from '../../api/workspaces';
 
 export default function InviteModal({
   isOpen,
@@ -18,6 +19,9 @@ export default function InviteModal({
 }) {
   const [email, setEmail] = useState('');
   const [selectedWsId, setSelectedWsId] = useState('');
+  const [roles, setRoles] = useState([]);
+  const [selectedRoleId, setSelectedRoleId] = useState('');
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false);
   const [availableBoards, setAvailableBoards] = useState([]);
   const [selectedBoardIds, setSelectedBoardIds] = useState([]);
   const [isLoadingBoards, setIsLoadingBoards] = useState(false);
@@ -43,6 +47,8 @@ export default function InviteModal({
       if (!isOpen) {
         setAvailableBoards([]);
         setSelectedBoardIds([]);
+        setRoles([]);
+        setSelectedRoleId('');
       }
       return;
     }
@@ -67,7 +73,27 @@ export default function InviteModal({
       }
     };
 
+    const fetchWorkspaceRoles = async () => {
+      setIsLoadingRoles(true);
+      try {
+        const data = await getWorkspaceRoles(selectedWsId);
+        const assignableRoles = (data.roles || []).filter(
+          (r) => r.name !== 'Owner' && r.name !== 'Super Admin'
+        );
+        setRoles(assignableRoles);
+        const defaultRole = assignableRoles.find((r) => r.name === 'Team Member') || assignableRoles[0];
+        if (defaultRole) {
+          setSelectedRoleId(String(defaultRole.id));
+        }
+      } catch (err) {
+        console.error('Failed to load roles for invitation:', err);
+      } finally {
+        setIsLoadingRoles(false);
+      }
+    };
+
     fetchWorkspaceBoards();
+    fetchWorkspaceRoles();
   }, [isOpen, selectedWsId, currentBoard]);
 
   if (!isOpen) return null;
@@ -103,22 +129,32 @@ export default function InviteModal({
 
     setIsSubmitting(true);
     try {
-      const res = await inviteMembers(email.trim(), Number(selectedWsId), selectedBoardIds);
+      const res = await inviteMembers(
+        email.trim(),
+        Number(selectedWsId),
+        selectedBoardIds,
+        selectedRoleId ? Number(selectedRoleId) : null
+      );
       const inviteUrl = res.invite_url || (res.invite_token
         ? `${window.location.origin}/register?invite_token=${res.invite_token}&email=${encodeURIComponent(email.trim())}`
         : null);
 
+      const assignedRoleObj = roles.find((r) => String(r.id) === String(selectedRoleId));
+      const roleDisplayName = res.role_name || assignedRoleObj?.name || 'Team Member';
+
       if (res.requires_registration) {
         setInviteResult({
           type: 'new_user',
-          message: res.message || 'Invitation created! Share the registration link below to complete signup:',
-          inviteUrl
+          message: res.message || `Invitation created as ${roleDisplayName}! Share the registration link below with the user to complete signup:`,
+          inviteUrl,
+          roleName: roleDisplayName
         });
       } else {
         setInviteResult({
           type: 'existing_user',
-          message: `${email} was added to the workspace and boards. You can also copy the direct link below for testing:`,
-          inviteUrl
+          message: `${email} was added as ${roleDisplayName} to the workspace and selected boards. You can also copy the direct link below for testing:`,
+          inviteUrl,
+          roleName: roleDisplayName
         });
       }
 
@@ -231,6 +267,24 @@ export default function InviteModal({
                   label: `${ws.name} (${ws.role || 'member'})`
                 }))}
               />
+            </div>
+
+            <div>
+              <Select
+                label="Assigned Role"
+                value={selectedRoleId}
+                disabled={isLoadingRoles}
+                onChange={(val) => setSelectedRoleId(val)}
+                options={roles.length > 0 ? roles.map((r) => ({
+                  value: String(r.id),
+                  label: `${r.name} (${(r.permission_keys || []).length} permissions)`
+                })) : [
+                  { value: '', label: isLoadingRoles ? 'Loading roles...' : 'Team Member (Default)' }
+                ]}
+              />
+              <p className="text-[11px] text-text-muted mt-1">
+                Permissions granted to the invited member will follow this role.
+              </p>
             </div>
 
             <div>

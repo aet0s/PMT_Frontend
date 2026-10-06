@@ -70,10 +70,10 @@ export async function deleteComment(commentId) {
   });
 }
 
-export async function addChecklist(cardId, title) {
+export async function addChecklist(cardId, title, items = []) {
   return apiFetch(`/api/cards/${cardId}/checklists`, {
     method: 'POST',
-    body: JSON.stringify({ title })
+    body: JSON.stringify({ title, items })
   });
 }
 

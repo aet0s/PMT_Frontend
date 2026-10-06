@@ -233,7 +233,7 @@ export default function WorkspaceSidebar({
 
         <div className="pt-3 border-t border-border flex flex-col items-center gap-2 shrink-0 w-full px-2">
           <NavLink
-            to="/account/profile"
+            to={`/w/${activeWorkspace?.id}/profile`}
             title="My Profile"
             aria-label="My Profile"
             className={({ isActive }) =>
@@ -615,7 +615,7 @@ export default function WorkspaceSidebar({
         {/* Bottom Navigation Footer: My Profile, Settings & Logout */}
         <div className="p-3.5 border-t border-border bg-surface-muted/60 flex flex-col gap-2 shrink-0">
           <NavLink
-            to="/account/profile"
+            to={`/w/${activeWorkspace?.id}/profile`}
             onClick={() => { if (onCloseMobile) onCloseMobile(); }}
             className={({ isActive }) =>
               `w-full flex items-center justify-between p-2 rounded-xl border cursor-pointer transition-all group min-h-[44px] text-left ${

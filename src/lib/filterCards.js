@@ -1,9 +1,8 @@
 /**
  * Filter card logic for board search and filtering
- * @param {Object} card 
- * @param {Object} filters { searchQuery, filterMemberId, filterLabelId, filterDueDate }
- * @returns {boolean}
  */
+import { parseSafeDate } from './dateFormat';
+
 export function matchesCardFilter(card, {
   searchQuery = '',
   filterMemberId = null,
@@ -18,18 +17,31 @@ export function matchesCardFilter(card, {
   }
 
   if (filterMemberId) {
-    const isMember = (card.members || []).some((m) => m.id === filterMemberId);
+    const isMember = (card.members || []).some(
+      (m) =>
+        m.id === filterMemberId ||
+        m.user_id === filterMemberId ||
+        Number(m.id) === Number(filterMemberId) ||
+        Number(m.user_id) === Number(filterMemberId)
+    );
     if (!isMember) return false;
   }
 
   if (filterLabelId) {
-    const hasLabel = (card.labels || []).some((l) => l.id === filterLabelId);
+    const hasLabel = (card.labels || []).some(
+      (l) =>
+        l.id === filterLabelId ||
+        l.label_id === filterLabelId ||
+        Number(l.id) === Number(filterLabelId) ||
+        Number(l.label_id) === Number(filterLabelId)
+    );
     if (!hasLabel) return false;
   }
 
   if (filterDueDate && filterDueDate !== 'all') {
     if (!card.due_date) return false;
-    const due = new Date(card.due_date);
+    const due = parseSafeDate(card.due_date);
+    if (!due) return false;
     const now = new Date();
     if (filterDueDate === 'overdue' && (due >= now || card.is_complete)) return false;
     if (filterDueDate === 'soon') {

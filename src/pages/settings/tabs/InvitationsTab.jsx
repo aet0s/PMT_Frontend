@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Copy, Check, Trash2, Clock, Sparkles } from 'lucide-react';
+import { Mail, Copy, Check, Trash2, Clock, Sparkles, RefreshCw } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import { useToast } from '../../../components/ui/Toast';
-import { getWorkspaceInvitations, revokeInvitation } from '../../../api/invitations';
+import { getWorkspaceInvitations, revokeInvitation, regenerateInvitation } from '../../../api/invitations';
 import { formatDate } from '../../../lib/dateFormat';
 import { usePermissions } from '../../../context/PermissionContext';
 import { useSocket } from '../../../context/SocketProvider';
@@ -17,6 +17,7 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
   const [invitations, setInvitations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState(null);
+  const [regeneratingId, setRegeneratingId] = useState(null);
 
   const loadInvitations = async () => {
     if (!workspace?.id) return;
@@ -65,11 +66,43 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
   }, [socket, workspace?.id, originId]);
 
   const handleCopyLink = (inv) => {
-    const inviteUrl = `${window.location.origin}/invite?invite_token=${inv.token}`;
+    const inviteUrl = inv.invite_url || (inv.token
+      ? `${window.location.origin}/register?invite_token=${inv.token}&email=${encodeURIComponent(inv.email)}`
+      : `${window.location.origin}/register`);
     navigator.clipboard.writeText(inviteUrl);
     setCopiedId(inv.id);
     toast.show('Invite link copied to clipboard', 'info');
     setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const handleRegenerate = async (inv) => {
+    setRegeneratingId(inv.id);
+    try {
+      const res = await regenerateInvitation(inv.id);
+      const newUrl = res.invite_url || (res.invite_token
+        ? `${window.location.origin}/register?invite_token=${res.invite_token}&email=${encodeURIComponent(inv.email)}`
+        : null);
+
+      setInvitations((prev) =>
+        prev.map((i) =>
+          i.id === inv.id
+            ? { ...i, token: res.invite_token, invite_url: newUrl, expires_at: res.expires_at }
+            : i
+        )
+      );
+
+      if (newUrl) {
+        navigator.clipboard.writeText(newUrl);
+        setCopiedId(inv.id);
+        setTimeout(() => setCopiedId(null), 2500);
+      }
+
+      toast.show('New invitation link generated and copied to clipboard!', 'success');
+    } catch (err) {
+      toast.show(err.message || 'Failed to regenerate invitation', 'error');
+    } finally {
+      setRegeneratingId(null);
+    }
   };
 
   const handleRevoke = async (invId) => {
@@ -88,7 +121,7 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl text-left">
+    <div className="space-y-6 w-full text-left">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-text-primary tracking-tight">Active Invitations</h2>
@@ -149,6 +182,18 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
                 >
                   {copiedId === inv.id ? 'Copied' : 'Copy Link'}
                 </Button>
+
+                {canInvite && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    isLoading={regeneratingId === inv.id}
+                    onClick={() => handleRegenerate(inv)}
+                    leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                  >
+                    Regenerate
+                  </Button>
+                )}
 
                 {canInvite && (
                   <Button

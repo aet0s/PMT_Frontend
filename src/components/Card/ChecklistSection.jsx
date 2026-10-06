@@ -28,7 +28,7 @@ export default function ChecklistSection({
     <div className="space-y-6 mb-6">
       {checklists.map((ch) => {
         const items = ch.items || [];
-        const completedCount = items.filter((i) => i.is_checked).length;
+        const completedCount = items.filter((i) => Boolean(i.is_checked)).length;
         const progressPct = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
 
         return (
@@ -49,21 +49,23 @@ export default function ChecklistSection({
               </button>
             </div>
 
-            {/* Progress Bar */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-text-secondary w-8 shrink-0">{progressPct}%</span>
-              <div className="flex-1 h-2 bg-surface-muted rounded-full overflow-hidden border border-border">
-                <div
-                  className={`h-full transition-all duration-300 rounded-full ${
-                    progressPct === 100 ? 'bg-success' : 'bg-primary'
-                  }`}
-                  style={{ width: `${progressPct}%` }}
-                />
+            {/* Progress Bar (Only render when checklist has items) */}
+            {items.length > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-text-secondary w-8 shrink-0">{progressPct}%</span>
+                <div className="flex-1 h-2 bg-surface-muted rounded-full overflow-hidden border border-border">
+                  <div
+                    className={`h-full transition-all duration-300 rounded-full ${
+                      progressPct === 100 ? 'bg-success' : 'bg-primary'
+                    }`}
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-medium text-text-muted shrink-0">
+                  {completedCount}/{items.length}
+                </span>
               </div>
-              <span className="text-[10px] font-medium text-text-muted shrink-0">
-                {completedCount}/{items.length}
-              </span>
-            </div>
+            )}
 
             {/* Items List */}
             <div className="space-y-1 pl-1">
@@ -72,21 +74,22 @@ export default function ChecklistSection({
                   key={item.id}
                   className="flex items-center justify-between p-2 hover:bg-surface-muted rounded-lg group transition-colors"
                 >
-                  <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     <CustomCheckbox
-                      checked={item.is_checked}
+                      checked={Boolean(item.is_checked)}
                       onChange={(checked) => onUpdateChecklistItem(item.id, { is_checked: checked })}
                       size="sm"
                     />
 
                     <span
-                      className={`text-xs select-none truncate transition-colors ${
+                      onClick={() => onUpdateChecklistItem(item.id, { is_checked: !item.is_checked })}
+                      className={`text-xs select-none truncate transition-colors flex-1 cursor-pointer ${
                         item.is_checked ? 'line-through text-text-muted' : 'text-text-primary'
                       }`}
                     >
                       {item.text}
                     </span>
-                  </label>
+                  </div>
 
                   <button
                     type="button"

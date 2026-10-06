@@ -18,7 +18,18 @@ export const PALETTES = [
 export function getBoardBgClass(bgClass) {
   if (!bgClass) return DEFAULT_BOARD_BG;
   const match = PALETTES.find((p) => p.bg === bgClass);
-  return match ? match.bg : DEFAULT_BOARD_BG;
+  if (match) return match.bg;
+  if (typeof bgClass === 'string' && (bgClass.startsWith('bg-board-') || bgClass.startsWith('bg-'))) {
+    return bgClass;
+  }
+  return DEFAULT_BOARD_BG;
+}
+
+export function getBoardStyle(bgClass) {
+  if (typeof bgClass === 'string' && (bgClass.startsWith('#') || bgClass.startsWith('rgb'))) {
+    return { backgroundColor: bgClass };
+  }
+  return {};
 }
 
 export function getThemeDotClass(bgClass) {

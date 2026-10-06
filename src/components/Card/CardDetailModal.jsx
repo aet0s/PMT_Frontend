@@ -262,7 +262,7 @@ export default function CardDetailModal({
         isOpen={activePopover === 'checklist'}
         onClose={() => setActivePopover(null)}
         anchorRef={activeAnchorRef}
-        onAddChecklist={(title) => onAddChecklist(card.id, title)}
+        onAddChecklist={(title, items) => onAddChecklist(card.id, title, items)}
       />
 
       <AttachmentPopover

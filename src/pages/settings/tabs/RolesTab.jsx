@@ -7,7 +7,7 @@ export default function RolesTab({ workspace }) {
   const toast = useToast();
 
   return (
-    <div className="space-y-6 text-left">
+    <div className="space-y-6 w-full text-left">
       <div>
         <h2 className="text-lg font-bold text-text-primary tracking-tight">Roles & Permissions</h2>
         <p className="text-xs text-text-secondary mt-0.5">

@@ -71,7 +71,8 @@ export function useBoardSocket(boardId, onBoardEvent, onRefreshBoard) {
       'comment:added',
       'member:added',
       'member:removed',
-      'checklist_item:toggled'
+      'checklist_item:toggled',
+      'board:activity'
     ];
 
     events.forEach((evt) => {

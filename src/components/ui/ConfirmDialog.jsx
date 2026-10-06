@@ -30,6 +30,14 @@ export function ConfirmDialog({
 
   const confirmVariant = variant === 'danger' ? 'danger' : 'primary';
 
+  const handleConfirm = async (e) => {
+    try {
+      await onConfirm?.(e);
+    } finally {
+      onCancel?.();
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -43,7 +51,7 @@ export function ConfirmDialog({
           </Button>
           <Button
             variant={confirmVariant}
-            onClick={onConfirm}
+            onClick={handleConfirm}
             isLoading={isLoading}
           >
             {confirmText}

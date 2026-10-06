@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   RefreshCw,
@@ -32,8 +32,8 @@ export default function BoardActivityDrawer({
 
   const filteredActivity = activity.filter((item) => {
     if (filterType === 'all') return true;
-    if (filterType === 'move') return item.action_type === 'moved_card';
-    if (filterType === 'comment') return item.action_type === 'added_comment';
+    if (filterType === 'move') return item.action_type === 'moved_card' || item.action_type === 'list_reordered';
+    if (filterType === 'comment') return item.action_type === 'added_comment' || item.type === 'comment';
     if (filterType === 'member') return item.action_type?.includes('member');
     return true;
   });

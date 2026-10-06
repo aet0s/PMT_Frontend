@@ -13,9 +13,9 @@ export default function CustomCheckbox({
   name,
   id
 }) {
-  const handleClick = (e) => {
+  const handleInputChange = (e) => {
     if (disabled || !onChange) return;
-    onChange(!checked, e);
+    onChange(e.target.checked, e);
   };
 
   const handleKeyDown = (e) => {
@@ -43,15 +43,14 @@ export default function CustomCheckbox({
       className={`inline-flex items-start gap-2.5 select-none cursor-pointer group ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
       } ${className}`}
-      onClick={handleClick}
     >
       <input
         type="checkbox"
         id={id}
         name={name}
-        checked={checked}
+        checked={Boolean(checked)}
         disabled={disabled}
-        onChange={() => {}}
+        onChange={handleInputChange}
         className="sr-only"
       />
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePermissions } from '../../context/PermissionContext';
+import { useAuth } from '../../hooks/useAuth';
 import ActivityItem from './ActivityItem';
 import {
   MessageSquare,
@@ -8,7 +9,7 @@ import {
   ToggleRight,
   FileEdit
 } from 'lucide-react';
-import { getDraft, setDraft, clearDraft } from '../../lib/storage';
+import { getDraft, setDraft, clearDraft, getTenantItem, setTenantItem } from '../../lib/storage';
 
 export default function CommentsActivitySidebar({
   card,
@@ -16,10 +17,19 @@ export default function CommentsActivitySidebar({
   onAddComment,
   onDeleteComment
 }) {
+  const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const canComment = hasPermission('card.comment');
 
-  const [showDetails, setShowDetails] = useState(true);
+  const [showDetails, setShowDetails] = useState(() =>
+    Boolean(getTenantItem(user?.tenant_id, 'card_show_details', false))
+  );
+
+  // Sync preference if user/tenant changes
+  useEffect(() => {
+    const saved = getTenantItem(user?.tenant_id, 'card_show_details', false);
+    setShowDetails(Boolean(saved));
+  }, [user?.tenant_id]);
   const [commentText, setCommentText] = useState('');
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,11 +87,12 @@ export default function CommentsActivitySidebar({
   }));
 
   const activityFeed = (boardActivity || [])
-    .filter((a) => a.card_id === card.id)
+    .filter((a) => Number(a.card_id) === Number(card.id) && a.action_type !== 'added_comment')
     .map((a) => ({
       id: `act-${a.id}`,
       type: 'activity',
       user_name: a.user_name,
+      card_title: a.card_title || card.title,
       action_type: a.action_type,
       meta_json: a.meta_json,
       created_at: a.created_at
@@ -155,7 +166,11 @@ export default function CommentsActivitySidebar({
 
         <button
           type="button"
-          onClick={() => setShowDetails(!showDetails)}
+          onClick={() => {
+            const nextVal = !showDetails;
+            setShowDetails(nextVal);
+            setTenantItem(user?.tenant_id, 'card_show_details', nextVal);
+          }}
           className="flex items-center gap-1.5 text-xs font-medium text-text-secondary hover:text-text-primary cursor-pointer"
         >
           <span>Show details</span>

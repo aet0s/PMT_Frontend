@@ -233,11 +233,21 @@ export default function Board({
   const [isAddingList, setIsAddingList] = useState(false);
 
   const boardMenuRef = useRef(null);
+  const paletteRef = useRef(null);
+  const paletteButtonRef = useRef(null);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
       if (boardMenuRef.current && !boardMenuRef.current.contains(event.target)) {
         setIsBoardMenuOpen(false);
+      }
+      if (
+        paletteRef.current &&
+        !paletteRef.current.contains(event.target) &&
+        paletteButtonRef.current &&
+        !paletteButtonRef.current.contains(event.target)
+      ) {
+        setIsPaletteOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -633,6 +643,7 @@ export default function Board({
           {/* Theme Palette Button */}
           {canEditBoard && (
             <button
+              ref={paletteButtonRef}
               type="button"
               onClick={() => setIsPaletteOpen(!isPaletteOpen)}
               className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
@@ -726,34 +737,34 @@ export default function Board({
 
         <div className="min-w-[130px] flex-1 sm:flex-initial">
           <Select
-            value={filterMemberId || ''}
+            value={filterMemberId !== null && filterMemberId !== undefined ? String(filterMemberId) : ''}
             onChange={(val) => setFilterMemberId(val ? Number(val) : null)}
             placeholder="All Members"
             size="sm"
             options={[
               { value: '', label: 'All Members' },
-              ...(board.members || []).map((m) => ({ value: m.id, label: m.name }))
+              ...(board.members || []).map((m) => ({ value: String(m.id), label: m.name }))
             ]}
           />
         </div>
 
         <div className="min-w-[130px] flex-1 sm:flex-initial">
           <Select
-            value={filterLabelId || ''}
+            value={filterLabelId !== null && filterLabelId !== undefined ? String(filterLabelId) : ''}
             onChange={(val) => setFilterLabelId(val ? Number(val) : null)}
             placeholder="All Labels"
             size="sm"
             options={[
               { value: '', label: 'All Labels' },
-              ...uniqueLabels.map((l) => ({ value: l.id, label: l.name }))
+              ...uniqueLabels.map((l) => ({ value: String(l.id), label: l.name }))
             ]}
           />
         </div>
 
         <div className="min-w-[120px] flex-1 sm:flex-initial">
           <Select
-            value={filterDueDate}
-            onChange={(val) => setFilterDueDate(val)}
+            value={filterDueDate || 'all'}
+            onChange={(val) => setFilterDueDate(val || 'all')}
             size="sm"
             options={[
               { value: 'all', label: 'All Dates' },
@@ -903,7 +914,7 @@ export default function Board({
 
       {/* Board Theme Palette Picker */}
       {isPaletteOpen && (
-        <div className="absolute right-4 sm:right-20 top-18 bg-surface border border-border rounded-xl shadow-lg p-4 z-40 w-80 space-y-3 text-left">
+        <div ref={paletteRef} className="absolute right-4 sm:right-20 top-18 bg-surface border border-border rounded-xl shadow-lg p-4 z-40 w-80 space-y-3 text-left">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
               Board Background

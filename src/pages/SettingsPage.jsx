@@ -1,6 +1,6 @@
 // client/src/pages/SettingsPage.jsx
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
-import { useParams, useNavigate, useLocation, Link, NavLink } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Briefcase,
   Users,
@@ -15,9 +15,9 @@ import {
 } from 'lucide-react';
 import { usePermissions } from '../context/PermissionContext';
 import { useToast } from '../components/ui/Toast';
-import Select from '../components/ui/Select';
 import Spinner from '../components/ui/Spinner';
 import { useUnsavedChanges } from '../lib/useUnsavedChanges';
+import { getTenantItem, setTenantItem } from '../lib/storage';
 
 // Lazy-loaded tab components
 const GeneralTab = lazy(() => import('./settings/tabs/GeneralTab'));
@@ -42,20 +42,17 @@ export default function SettingsPage({
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
-  const { hasPermission, loading: permissionsLoading } = usePermissions();
+  const { userRole, hasPermission, loading: permissionsLoading } = usePermissions();
 
   const [formDirty, setFormDirty] = useState(false);
   const { setDirty } = useUnsavedChanges();
+
+  const tenantId = activeWorkspace?.company_id || activeWorkspace?.id || 'default';
 
   useEffect(() => {
     setDirty('settingsForm', formDirty);
     return () => setDirty('settingsForm', false);
   }, [formDirty, setDirty]);
-
-  // Extract active tab: propTab > routeTab > pathname regex > fallback 'general'
-  const pathMatch = location.pathname.match(/\/settings\/([^/?#]+)/);
-  const pathTab = pathMatch ? pathMatch[1] : null;
-  const tab = propTab || routeTab || pathTab || 'general';
 
   // Tab definitions with icons and permission requirements
   const allTabs = useMemo(
@@ -67,7 +64,7 @@ export default function SettingsPage({
       { id: 'project', label: 'Project Defaults', icon: <SlidersHorizontal className="w-4 h-4" />, perm: null },
       { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, perm: null },
       { id: 'data', label: 'Data & Export', icon: <Database className="w-4 h-4" />, perm: null },
-      { id: 'security-log', label: 'Security Log', icon: <ShieldAlert className="w-4 h-4" />, perm: 'audit.view' }
+      { id: 'security-log', label: 'Security Log', icon: <ShieldAlert className="w-4 h-4" />, perms: ['audit.view', 'company.manage_security'] }
     ],
     []
   );
@@ -75,27 +72,64 @@ export default function SettingsPage({
   // Filter allowed tabs based on permissions
   const allowedTabs = useMemo(() => {
     if (permissionsLoading) return allTabs;
-    return allTabs.filter((t) => !t.perm || hasPermission(t.perm));
+    return allTabs.filter((t) => {
+      if (t.perms) return t.perms.some((p) => hasPermission(p));
+      if (t.perm) return hasPermission(t.perm);
+      return true;
+    });
   }, [allTabs, hasPermission, permissionsLoading]);
 
-  // Redirect to first allowed tab if user lacks permission for requested tab
+  // Determine active tab: URL path > propTab > routeTab > stored tab > 'general'
+  const pathMatch = location.pathname.match(/\/settings\/([^/?#]+)/);
+  const pathTab = pathMatch ? pathMatch[1] : null;
+
+  const currentTabId = useMemo(() => {
+    if (pathTab && allTabs.some((t) => t.id === pathTab)) return pathTab;
+    if (propTab && allTabs.some((t) => t.id === propTab)) return propTab;
+    if (routeTab && allTabs.some((t) => t.id === routeTab)) return routeTab;
+    const stored = getTenantItem(tenantId, 'last_settings_tab', null);
+    if (stored && allTabs.some((t) => t.id === stored)) return stored;
+    return 'general';
+  }, [pathTab, propTab, routeTab, allTabs, tenantId]);
+
+  // Persist current tab whenever it changes
   useEffect(() => {
-    if (permissionsLoading) return;
-    const currentTabObj = allTabs.find((t) => t.id === tab);
-    if (currentTabObj?.perm && !hasPermission(currentTabObj.perm)) {
+    if (currentTabId) {
+      setTenantItem(tenantId, 'last_settings_tab', currentTabId);
+    }
+  }, [currentTabId, tenantId]);
+
+  // If path is just /settings without a tab suffix, redirect to persisted or default tab
+  useEffect(() => {
+    if (workspaceId && !pathTab) {
+      navigate(`/w/${workspaceId}/settings/${currentTabId}`, { replace: true });
+    }
+  }, [workspaceId, pathTab, currentTabId, navigate]);
+
+  // Redirect to first allowed tab if user lacks permission for requested tab
+  // (Guard: only run when permissions and role have loaded to prevent premature refresh redirection)
+  useEffect(() => {
+    if (permissionsLoading || !userRole) return;
+    const currentTabObj = allTabs.find((t) => t.id === currentTabId);
+    const hasAccess =
+      !currentTabObj ||
+      (!currentTabObj.perm && !currentTabObj.perms) ||
+      (currentTabObj.perms ? currentTabObj.perms.some((p) => hasPermission(p)) : hasPermission(currentTabObj.perm));
+    if (!hasAccess) {
       const fallbackTab = allowedTabs[0]?.id || 'general';
       toast.show('You do not have permission to view that settings tab', 'error');
       navigate(`/w/${workspaceId}/settings/${fallbackTab}`, { replace: true });
     }
-  }, [tab, allTabs, allowedTabs, hasPermission, permissionsLoading, workspaceId, navigate, toast]);
+  }, [currentTabId, allTabs, allowedTabs, hasPermission, permissionsLoading, userRole, workspaceId, navigate, toast]);
 
-  const currentTab = allowedTabs.find((t) => t.id === tab) || allowedTabs[0] || allTabs[0];
+  const currentTab = allowedTabs.find((t) => t.id === currentTabId) || allowedTabs[0] || allTabs[0];
 
   useEffect(() => {
     document.title = `${currentTab.label} - Workspace Settings | TaskFlow`;
   }, [currentTab]);
 
   const handleTabChange = (newTabId) => {
+    setTenantItem(tenantId, 'last_settings_tab', newTabId);
     navigate(`/w/${workspaceId}/settings/${newTabId}`);
   };
 
@@ -114,7 +148,7 @@ export default function SettingsPage({
             <span>Back</span>
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-          <span className="font-medium truncate max-w-[140px] text-text-secondary">
+          <span className="font-medium truncate max-w-[160px] text-text-secondary">
             {activeWorkspace?.name || 'Workspace'}
           </span>
           <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
@@ -124,60 +158,46 @@ export default function SettingsPage({
         </div>
       </header>
 
-      {/* Main Body */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Mobile Tab Selector (< 768px) */}
-        <div className="md:hidden p-4 bg-surface border-b border-border shrink-0">
-          <Select
-            label="Settings Section"
-            value={currentTab.id}
-            onChange={handleTabChange}
-            options={allowedTabs.map((t) => ({
-              value: t.id,
-              label: t.label,
-              icon: t.icon
-            }))}
-          />
+      {/* Top Horizontal Tabs Navigation Bar */}
+      <nav aria-label="Settings Tabs" className="border-b border-border bg-surface shrink-0">
+        <div className="px-6 md:px-8">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1.5">
+            {allowedTabs.map((t) => {
+              const isActive = t.id === currentTab.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleTabChange(t.id)}
+                  className={`group flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`}
+                >
+                  <span className={isActive ? 'text-primary' : 'text-text-muted group-hover:text-text-secondary transition-colors'}>
+                    {t.icon}
+                  </span>
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
+      </nav>
 
-        {/* Desktop Vertical Tab Sidebar (>= 768px) */}
-        <aside className="hidden md:flex w-64 border-r border-border bg-surface p-4 flex-col gap-1 shrink-0 overflow-y-auto">
-          <h1 className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-            Workspace Settings
-          </h1>
-          {allowedTabs.map((t) => {
-            const isActive = t.id === currentTab.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => handleTabChange(t.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-left transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-primary-tint text-primary-text font-bold shadow-xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                }`}
-              >
-                <span className={isActive ? 'text-primary' : 'text-text-muted'}>
-                  {t.icon}
-                </span>
-                <span className="truncate">{t.label}</span>
-              </button>
-            );
-          })}
-        </aside>
-
-        {/* Tab Content Panel */}
-        <main
-          id="main-content"
-          tabIndex={-1}
-          className="flex-1 overflow-y-auto p-6 md:p-8 bg-app"
-        >
+      {/* Tab Content Panel */}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 overflow-y-auto bg-app"
+      >
+        <div className="max-w-7xl mx-auto px-6 md:px-8 py-6 w-full">
           <Suspense
             fallback={
-              <div className="p-12 flex flex-col items-center justify-center space-y-3">
+              <div className="p-16 flex flex-col items-center justify-center space-y-3">
                 <Spinner size="lg" />
-                <p className="text-xs text-text-secondary font-medium">Loading settings tab...</p>
+                <p className="text-xs text-text-secondary font-medium">Loading settings...</p>
               </div>
             }
           >
@@ -224,8 +244,8 @@ export default function SettingsPage({
               <SecurityLogTab workspace={activeWorkspace} />
             )}
           </Suspense>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

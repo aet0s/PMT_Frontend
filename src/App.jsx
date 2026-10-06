@@ -14,7 +14,7 @@ import { ToastProvider } from './components/ui/Toast';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { UnsavedChangesProvider } from './context/UnsavedChangesContext';
 import Spinner from './components/ui/Spinner';
-import { getTenantItem } from './lib/storage';
+import { getTenantItem, setTenantItem, removeTenantItem } from './lib/storage';
 import { getWorkspaces } from './api/workspaces';
 import { safeLazy } from './lib/safeLazy';
 
@@ -104,20 +104,21 @@ function RootRedirect() {
   useEffect(() => {
     async function determineHome() {
       if (!user) return;
-      const lastWsId = getTenantItem(user?.tenant_id, 'last_workspace_id', null);
-      if (lastWsId) {
-        setTargetUrl(`/w/${lastWsId}/home`);
-        return;
-      }
       try {
         const res = await getWorkspaces();
-        if (res.workspaces && res.workspaces.length > 0) {
-          setTargetUrl(`/w/${res.workspaces[0].id}/home`);
+        const activeWorkspaces = (res.workspaces || []).filter((w) => !w.is_archived);
+        if (activeWorkspaces.length > 0) {
+          const lastWsId = getTenantItem(user?.tenant_id, 'last_workspace_id', null);
+          const matched = activeWorkspaces.find((w) => String(w.id) === String(lastWsId));
+          const targetWs = matched || activeWorkspaces[0];
+          setTenantItem(user?.tenant_id, 'last_workspace_id', targetWs.id);
+          setTargetUrl(`/w/${targetWs.id}/home`);
         } else {
-          setTargetUrl('/w/new/home');
+          removeTenantItem(user?.tenant_id, 'last_workspace_id');
+          setTargetUrl('/w/none');
         }
       } catch {
-        setTargetUrl('/w/1/home');
+        setTargetUrl('/w/none');
       }
     }
     determineHome();
@@ -134,6 +135,42 @@ function RootRedirect() {
 function InviteRedirect() {
   const location = useLocation();
   return <Navigate to={`/register${location.search}`} replace />;
+}
+
+// Redirect top-level /account and /profile to the active workspace profile route
+function AccountRedirect() {
+  const { user } = useAuth();
+  const { tab } = useParams();
+  const [targetUrl, setTargetUrl] = React.useState(null);
+
+  useEffect(() => {
+    async function determineProfileUrl() {
+      if (!user) return;
+      try {
+        const res = await getWorkspaces();
+        const activeWorkspaces = (res.workspaces || []).filter((w) => !w.is_archived);
+        if (activeWorkspaces.length > 0) {
+          const lastWsId = getTenantItem(user?.tenant_id, 'last_workspace_id', null);
+          const matched = activeWorkspaces.find((w) => String(w.id) === String(lastWsId));
+          const targetWs = matched || activeWorkspaces[0];
+          setTenantItem(user?.tenant_id, 'last_workspace_id', targetWs.id);
+          const tabSuffix = tab ? `/${tab}` : '';
+          setTargetUrl(`/w/${targetWs.id}/profile${tabSuffix}`);
+        } else {
+          setTargetUrl('/w/none');
+        }
+      } catch {
+        setTargetUrl('/');
+      }
+    }
+    determineProfileUrl();
+  }, [user, tab]);
+
+  if (!targetUrl) {
+    return <LoadingScreen />;
+  }
+
+  return <Navigate to={targetUrl} replace />;
 }
 
 // Root layout providing unsaved changes guard, navigation manager, and suspense outlet
@@ -193,7 +230,7 @@ const router = createBrowserRouter([
         path: '/account',
         element: (
           <ProtectedRoute>
-            <Navigate to="/account/profile" replace />
+            <AccountRedirect />
           </ProtectedRoute>
         )
       },
@@ -201,7 +238,23 @@ const router = createBrowserRouter([
         path: '/account/:tab',
         element: (
           <ProtectedRoute>
-            <AccountPage />
+            <AccountRedirect />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/profile',
+        element: (
+          <ProtectedRoute>
+            <AccountRedirect />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/profile/:tab',
+        element: (
+          <ProtectedRoute>
+            <AccountRedirect />
           </ProtectedRoute>
         )
       },

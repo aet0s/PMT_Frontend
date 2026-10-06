@@ -5,7 +5,7 @@ import Board from '../components/Board/Board';
 import ConfirmModal from '../components/shared/ConfirmModal';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../hooks/useAuth';
-import { getTenantItem, setTenantItem } from '../lib/storage';
+import { getTenantItem, setTenantItem, removeTenantItem } from '../lib/storage';
 
 const CardDetailModal = React.lazy(() => import('../components/Card/CardDetailModal'));
 const CreateBoardModal = React.lazy(() => import('../components/Board/CreateBoardModal'));
@@ -19,6 +19,7 @@ const MembersPage = React.lazy(() => import('../pages/MembersPage'));
 const ActivityPage = React.lazy(() => import('../pages/ActivityPage'));
 const ReportsPage = React.lazy(() => import('../pages/ReportsPage'));
 const SettingsPage = React.lazy(() => import('../pages/SettingsPage'));
+const AccountPage = React.lazy(() => import('../pages/AccountPage'));
 const ListView = React.lazy(() => import('../components/Board/ListView'));
 const CalendarView = React.lazy(() => import('../components/Board/CalendarView'));
 const NotFoundPage = React.lazy(() => import('../pages/NotFoundPage'));
@@ -44,7 +45,7 @@ import {
   deleteAttachment
 } from '../api/cards';
 import { getArchive } from '../api/archive';
-import { LayoutGrid, Sparkles } from 'lucide-react';
+import { LayoutGrid, Sparkles, FolderKanban, Plus, Archive } from 'lucide-react';
 import { PermissionProvider } from '../context/PermissionContext';
 import { useSocket } from '../context/SocketProvider';
 import { useToast } from '../components/ui/Toast';
@@ -129,8 +130,15 @@ export default function BoardPage() {
       const fetchedWorkspaces = data.workspaces || [];
       setWorkspaces(fetchedWorkspaces);
 
-      if (!workspaceId) {
-        setIsNotFound(true);
+      if (!workspaceId || workspaceId === 'none') {
+        if (fetchedWorkspaces.length > 0) {
+          const targetWs = fetchedWorkspaces[0];
+          setTenantItem(user?.tenant_id, 'last_workspace_id', targetWs.id);
+          navigate(`/w/${targetWs.id}/home`, { replace: true });
+          return;
+        }
+        setActiveWorkspace(null);
+        setIsNotFound(false);
         return;
       }
 
@@ -140,17 +148,25 @@ export default function BoardPage() {
         setIsNotFound(false);
         setTenantItem(user?.tenant_id, 'last_workspace_id', matchedWs.id);
       } else {
-        // Workspace ID not found or unauthorized
-        setIsNotFound(true);
+        // Workspace ID not found in active workspaces
+        // If the user has other workspaces, redirect to the first available workspace home
+        if (fetchedWorkspaces.length > 0) {
+          const fallbackWs = fetchedWorkspaces[0];
+          setTenantItem(user?.tenant_id, 'last_workspace_id', fallbackWs.id);
+          navigate(`/w/${fallbackWs.id}/home`, { replace: true });
+          return;
+        }
+        // If no workspaces exist, show the workspace selection/creation view instead of 404
         setActiveWorkspace(null);
+        setIsNotFound(false);
       }
     } catch (err) {
       console.error('Failed to load workspaces:', err);
-      setIsNotFound(true);
+      setIsNotFound(false);
     } finally {
       setLoadingWorkspaces(false);
     }
-  }, [workspaceId, user?.tenant_id]);
+  }, [workspaceId, user?.tenant_id, navigate]);
 
   useEffect(() => {
     loadWorkspaces();
@@ -194,13 +210,15 @@ export default function BoardPage() {
     if (activeWorkspace?.id) {
       loadBoards(activeWorkspace.id);
     }
-  }, [activeWorkspace?.id, loadBoards]);
+  }, [activeWorkspace?.id, subPath, loadBoards]);
 
   // Load Active Board Details
-  const loadActiveBoard = useCallback(async (id) => {
+  const loadActiveBoard = useCallback(async (id, isSilent = false) => {
     const targetId = id || activeBoardIdRef.current;
     if (!targetId) return;
-    setLoading(true);
+    if (!isSilent) {
+      setLoading(true);
+    }
     try {
       const data = await getBoard(targetId);
       setBoardData(data.board);
@@ -209,7 +227,9 @@ export default function BoardPage() {
       console.error('Failed to load board details:', err);
       setIsNotFound(true);
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   }, [user?.tenant_id]);
 
@@ -286,9 +306,18 @@ export default function BoardPage() {
     }
   }, [subPath, activeWorkspace, boardData, currentView]);
 
-  // Handle Notification click navigation directly to card modal
-  const handleSelectNotificationCard = ({ cardId, boardId }) => {
-    navigate(`/w/${workspaceId}/p/${boardId}/board?card=${cardId}`);
+  // Handle Notification click navigation directly to card modal or board
+  const handleSelectNotificationCard = ({ cardId, boardId, workspaceId: notifWsId }) => {
+    const targetWsId = notifWsId || workspaceId;
+    if (boardId) {
+      if (cardId) {
+        navigate(`/w/${targetWsId}/p/${boardId}/board?card=${cardId}`);
+      } else {
+        navigate(`/w/${targetWsId}/p/${boardId}/board`);
+      }
+    } else if (targetWsId) {
+      navigate(`/w/${targetWsId}/home`);
+    }
   };
 
   // Handle Real-Time WebSocket Board & Card Events directly in React state
@@ -531,6 +560,17 @@ export default function BoardPage() {
           return { ...prevBoard, lists: updatedLists };
         }
 
+        case 'board:activity': {
+          const act = data.activity;
+          if (!act) return prevBoard;
+          const existing = (prevBoard.activity || []).some((a) => a.id === act.id);
+          if (existing) return prevBoard;
+          return {
+            ...prevBoard,
+            activity: [act, ...(prevBoard.activity || [])]
+          };
+        }
+
         default:
           return prevBoard;
       }
@@ -581,20 +621,40 @@ export default function BoardPage() {
       variant: 'warning',
       onConfirm: async () => {
         try {
-          await updateWorkspace(activeWorkspace.id, { is_archived: true });
+          const wsIdToArchive = activeWorkspace.id;
+          await updateWorkspace(wsIdToArchive, { is_archived: true });
+          removeTenantItem(user?.tenant_id, 'last_workspace_id');
+          removeTenantItem(user?.tenant_id, 'last_board_id');
           localStorage.removeItem('activeWorkspaceId');
           localStorage.removeItem('activeBoardId');
           setActiveWorkspace(null);
           setBoardData(null);
-          await loadWorkspaces();
-          if (isArchiveOpen) await loadArchive();
+
+          const data = await getWorkspaces();
+          const activeList = (data.workspaces || []).filter((w) => !w.is_archived);
+          setWorkspaces(activeList);
+
+          if (subPath === 'archive') {
+            await loadArchive();
+          }
+
+          if (activeList.length > 0) {
+            const nextWs = activeList[0];
+            setTenantItem(user?.tenant_id, 'last_workspace_id', nextWs.id);
+            navigate(`/w/${nextWs.id}/home`, { replace: true });
+          } else {
+            navigate('/w/none', { replace: true });
+          }
+
           toast.success('Workspace archived', {
             action: {
               label: 'Undo',
               onClick: async () => {
                 try {
-                  await updateWorkspace(activeWorkspace.id, { is_archived: false });
+                  await updateWorkspace(wsIdToArchive, { is_archived: false });
                   await loadWorkspaces();
+                  setTenantItem(user?.tenant_id, 'last_workspace_id', wsIdToArchive);
+                  navigate(`/w/${wsIdToArchive}/home`, { replace: true });
                   toast.success('Workspace restored');
                 } catch (e) { toast.error('Failed to undo'); }
               }
@@ -616,13 +676,30 @@ export default function BoardPage() {
       variant: 'danger',
       onConfirm: async () => {
         try {
-          await deleteWorkspace(activeWorkspace.id);
+          const wsIdToDelete = activeWorkspace.id;
+          await deleteWorkspace(wsIdToDelete);
+          removeTenantItem(user?.tenant_id, 'last_workspace_id');
+          removeTenantItem(user?.tenant_id, 'last_board_id');
           localStorage.removeItem('activeWorkspaceId');
           localStorage.removeItem('activeBoardId');
           setActiveWorkspace(null);
           setBoardData(null);
-          await loadWorkspaces();
-          if (isArchiveOpen) await loadArchive();
+
+          const data = await getWorkspaces();
+          const activeList = (data.workspaces || []).filter((w) => !w.is_archived);
+          setWorkspaces(activeList);
+
+          if (subPath === 'archive') {
+            await loadArchive();
+          }
+
+          if (activeList.length > 0) {
+            const nextWs = activeList[0];
+            setTenantItem(user?.tenant_id, 'last_workspace_id', nextWs.id);
+            navigate(`/w/${nextWs.id}/home`, { replace: true });
+          } else {
+            navigate('/w/none', { replace: true });
+          }
           toast.success('Workspace deleted');
         } catch (err) {
           toast.error(err?.message || 'Failed to delete workspace');
@@ -635,7 +712,14 @@ export default function BoardPage() {
     try {
       await updateWorkspace(workspaceId, { is_archived: false });
       await loadArchive();
-      await loadWorkspaces();
+      const data = await getWorkspaces();
+      const activeList = (data.workspaces || []).filter((w) => !w.is_archived);
+      setWorkspaces(activeList);
+      const restored = activeList.find((w) => w.id === workspaceId) || activeList[0];
+      if (restored) {
+        setActiveWorkspace(restored);
+        setTenantItem(user?.tenant_id, 'last_workspace_id', restored.id);
+      }
       toast.success('Workspace restored');
     } catch (err) {
       toast.error(err?.message || 'Failed to restore workspace');
@@ -652,7 +736,9 @@ export default function BoardPage() {
         try {
           await deleteWorkspace(workspaceId);
           await loadArchive();
-          await loadWorkspaces();
+          const data = await getWorkspaces();
+          const activeList = (data.workspaces || []).filter((w) => !w.is_archived);
+          setWorkspaces(activeList);
           toast.success('Workspace deleted');
         } catch (err) {
           toast.error(err?.message || 'Failed to delete workspace');
@@ -714,7 +800,7 @@ export default function BoardPage() {
     setBoardData((prev) => (prev && prev.id === boardId ? { ...prev, ...updates } : prev));
     try {
       await updateBoard(boardId, updates);
-      loadActiveBoard(boardId);
+      loadActiveBoard(boardId, true);
     } catch (err) {
       setBoards(prevBoards);
       setBoardData(prevBoardData);
@@ -735,14 +821,15 @@ export default function BoardPage() {
         const prevBoards = boards;
         setBoards((prev) => prev.filter((b) => b.id !== archivedBoardId));
         localStorage.removeItem('activeBoardId');
+        removeTenantItem(user?.tenant_id, 'last_board_id');
         setBoardData(null);
         try {
           await updateBoard(archivedBoardId, { is_archived: true });
           if (activeWorkspace) {
             await loadBoards(activeWorkspace.id);
-            navigate(`/w/${activeWorkspace.id}/home`);
+            navigate(`/w/${activeWorkspace.id}/home`, { replace: true });
           }
-          if (isArchiveOpen) await loadArchive();
+          if (subPath === 'archive') await loadArchive();
           toast.success('Board archived', {
             action: {
               label: 'Undo',
@@ -751,7 +838,7 @@ export default function BoardPage() {
                   await updateBoard(archivedBoardId, { is_archived: false });
                   if (activeWorkspace) {
                     await loadBoards(activeWorkspace.id);
-                    navigate(`/w/${activeWorkspace.id}/p/${archivedBoardId}/board`);
+                    navigate(`/w/${activeWorkspace.id}/p/${archivedBoardId}/board`, { replace: true });
                   }
                   toast.success('Board restored');
                 } catch (e) { toast.error('Failed to undo'); }
@@ -778,14 +865,15 @@ export default function BoardPage() {
         const prevBoards = boards;
         setBoards((prev) => prev.filter((b) => b.id !== targetBoardId));
         localStorage.removeItem('activeBoardId');
+        removeTenantItem(user?.tenant_id, 'last_board_id');
         setBoardData(null);
         try {
           await deleteBoard(targetBoardId);
           if (activeWorkspace) {
             await loadBoards(activeWorkspace.id);
-            navigate(`/w/${activeWorkspace.id}/home`);
+            navigate(`/w/${activeWorkspace.id}/home`, { replace: true });
           }
-          if (isArchiveOpen) await loadArchive();
+          if (subPath === 'archive') await loadArchive();
           toast.success('Board deleted successfully');
         } catch (err) {
           setBoards(prevBoards);
@@ -840,7 +928,7 @@ export default function BoardPage() {
           return { ...prev, lists: [...(prev.lists || []), { ...data.list, cards: [] }] };
         });
       }
-      loadActiveBoard(boardId);
+      loadActiveBoard(boardId, true);
     } catch (err) {
       toast.error(err?.message || 'Failed to create list');
     }
@@ -858,7 +946,7 @@ export default function BoardPage() {
     });
     try {
       await updateList(listId, updates);
-      loadActiveBoard(activeBoardIdRef.current);
+      loadActiveBoard(activeBoardIdRef.current, true);
     } catch (err) {
       setBoardData(prevBoardData);
       toast.error(err?.message || 'Failed to update list');
@@ -891,7 +979,7 @@ export default function BoardPage() {
     });
     try {
       await deleteList(listId);
-      loadActiveBoard(activeBoardIdRef.current);
+      loadActiveBoard(activeBoardIdRef.current, true);
       toast.success('List deleted');
     } catch (err) {
       setBoardData(prevBoardData);
@@ -916,7 +1004,7 @@ export default function BoardPage() {
           return { ...prev, lists: updatedLists };
         });
       }
-      await loadActiveBoard(activeBoardIdRef.current);
+      await loadActiveBoard(activeBoardIdRef.current, true);
     } catch (err) {
       toast.error(err?.message || 'Failed to create card');
     }
@@ -941,7 +1029,7 @@ export default function BoardPage() {
       }
 
       if (target.boardId === activeBoardIdRef.current) {
-        await loadActiveBoard(activeBoardIdRef.current);
+        await loadActiveBoard(activeBoardIdRef.current, true);
       }
       toast.success('Card copied');
     } catch (err) {
@@ -953,7 +1041,7 @@ export default function BoardPage() {
     try {
       await updateCard(cardId, { is_archived: false });
       await loadArchive();
-      if (activeBoardIdRef.current) await loadActiveBoard(activeBoardIdRef.current);
+      if (activeBoardIdRef.current) await loadActiveBoard(activeBoardIdRef.current, true);
       toast.success('Card restored');
     } catch (err) {
       toast.error(err?.message || 'Failed to restore card');
@@ -1056,7 +1144,7 @@ export default function BoardPage() {
               try {
                 await updateCard(cardId, { is_archived: false });
                 loadActiveBoard(activeBoardIdRef.current);
-                if (isArchiveOpen) await loadArchive();
+                if (subPath === 'archive') await loadArchive();
                 toast.success('Card restored');
               } catch (e) {
                 toast.error('Failed to undo card archive');
@@ -1121,9 +1209,9 @@ export default function BoardPage() {
     }
   };
 
-  const handleAddChecklist = async (cardId, title) => {
+  const handleAddChecklist = async (cardId, title, items = []) => {
     try {
-      await addChecklist(cardId, title);
+      await addChecklist(cardId, title, items);
       loadActiveBoard(activeBoardIdRef.current);
     } catch (err) {
       toast.error(err?.message || 'Failed to add checklist');
@@ -1161,7 +1249,7 @@ export default function BoardPage() {
         checklists: prev.checklists.map((ch) => ({
           ...ch,
           items: (ch.items || []).map((item) =>
-            item.id === itemId ? { ...item, ...updates } : item
+            Number(item.id) === Number(itemId) ? { ...item, ...updates } : item
           )
         }))
       };
@@ -1181,7 +1269,7 @@ export default function BoardPage() {
               checklists: c.checklists.map((ch) => ({
                 ...ch,
                 items: (ch.items || []).map((item) =>
-                  item.id === itemId ? { ...item, ...updates } : item
+                  Number(item.id) === Number(itemId) ? { ...item, ...updates } : item
                 )
               }))
             };
@@ -1343,15 +1431,94 @@ export default function BoardPage() {
             </div>
           ) : isNotFound ? (
             <NotFoundPage />
+          ) : !activeWorkspace && subPath !== 'archive' ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-app select-none">
+              <div className="w-16 h-16 rounded-2xl bg-primary-tint text-primary border border-primary/20 flex items-center justify-center mb-6 shadow-xs">
+                <FolderKanban className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-bold text-text-primary mb-2">
+                {workspaces.length > 0 ? 'Select a Workspace' : 'No Workspaces Found'}
+              </h2>
+              <p className="text-text-secondary max-w-md mb-6 text-sm leading-relaxed">
+                {workspaces.length > 0
+                  ? 'Choose a workspace from your list below to continue working, or create a new one.'
+                  : 'You do not have any active workspaces right now. Create a new workspace to start organizing your projects, or view archived workspaces to restore one.'}
+              </p>
+
+              {workspaces.length > 0 && (
+                <div className="w-full max-w-sm mb-6 space-y-2">
+                  <div className="text-xs font-semibold text-text-secondary uppercase tracking-wider text-left mb-1 px-1">
+                    Your Workspaces
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-1.5 p-1.5 bg-surface border border-border rounded-xl shadow-xs">
+                    {workspaces.map((ws) => (
+                      <button
+                        key={ws.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveWorkspace(ws);
+                          setTenantItem(user?.tenant_id, 'last_workspace_id', ws.id);
+                          navigate(`/w/${ws.id}/home`);
+                        }}
+                        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-surface-muted transition-colors cursor-pointer text-left border border-transparent hover:border-border"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-primary-tint text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                            {ws.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-sm font-medium text-text-primary truncate">{ws.name}</span>
+                        </div>
+                        <span className="text-xs text-primary font-semibold shrink-0">Open &rarr;</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.set('modal', 'create-workspace');
+                      return next;
+                    });
+                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-sm rounded-lg shadow-xs transition-all cursor-pointer min-h-[44px]"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create New Workspace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate('/w/none/archive');
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-surface hover:bg-surface-hover active:bg-surface-active text-text-secondary hover:text-text-primary font-medium text-sm rounded-lg border border-border shadow-xs transition-all cursor-pointer min-h-[44px]"
+                >
+                  <Archive className="w-4 h-4" />
+                  View Archived
+                </button>
+              </div>
+            </div>
           ) : subPath === 'home' ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
               <WorkspaceHomePage
                 workspace={activeWorkspace}
                 boards={boards}
+                user={user}
                 onCreateBoard={() => {
                   setSearchParams((prev) => {
                     const next = new URLSearchParams(prev);
                     next.set('modal', 'create-project');
+                    return next;
+                  });
+                }}
+                onOpenInvite={() => {
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set('modal', 'invite');
                     return next;
                   });
                 }}
@@ -1371,7 +1538,15 @@ export default function BoardPage() {
               <ArchivePage
                 archiveData={archiveData}
                 isLoading={archiveLoading}
-                onBack={() => navigate(`/w/${workspaceId}/home`)}
+                onBack={() => {
+                  if (activeWorkspace?.id) {
+                    navigate(`/w/${activeWorkspace.id}/home`);
+                  } else if (workspaces.length > 0) {
+                    navigate(`/w/${workspaces[0].id}/home`);
+                  } else {
+                    navigate('/w/none');
+                  }
+                }}
                 onRefresh={loadArchive}
                 onRestoreWorkspace={handleRestoreWorkspace}
                 onDeleteWorkspace={handleDeleteWorkspace}
@@ -1402,6 +1577,13 @@ export default function BoardPage() {
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
               <ReportsPage workspace={activeWorkspace} />
             </Suspense>
+          ) : subPath.startsWith('profile') || subPath.startsWith('account') ? (
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
+              <AccountPage
+                tab={pathParts[1]}
+                workspace={activeWorkspace}
+              />
+            </Suspense>
           ) : subPath.startsWith('settings') ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
               <SettingsPage
@@ -1421,7 +1603,7 @@ export default function BoardPage() {
               />
             </Suspense>
           ) : isProjectRoute ? (
-            loading ? (
+            loading && !boardData ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
                 <Spinner size="lg" />
                 <p className="text-xs font-semibold text-text-secondary">Loading Project...</p>
@@ -1482,7 +1664,7 @@ export default function BoardPage() {
                     return next;
                   });
                 }}
-                onRefreshBoard={() => loadActiveBoard(urlBoardId)}
+                onRefreshBoard={() => loadActiveBoard(urlBoardId, true)}
                 onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
                 onSelectNotificationCard={handleSelectNotificationCard}
                 onOpenAllNotifications={() => navigate(`/w/${workspaceId}/notifications`)}
@@ -1535,6 +1717,7 @@ export default function BoardPage() {
               boardMembers={boardData?.members || []}
               boardLabels={boardData?.labels || []}
               boardLists={boardData?.lists || []}
+              boardActivity={boardData?.activity || []}
               onUpdateCard={handleUpdateCard}
               onDeleteCard={handleDeleteCard}
               onToggleLabel={handleToggleLabel}

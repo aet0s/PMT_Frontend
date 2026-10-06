@@ -28,7 +28,18 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
         apiFetch(`/api/workspaces/${workspaceId}/roles`),
         apiFetch('/api/permissions')
       ]);
-      setRoles(rolesData.roles || []);
+      const rawRoles = rolesData.roles || [];
+      const seen = new Set();
+      const uniqueRoles = [];
+      for (const r of rawRoles) {
+        const normalizedName = (r.name || '').trim().toLowerCase();
+        if (r.is_system) {
+          if (seen.has(normalizedName)) continue;
+          seen.add(normalizedName);
+        }
+        uniqueRoles.push(r);
+      }
+      setRoles(uniqueRoles);
       setCategories(permsData.categories || []);
     } catch (err) {
       onToast?.(err.message || 'Failed to load roles and permissions', 'error');
@@ -261,19 +272,30 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
       </div>
 
       {/* MATRIX GRID VIEW */}
-      {viewMode === 'grid' && (
-        <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-xs">
-          <div className="overflow-x-auto max-h-[600px]">
-            <table className="w-full text-left border-collapse">
+      {viewMode === 'grid' && (() => {
+        const roleCount = Math.max(roles.length, 1);
+        const roleColPercent = Number((70 / roleCount).toFixed(2));
+        const permColPercent = Number((100 - roleColPercent * roles.length).toFixed(2));
+
+        return (
+          <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-xs w-full">
+            <div className="max-h-[680px] overflow-y-auto w-full">
+              <table className="w-full table-fixed text-left border-collapse">
+                <colgroup>
+                  <col style={{ width: `${permColPercent}%` }} />
+                  {roles.map((r) => (
+                    <col key={r.id} style={{ width: `${roleColPercent}%` }} />
+                  ))}
+                </colgroup>
               <thead className="sticky top-0 z-20 bg-surface-muted border-b border-border text-xs">
                 <tr>
-                  <th className="p-3.5 min-w-[260px] text-text-secondary font-semibold uppercase tracking-wider text-[11px] sticky left-0 z-30 bg-surface-muted border-r border-border">
+                  <th className="p-3 px-4 text-text-secondary font-semibold uppercase tracking-wider text-[11px] border-r border-border">
                     Permission / Scope
                   </th>
                   {roles.map((role) => (
-                    <th key={role.id} className="p-3.5 min-w-[140px] text-center font-semibold text-text-primary">
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-text-primary text-xs">{role.name}</span>
+                    <th key={role.id} className="p-3 px-2 text-center font-semibold text-text-primary border-l border-border">
+                      <div className="flex flex-col items-center gap-1 min-w-0">
+                        <span className="text-text-primary text-xs font-bold truncate max-w-full">{role.name}</span>
                         <div className="flex items-center gap-1">
                           {role.is_system ? (
                             <span className="px-1.5 py-0.5 bg-primary-tint text-primary-text border border-primary/20 rounded text-[9px] uppercase font-semibold">
@@ -328,17 +350,17 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
 
                       return (
                         <tr key={perm.key} className="hover:bg-surface-muted/50 transition">
-                          <td className="p-3 sticky left-0 z-10 bg-surface border-r border-border">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-text-primary text-xs">{perm.key}</span>
+                          <td className="p-2.5 px-4 border-r border-border min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-mono text-text-primary text-xs truncate">{perm.key}</span>
                               {isDangerous && (
-                                <span className="px-1.5 py-0.2 bg-danger-tint text-danger-text border border-danger/20 rounded text-[9px] font-medium flex items-center gap-0.5">
+                                <span className="px-1.5 py-0.2 bg-danger-tint text-danger-text border border-danger/20 rounded text-[9px] font-medium flex items-center gap-0.5 shrink-0">
                                   <AlertTriangle className="w-2.5 h-2.5" />
                                   Dangerous
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-text-secondary mt-0.5 font-sans">{perm.description}</p>
+                            <p className="text-[11px] text-text-secondary mt-0.5 font-sans truncate" title={perm.description}>{perm.description}</p>
                           </td>
 
                           {roles.map((role) => {
@@ -346,7 +368,7 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
                             const hasPerm = isOwnerRole || (role.permission_keys && role.permission_keys.includes(perm.key));
 
                             return (
-                              <td key={role.id} className="p-3 text-center border-l border-border">
+                              <td key={role.id} className="p-2.5 px-2 text-center border-l border-border">
                                 {hasPerm ? (
                                   <div className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-success-tint text-success-text border border-success/30">
                                     <Check className="w-3.5 h-3.5" />
@@ -368,7 +390,8 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
             </table>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ROLE CARDS VIEW */}
       {viewMode === 'cards' && (

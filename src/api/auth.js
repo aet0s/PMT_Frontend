@@ -14,10 +14,16 @@ export async function verifyLogin2Fa(temp_token, code) {
   });
 }
 
-export async function register(name, email, password, inviteToken) {
+export async function register(name, email, password, inviteToken, companyName) {
   return apiFetch('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password, invite_token: inviteToken })
+    body: JSON.stringify({
+      name,
+      email,
+      password,
+      invite_token: inviteToken,
+      company_name: companyName || undefined
+    })
   });
 }
 
