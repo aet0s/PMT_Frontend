@@ -12,14 +12,18 @@ export const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_SERVER_URL ||
   import.meta.env.VITE_API_TARGET ||
-  '';
+  (typeof window !== 'undefined' && window.location.hostname.includes('solarman.in')
+    ? 'https://pmtmgmt.solarman.in'
+    : '');
 
 export const SOCKET_URL =
   import.meta.env.VITE_SERVER_URL ||
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_TARGET ||
   (typeof window !== 'undefined'
-    ? (['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? (window.location.hostname.includes('solarman.in')
+        ? 'https://pmtmgmt.solarman.in'
+        : ['localhost', '127.0.0.1'].includes(window.location.hostname)
         ? `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.hostname}:5000`
         : window.location.origin)
     : 'http://localhost:5000');

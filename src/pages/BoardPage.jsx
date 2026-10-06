@@ -28,6 +28,7 @@ import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from
 import { getBoards, createBoard, getBoard, updateBoard, deleteBoard, addBoardMember, createBoardLabel } from '../api/boards';
 import { createList, updateList, deleteList } from '../api/lists';
 import {
+  getCard,
   createCard,
   updateCard,
   deleteCard,
@@ -276,6 +277,18 @@ export default function BoardPage() {
       if (found) {
         setSelectedCard(found);
       }
+      // Always fetch latest full card details (comments, attachments, checklists) from server
+      getCard(cardIdParam)
+        .then((data) => {
+          if (data?.card) {
+            setSelectedCard((current) =>
+              current && String(current.id) === String(cardIdParam)
+                ? { ...current, ...data.card }
+                : data.card
+            );
+          }
+        })
+        .catch(() => {});
     } else if (!cardIdParam) {
       setSelectedCard(null);
     }
@@ -431,7 +444,7 @@ export default function BoardPage() {
                 if (existing) return prevSelected;
                 return {
                   ...prevSelected,
-                  comments: [comment, ...(prevSelected.comments || [])]
+                  comments: [...(prevSelected.comments || []), comment]
                 };
               }
               return prevSelected;
@@ -441,7 +454,15 @@ export default function BoardPage() {
               ...l,
               cards: (l.cards || []).map((c) => {
                 if (c.id === cardId) {
-                  return { ...c, comments_count: (Number(c.comments_count) || 0) + 1 };
+                  const existingComments = c.comments || [];
+                  const updatedComments = existingComments.some((cm) => cm.id === comment.id)
+                    ? existingComments
+                    : [...existingComments, comment];
+                  return {
+                    ...c,
+                    comments: updatedComments,
+                    comments_count: (Number(c.comments_count) || 0) + 1
+                  };
                 }
                 return c;
               })

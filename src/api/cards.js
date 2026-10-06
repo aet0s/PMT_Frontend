@@ -1,5 +1,9 @@
 import { apiFetch } from './client';
 
+export async function getCard(id) {
+  return apiFetch(`/api/cards/${id}`);
+}
+
 export async function createCard(listId, title, description, position, dueDate) {
   return apiFetch('/api/cards', {
     method: 'POST',
