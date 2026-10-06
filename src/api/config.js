@@ -19,7 +19,9 @@ export const SOCKET_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_TARGET ||
   (typeof window !== 'undefined'
-    ? `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.hostname}:5000`
+    ? (['localhost', '127.0.0.1'].includes(window.location.hostname)
+        ? `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.hostname}:5000`
+        : window.location.origin)
     : 'http://localhost:5000');
 
 /**
