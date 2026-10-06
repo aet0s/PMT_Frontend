@@ -455,13 +455,14 @@ export default function BoardPage() {
               cards: (l.cards || []).map((c) => {
                 if (c.id === cardId) {
                   const existingComments = c.comments || [];
-                  const updatedComments = existingComments.some((cm) => cm.id === comment.id)
-                    ? existingComments
-                    : [...existingComments, comment];
+                  if (existingComments.some((cm) => cm.id === comment.id)) {
+                    return c;
+                  }
+                  const updatedComments = [...existingComments, comment];
                   return {
                     ...c,
                     comments: updatedComments,
-                    comments_count: (Number(c.comments_count) || 0) + 1
+                    comments_count: updatedComments.length
                   };
                 }
                 return c;
