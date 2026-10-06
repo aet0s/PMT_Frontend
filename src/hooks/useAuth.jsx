@@ -22,6 +22,37 @@ export function AuthProvider({ children }) {
       }
     }
     checkAuth();
+
+    const handleLogoutSync = () => {
+      setUser(null);
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login';
+      }
+    };
+
+    const handleStorage = (e) => {
+      if (e.key === 'pm_auth_logout') {
+        handleLogoutSync();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    let bc = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('pm_auth_sync');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'LOGOUT') {
+            handleLogoutSync();
+          }
+        };
+      } catch (e) {}
+    }
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      if (bc) bc.close();
+    };
   }, []);
 
   const loginUser = async (email, password) => {
@@ -62,6 +93,14 @@ export function AuthProvider({ children }) {
     } finally {
       if (user?.tenant_id) {
         clearTenantStorage(user.tenant_id);
+      }
+      localStorage.setItem('pm_auth_logout', Date.now().toString());
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const bc = new BroadcastChannel('pm_auth_sync');
+          bc.postMessage({ type: 'LOGOUT' });
+          bc.close();
+        } catch (e) {}
       }
       setUser(null);
     }

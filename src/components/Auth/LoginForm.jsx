@@ -10,8 +10,8 @@ export default function LoginForm({ onSwitchToRegister }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { loginUser } = useAuth();
-  const [email, setEmail] = useState('demo@company.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,12 +91,6 @@ export default function LoginForm({ onSwitchToRegister }) {
         >
           Register team account
         </Link>
-      </div>
-
-      <div className="mt-6 pt-4 border-t border-border text-center">
-        <p className="text-xs text-text-secondary">
-          Demo account prefilled: <span className="text-text-primary font-medium">demo@company.com</span> / <span className="text-text-primary font-medium">password123</span>
-        </p>
       </div>
     </div>
   );

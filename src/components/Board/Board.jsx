@@ -249,9 +249,10 @@ export default function Board({
   }, []);
 
   const { hasPermission } = usePermissions();
-  const canEditBoard = hasPermission('board.edit_settings');
-  const canDeleteBoard = hasPermission('board.delete');
-  const canManageBoardMembers = hasPermission('board.manage_members');
+  const canEditBoard = hasPermission('board.edit_settings') || hasPermission('project.edit_settings');
+  const canDeleteBoard = hasPermission('board.delete') || hasPermission('project.delete');
+  const canArchiveBoard = hasPermission('board.archive') || hasPermission('project.archive') || canEditBoard;
+  const canManageBoardMembers = hasPermission('board.manage_members') || hasPermission('project.manage_members');
   const canCreateList = hasPermission('list.create');
 
   const handleStartRename = () => {
@@ -642,7 +643,7 @@ export default function Board({
             </button>
           )}
 
-          {(canEditBoard || canDeleteBoard) && (
+          {(canEditBoard || canDeleteBoard || canArchiveBoard) && (
             <div className="relative" ref={boardMenuRef}>
               <button
                 type="button"
@@ -657,27 +658,27 @@ export default function Board({
               {isBoardMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-xl shadow-lg z-50 py-1 text-text-primary">
                   {canEditBoard && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleStartRename}
-                        className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left"
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-text-secondary" />
-                        Rename Board
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsBoardMenuOpen(false);
-                          if (onArchiveBoard) onArchiveBoard();
-                        }}
-                        className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-warning-text hover:bg-warning-tint transition-colors cursor-pointer text-left"
-                      >
-                        <Archive className="w-3.5 h-3.5 text-warning" />
-                        Archive Board
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      onClick={handleStartRename}
+                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-text-secondary" />
+                      Rename Board
+                    </button>
+                  )}
+                  {canArchiveBoard && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsBoardMenuOpen(false);
+                        if (onArchiveBoard) onArchiveBoard();
+                      }}
+                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-warning-text hover:bg-warning-tint transition-colors cursor-pointer text-left"
+                    >
+                      <Archive className="w-3.5 h-3.5 text-warning" />
+                      Archive Board
+                    </button>
                   )}
                   {canDeleteBoard && (
                     <button

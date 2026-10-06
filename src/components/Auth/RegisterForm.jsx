@@ -42,6 +42,24 @@ export default function RegisterForm({ onSwitchToLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+
+    if (!name.trim()) {
+      setErrorMsg('Full Name is required');
+      return;
+    }
+    if (!email.trim()) {
+      setErrorMsg('Email address is required');
+      return;
+    }
+    if (!password) {
+      setErrorMsg('Password is required');
+      return;
+    }
+    if (password.length < 8) {
+      setErrorMsg('Password must be at least 8 characters long');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {

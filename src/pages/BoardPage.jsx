@@ -585,7 +585,6 @@ export default function BoardPage() {
           localStorage.removeItem('activeWorkspaceId');
           localStorage.removeItem('activeBoardId');
           setActiveWorkspace(null);
-          setActiveBoardId(null);
           setBoardData(null);
           await loadWorkspaces();
           if (isArchiveOpen) await loadArchive();
@@ -621,7 +620,6 @@ export default function BoardPage() {
           localStorage.removeItem('activeWorkspaceId');
           localStorage.removeItem('activeBoardId');
           setActiveWorkspace(null);
-          setActiveBoardId(null);
           setBoardData(null);
           await loadWorkspaces();
           if (isArchiveOpen) await loadArchive();
@@ -690,10 +688,10 @@ export default function BoardPage() {
           setBoards((prev) => prev.map((b) => (b.id === tempId ? data.board : b)));
         }
         localStorage.setItem('activeBoardId', data.board.id);
-        setActiveBoardId(data.board.id);
         loadBoards(wsId);
         loadActiveBoard(data.board.id);
         toast.success('Board created');
+        navigate(`/w/${wsId}/p/${data.board.id}/board`);
         return data.board;
       }
       return null;
@@ -725,22 +723,25 @@ export default function BoardPage() {
   };
 
   const handleArchiveCurrentBoard = () => {
-    if (!activeBoardId || !boardData) return;
+    const targetBoardId = urlBoardId || boardData?.id;
+    if (!targetBoardId || !boardData) return;
     openConfirmModal({
       title: 'Archive Board',
       message: `Archive board "${boardData.name}"? You can restore it anytime from View Archived.`,
       confirmText: 'Archive Board',
       variant: 'warning',
       onConfirm: async () => {
-        const archivedBoardId = activeBoardId;
+        const archivedBoardId = targetBoardId;
         const prevBoards = boards;
         setBoards((prev) => prev.filter((b) => b.id !== archivedBoardId));
         localStorage.removeItem('activeBoardId');
-        setActiveBoardId(null);
         setBoardData(null);
         try {
           await updateBoard(archivedBoardId, { is_archived: true });
-          if (activeWorkspace) await loadBoards(activeWorkspace.id);
+          if (activeWorkspace) {
+            await loadBoards(activeWorkspace.id);
+            navigate(`/w/${activeWorkspace.id}/home`);
+          }
           if (isArchiveOpen) await loadArchive();
           toast.success('Board archived', {
             action: {
@@ -748,9 +749,10 @@ export default function BoardPage() {
               onClick: async () => {
                 try {
                   await updateBoard(archivedBoardId, { is_archived: false });
-                  if (activeWorkspace) await loadBoards(activeWorkspace.id);
-                  setActiveBoardId(archivedBoardId);
-                  await loadActiveBoard(archivedBoardId);
+                  if (activeWorkspace) {
+                    await loadBoards(activeWorkspace.id);
+                    navigate(`/w/${activeWorkspace.id}/p/${archivedBoardId}/board`);
+                  }
                   toast.success('Board restored');
                 } catch (e) { toast.error('Failed to undo'); }
               }
@@ -765,22 +767,24 @@ export default function BoardPage() {
   };
 
   const handleDeleteCurrentBoard = () => {
-    if (!activeBoardId || !boardData) return;
+    const targetBoardId = urlBoardId || boardData?.id;
+    if (!targetBoardId || !boardData) return;
     openConfirmModal({
       title: 'Delete Board',
       message: `Delete board "${boardData.name}" and all its cards? This action cannot be undone.`,
       confirmText: 'Delete Board',
       variant: 'danger',
       onConfirm: async () => {
-        const targetBoardId = activeBoardId;
         const prevBoards = boards;
         setBoards((prev) => prev.filter((b) => b.id !== targetBoardId));
         localStorage.removeItem('activeBoardId');
-        setActiveBoardId(null);
         setBoardData(null);
         try {
           await deleteBoard(targetBoardId);
-          if (activeWorkspace) await loadBoards(activeWorkspace.id);
+          if (activeWorkspace) {
+            await loadBoards(activeWorkspace.id);
+            navigate(`/w/${activeWorkspace.id}/home`);
+          }
           if (isArchiveOpen) await loadArchive();
           toast.success('Board deleted successfully');
         } catch (err) {
