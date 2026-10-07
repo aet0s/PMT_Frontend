@@ -34,6 +34,7 @@ export default function CardDetailModal({
   onMoveList,
   onToggleLabel,
   onToggleMember,
+  onToggleAssigner,
   onAddComment,
   onDeleteComment,
   onAddChecklist,
@@ -66,6 +67,11 @@ export default function CardDetailModal({
   const handleOpenMembers = (anchorRef) => {
     setActiveAnchorRef(anchorRef);
     setActivePopover('members');
+  };
+
+  const handleOpenAssigners = (anchorRef) => {
+    setActiveAnchorRef(anchorRef);
+    setActivePopover('assigners');
   };
 
   const handleOpenChecklist = (anchorRef) => {
@@ -159,10 +165,11 @@ export default function CardDetailModal({
               onOpenChecklist={handleOpenChecklist}
               onOpenAttachment={handleOpenAttachment}
               onOpenMembers={handleOpenMembers}
+              onOpenAssigners={handleOpenAssigners}
             />
 
-            {/* Rendered Selected Labels & Assignees */}
-            {((card.labels && card.labels.length > 0) || (card.members && card.members.length > 0)) && (
+            {/* Rendered Selected Labels, Assigners & Assignees */}
+            {((card.labels && card.labels.length > 0) || (card.assigners && card.assigners.length > 0) || (card.members && card.members.length > 0)) && (
               <div className="flex flex-wrap items-center gap-6 p-3 bg-surface-muted border border-border rounded-xl">
                 {card.labels && card.labels.length > 0 && (
                   <div className="space-y-1">
@@ -172,6 +179,19 @@ export default function CardDetailModal({
                     <div className="flex flex-wrap gap-1.5">
                       {card.labels.map((l) => (
                         <LabelPill key={l.id} name={l.name} color={l.color} size="sm" />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {card.assigners && card.assigners.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="block text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+                      Assigners
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {card.assigners.map((a) => (
+                        <Avatar key={a.id} name={a.name} email={a.email} size="sm" />
                       ))}
                     </div>
                   </div>
@@ -250,9 +270,22 @@ export default function CardDetailModal({
       />
 
       <MembersPopover
+        isOpen={activePopover === 'assigners'}
+        onClose={() => setActivePopover(null)}
+        anchorRef={activeAnchorRef}
+        title="Assigners"
+        searchPlaceholder="Search assigners..."
+        cardMembers={card.assigners || []}
+        boardMembers={boardMembers}
+        onToggleMember={(userId) => onToggleAssigner && onToggleAssigner(card.id, userId)}
+      />
+
+      <MembersPopover
         isOpen={activePopover === 'members'}
         onClose={() => setActivePopover(null)}
         anchorRef={activeAnchorRef}
+        title="Assignees"
+        searchPlaceholder="Search assignees..."
         cardMembers={card.members || []}
         boardMembers={boardMembers}
         onToggleMember={(userId) => onToggleMember(card.id, userId)}

@@ -34,13 +34,14 @@ export default function ListView({ board, onCardClick }) {
               <th className="py-2.5 px-4 font-semibold">Title</th>
               <th className="py-2.5 px-4 font-semibold">Status / List</th>
               <th className="py-2.5 px-4 font-semibold">Due Date</th>
+              <th className="py-2.5 px-4 font-semibold">Assigner</th>
               <th className="py-2.5 px-4 font-semibold">Assignees</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border text-text-primary">
             {allCards.length === 0 ? (
               <tr>
-                <td colSpan={4} className="py-8 text-center text-text-muted">
+                <td colSpan={5} className="py-8 text-center text-text-muted">
                   No tasks found on this board.
                 </td>
               </tr>
@@ -64,7 +65,14 @@ export default function ListView({ board, onCardClick }) {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center -space-x-1.5">
-                      {(card.assigned_users || []).map((u) => (
+                      {(card.assigners || []).map((u) => (
+                        <Avatar key={u.id} name={u.name} size="xs" className="border border-indigo-500/50" />
+                      ))}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="flex items-center -space-x-1.5">
+                      {(card.members || card.assigned_users || []).map((u) => (
                         <Avatar key={u.id} name={u.name} size="xs" />
                       ))}
                     </div>

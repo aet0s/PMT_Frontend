@@ -43,7 +43,9 @@ import {
   deleteChecklistItem,
   uploadAttachment,
   addLinkAttachment,
-  deleteAttachment
+  deleteAttachment,
+  toggleCardAssigner,
+  copyCard
 } from '../api/cards';
 import { getArchive } from '../api/archive';
 import { LayoutGrid, Sparkles, FolderKanban, Plus, Archive } from 'lucide-react';
@@ -1034,36 +1036,10 @@ export default function BoardPage() {
 
   const handleCopyCard = async (sourceCard, target) => {
     try {
-      const data = await createCard(
-        target.listId,
-        target.title || `(Copy) ${sourceCard.title}`,
-        sourceCard.description || '',
-        undefined,
-        sourceCard.due_date || null
-      );
-
-      const copiedCard = data?.card;
-      if (copiedCard && (sourceCard.start_date || sourceCard.is_complete)) {
-        const updates = {};
-        if (sourceCard.start_date) updates.start_date = sourceCard.start_date;
-        if (sourceCard.is_complete) updates.is_complete = sourceCard.is_complete;
-        await updateCard(copiedCard.id, updates);
-      }
-
-      // Copy checklists if any
-      if (copiedCard && Array.isArray(sourceCard.checklists) && sourceCard.checklists.length > 0) {
-        for (const ch of sourceCard.checklists) {
-          const itemTexts = (ch.items || []).map((it) => it.text);
-          await addChecklist(copiedCard.id, ch.title, itemTexts);
-        }
-      }
-
-      // Copy labels if in same board
-      if (copiedCard && target.boardId === activeBoardIdRef.current && Array.isArray(sourceCard.labels)) {
-        for (const l of sourceCard.labels) {
-          await toggleCardLabel(copiedCard.id, l.id);
-        }
-      }
+      await copyCard(sourceCard.id, {
+        listId: target.listId,
+        title: target.title
+      });
 
       if (target.boardId === activeBoardIdRef.current) {
         await loadActiveBoard(activeBoardIdRef.current, true);
@@ -1226,6 +1202,15 @@ export default function BoardPage() {
       loadActiveBoard(activeBoardIdRef.current);
     } catch (err) {
       toast.error(err?.message || 'Failed to toggle member');
+    }
+  };
+
+  const handleToggleAssigner = async (cardId, userId) => {
+    try {
+      await toggleCardAssigner(cardId, userId);
+      loadActiveBoard(activeBoardIdRef.current);
+    } catch (err) {
+      toast.error(err?.message || 'Failed to toggle assigner');
     }
   };
 
@@ -1764,6 +1749,7 @@ export default function BoardPage() {
               onMoveList={handleMoveCardList}
               onToggleLabel={handleToggleLabel}
               onToggleMember={handleToggleMember}
+              onToggleAssigner={handleToggleAssigner}
               onAddComment={handleAddComment}
               onDeleteComment={handleDeleteComment}
               onAddChecklist={handleAddChecklist}

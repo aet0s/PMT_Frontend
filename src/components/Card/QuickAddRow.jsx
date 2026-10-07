@@ -1,13 +1,14 @@
 import React, { useRef } from 'react';
 import { usePermissions } from '../../context/PermissionContext';
-import { Tag, Calendar, CheckSquare, Paperclip, Users } from 'lucide-react';
+import { Tag, Calendar, CheckSquare, Paperclip, Users, UserCheck } from 'lucide-react';
 
 export default function QuickAddRow({
   onOpenLabels,
   onOpenDates,
   onOpenChecklist,
   onOpenAttachment,
-  onOpenMembers
+  onOpenMembers,
+  onOpenAssigners
 }) {
   const { hasPermission } = usePermissions();
   const labelsBtnRef = useRef(null);
@@ -15,6 +16,7 @@ export default function QuickAddRow({
   const checklistBtnRef = useRef(null);
   const attachmentBtnRef = useRef(null);
   const membersBtnRef = useRef(null);
+  const assignersBtnRef = useRef(null);
 
   const canAssignMembers = hasPermission('card.assign_members');
   const canEditCard = hasPermission('card.edit');
@@ -22,6 +24,18 @@ export default function QuickAddRow({
 
   return (
     <div className="flex flex-wrap items-center gap-2 select-none">
+      {(canAssignMembers || canEditCard) && (
+        <button
+          ref={assignersBtnRef}
+          type="button"
+          onClick={() => onOpenAssigners && onOpenAssigners(assignersBtnRef)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-muted hover:bg-border text-text-primary border border-border rounded-lg text-xs font-medium transition-colors cursor-pointer"
+        >
+          <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
+          <span>Assigner</span>
+        </button>
+      )}
+
       {canAssignMembers && (
         <button
           ref={membersBtnRef}
@@ -30,7 +44,7 @@ export default function QuickAddRow({
           className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-muted hover:bg-border text-text-primary border border-border rounded-lg text-xs font-medium transition-colors cursor-pointer"
         >
           <Users className="w-3.5 h-3.5 text-primary" />
-          <span>Members</span>
+          <span>Assignee</span>
         </button>
       )}
 

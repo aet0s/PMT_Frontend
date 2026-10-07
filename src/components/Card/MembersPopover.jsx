@@ -7,6 +7,8 @@ export default function MembersPopover({
   isOpen,
   onClose,
   anchorRef,
+  title = 'Members',
+  searchPlaceholder = 'Search members...',
   cardMembers = [],
   boardMembers = [],
   onToggleMember
@@ -23,7 +25,7 @@ export default function MembersPopover({
   };
 
   return (
-    <Popover isOpen={isOpen} onClose={onClose} anchorRef={anchorRef} title="Members" className="w-72">
+    <Popover isOpen={isOpen} onClose={onClose} anchorRef={anchorRef} title={title} className="w-72">
       <div className="space-y-3 text-xs">
         {/* Search Input */}
         <div className="relative">
@@ -32,7 +34,7 @@ export default function MembersPopover({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search members..."
+            placeholder={searchPlaceholder}
             className="w-full pl-9 pr-3 py-1.5 bg-surface border border-border rounded-md text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
           />
         </div>

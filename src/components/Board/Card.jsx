@@ -172,12 +172,34 @@ export default function Card({ card, onClick, isOverlay = false, isHighlighted =
           )}
         </div>
 
-        {/* Assigned Member Avatars */}
-        {card.members && card.members.length > 0 && (
-          <div className="flex -space-x-1.5 overflow-hidden shrink-0">
-            {card.members.map((m) => (
-              <Avatar key={m.id} name={m.name} size="xs" className="ring-2 ring-surface" />
-            ))}
+        {/* Assigner & Assigned Member Avatars */}
+        {((card.assigners && card.assigners.length > 0) || (card.members && card.members.length > 0)) && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            {card.assigners && card.assigners.length > 0 && (
+              <div
+                className="flex -space-x-1.5 overflow-hidden"
+                title={`Assigners: ${card.assigners.map((a) => a.name).join(', ')}`}
+              >
+                {card.assigners.map((a) => (
+                  <Avatar
+                    key={a.id}
+                    name={a.name}
+                    size="xs"
+                    className="ring-2 ring-surface border border-indigo-500/50"
+                  />
+                ))}
+              </div>
+            )}
+            {card.members && card.members.length > 0 && (
+              <div
+                className="flex -space-x-1.5 overflow-hidden"
+                title={`Assignees: ${card.members.map((m) => m.name).join(', ')}`}
+              >
+                {card.members.map((m) => (
+                  <Avatar key={m.id} name={m.name} size="xs" className="ring-2 ring-surface" />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

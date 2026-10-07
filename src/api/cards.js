@@ -106,3 +106,18 @@ export async function deleteChecklistItem(itemId) {
     method: 'DELETE'
   });
 }
+
+export async function toggleCardAssigner(cardId, userId) {
+  return apiFetch(`/api/cards/${cardId}/assigners`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId })
+  });
+}
+
+export async function copyCard(cardId, { listId, title }) {
+  return apiFetch(`/api/cards/${cardId}/copy`, {
+    method: 'POST',
+    body: JSON.stringify({ list_id: listId, title })
+  });
+}
+
