@@ -1554,6 +1554,7 @@ export default function BoardPage() {
                 onSelectNotificationCard={handleSelectNotificationCard}
                 activeWorkspace={activeWorkspace}
                 workspaces={workspaces}
+                boards={boards}
               />
             </Suspense>
           ) : subPath === 'archive' ? (

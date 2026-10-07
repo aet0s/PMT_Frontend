@@ -51,7 +51,7 @@ export default function WorkspaceSidebar({
   onOpenProfile
 }) {
   const { user, logoutUser } = useAuth();
-  const { unreadCount } = useSocket();
+  const { unreadCount, byBoardUnread } = useSocket();
   const [isWsDropdownOpen, setIsWsDropdownOpen] = useState(false);
   const [isWsActionsOpen, setIsWsActionsOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
@@ -181,23 +181,29 @@ export default function WorkspaceSidebar({
 
           <div className="w-6 h-px bg-border mx-auto my-1" />
 
-          {boards.map((b) => (
-            <NavLink
-              key={b.id}
-              to={`/w/${activeWorkspace?.id}/p/${b.id}/board`}
-              title={b.name}
-              aria-label={b.name}
-              className={({ isActive }) =>
-                `w-9 h-9 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                  isActive
-                    ? 'bg-primary-tint text-primary-text border-2 border-primary shadow-xs font-semibold'
-                    : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
-                }`
-              }
-            >
-              <div className={`w-3 h-3 rounded-full ${getThemeDotClass(b.background_color)} shrink-0 border border-border-strong`} />
-            </NavLink>
-          ))}
+          {boards.map((b) => {
+            const bUnread = byBoardUnread?.[b.id] || byBoardUnread?.[String(b.id)] || 0;
+            return (
+              <NavLink
+                key={b.id}
+                to={`/w/${activeWorkspace?.id}/p/${b.id}/board`}
+                title={bUnread > 0 ? `${b.name} (${bUnread} unread)` : b.name}
+                aria-label={b.name}
+                className={({ isActive }) =>
+                  `relative w-9 h-9 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                    isActive
+                      ? 'bg-primary-tint text-primary-text border-2 border-primary shadow-xs font-semibold'
+                      : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
+                  }`
+                }
+              >
+                <div className={`w-3 h-3 rounded-full ${getThemeDotClass(b.background_color)} shrink-0 border border-border-strong`} />
+                {bUnread > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full ring-2 ring-surface animate-pulse" />
+                )}
+              </NavLink>
+            );
+          })}
           <NavLink
             to={`/w/${activeWorkspace?.id}/notifications`}
             title="Notifications Hub"
@@ -540,6 +546,7 @@ export default function WorkspaceSidebar({
             ) : (
               boards.map((b) => {
                 const dotColor = getThemeDotClass(b.background_color);
+                const bUnread = byBoardUnread?.[b.id] || byBoardUnread?.[String(b.id)] || 0;
                 return (
                   <NavLink
                     key={b.id}
@@ -555,6 +562,11 @@ export default function WorkspaceSidebar({
                   >
                     <div className={`w-3.5 h-3.5 rounded-full ${dotColor} shrink-0 border border-border-strong`} />
                     <span className="truncate flex-1">{b.name}</span>
+                    {bUnread > 0 && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-primary text-white rounded-full shrink-0 shadow-2xs">
+                        {bUnread > 99 ? '99+' : bUnread}
+                      </span>
+                    )}
                   </NavLink>
                 );
               })

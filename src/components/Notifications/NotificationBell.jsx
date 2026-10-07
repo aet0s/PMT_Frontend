@@ -137,10 +137,22 @@ export default function NotificationBell({ onSelectNotificationCard, onOpenAllNo
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-text-primary leading-snug break-words">
                       {n.message}
+                      {n.count > 1 && (
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-primary-tint text-primary text-[10px] font-bold rounded-full">
+                          ×{n.count}
+                        </span>
+                      )}
                     </p>
-                    <span className="text-[10px] text-text-muted mt-1 block">
-                      {formatShortDate(n.created_at)}
-                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      {(n.board_title || n.board_name) && (
+                        <span className="text-[10px] font-medium text-text-secondary bg-surface-muted px-1.5 py-0.5 rounded border border-border">
+                          {n.board_title || n.board_name}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-text-muted">
+                        {formatShortDate(n.created_at)}
+                      </span>
+                    </div>
                   </div>
                   {!n.is_read && (
                     <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
