@@ -5,6 +5,7 @@ import { apiFetch, refreshAuthToken } from '../api/client';
 import { SOCKET_URL } from '../api/config';
 import {
   getNotificationSummary,
+  getNotificationPreferences,
   markBoardNotificationsAsRead,
   muteTarget,
   unmuteTarget
@@ -39,31 +40,66 @@ export function SocketProvider({ children }) {
   const [byCategoryUnread, setByCategoryUnread] = useState({});
   const [mutes, setMutes] = useState({ boards: [], cards: [] });
   const originIdRef = useRef(getTabOriginId());
+  const audioUnlockedRef = useRef(false);
 
-  // Audio chime player
-  const playNotificationSound = () => {
+  // Audio gesture unlock listener
+  useEffect(() => {
+    const unlockAudio = () => {
+      audioUnlockedRef.current = true;
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
+
+  // Audio chime player (OFF by default, unlocked by gesture, respects mutes and reduced-motion)
+  const playNotificationSound = useCallback((notification) => {
     try {
+      // Must be explicitly enabled by user (OFF by default)
       const soundPref = localStorage.getItem('soundEffectsEnabled');
-      if (soundPref !== 'false') {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
+      if (soundPref !== 'true') return;
+
+      // Only played after a user gesture has unlocked audio
+      if (!audioUnlockedRef.current) return;
+
+      // Respect reduced motion / silent settings
+      if (typeof window !== 'undefined' && window.matchMedia) {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       }
+
+      // Never play for muted boards
+      if (notification?.board_id && mutes.boards?.some((id) => Number(id) === Number(notification.board_id))) {
+        return;
+      }
+
+      // Never play for muted cards
+      if (notification?.card_id && mutes.cards?.some((id) => Number(id) === Number(notification.card_id))) {
+        return;
+      }
+
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
     } catch {
       // AudioContext not allowed or not supported
     }
-  };
+  }, [mutes]);
 
-  // Fetch summary (total unread, by_board unread map, by_category map, mutes)
+  // Fetch summary (total unread, by_board unread map, by_category map, mutes, preferences)
   const fetchSummary = useCallback(async () => {
     if (!user) return;
     try {
@@ -83,6 +119,14 @@ export function SocketProvider({ children }) {
     } catch (err) {
       console.warn('Failed to load notification summary:', err);
     }
+
+    try {
+      const prefs = await getNotificationPreferences();
+      if (prefs && (prefs.play_sound !== undefined || prefs.sound_effects !== undefined)) {
+        const enabled = Boolean(prefs.play_sound ?? prefs.sound_effects);
+        localStorage.setItem('soundEffectsEnabled', String(enabled));
+      }
+    } catch (e) {}
   }, [user]);
 
   // Fetch top 10 notifications for quick bell access
@@ -162,7 +206,7 @@ export function SocketProvider({ children }) {
         }));
       }
 
-      playNotificationSound();
+      playNotificationSound(notification);
 
       // Live toast notification with aria-live="polite"
       if (notification.toast || notification.priority === 'urgent' || notification.priority === 'high') {

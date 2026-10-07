@@ -23,7 +23,7 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
   const [notifyAssignments, setNotifyAssignments] = useState(true);
   const [notifyMentions, setNotifyMentions] = useState(true);
   const [notifyDueDates, setNotifyDueDates] = useState(true);
-  const [soundEffects, setSoundEffects] = useState(true);
+  const [soundEffects, setSoundEffects] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -32,11 +32,15 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
       setIsLoading(true);
       try {
         const res = await getNotificationPreferences();
-        if (res.preferences) {
-          setNotifyAssignments(res.preferences.notify_assignments ?? true);
-          setNotifyMentions(res.preferences.notify_mentions ?? true);
-          setNotifyDueDates(res.preferences.notify_due_dates ?? true);
-          setSoundEffects(res.preferences.sound_effects ?? true);
+        if (res) {
+          if (res.preferences) {
+            setNotifyAssignments(res.preferences.notify_assignments ?? true);
+            setNotifyMentions(res.preferences.notify_mentions ?? true);
+            setNotifyDueDates(res.preferences.notify_due_dates ?? true);
+          }
+          const soundVal = Boolean(res.play_sound ?? res.sound_effects ?? false);
+          setSoundEffects(soundVal);
+          localStorage.setItem('soundEffectsEnabled', String(soundVal));
         }
       } catch (err) {
         console.warn('Failed to load notification preferences:', err);
@@ -56,8 +60,10 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
         notify_assignments: notifyAssignments,
         notify_mentions: notifyMentions,
         notify_due_dates: notifyDueDates,
+        play_sound: soundEffects,
         sound_effects: soundEffects
       });
+      localStorage.setItem('soundEffectsEnabled', String(soundEffects));
       toast.show('Notification preferences saved successfully', 'success');
       setFormDirty?.(false);
     } catch (err) {
@@ -278,7 +284,7 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
                       <Volume2 className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-text-primary">In-App Audio Chimes</p>
+                      <p className="text-xs font-semibold text-text-primary">Play sound for new notifications</p>
                       <p className="text-[11px] text-text-secondary mt-0.5">
                         Play subtle audio sound on incoming real-time notifications and assignments.
                       </p>
@@ -288,6 +294,7 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
                     checked={soundEffects}
                     onChange={(checked) => {
                       setSoundEffects(checked);
+                      localStorage.setItem('soundEffectsEnabled', String(checked));
                       setFormDirty?.(true);
                     }}
                   />
