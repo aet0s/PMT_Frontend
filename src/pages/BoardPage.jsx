@@ -1036,7 +1036,7 @@ export default function BoardPage() {
     try {
       const data = await createCard(
         target.listId,
-        `(Copy) ${sourceCard.title}`,
+        target.title || `(Copy) ${sourceCard.title}`,
         sourceCard.description || '',
         undefined,
         sourceCard.due_date || null
@@ -1050,12 +1050,28 @@ export default function BoardPage() {
         await updateCard(copiedCard.id, updates);
       }
 
+      // Copy checklists if any
+      if (copiedCard && Array.isArray(sourceCard.checklists) && sourceCard.checklists.length > 0) {
+        for (const ch of sourceCard.checklists) {
+          const itemTexts = (ch.items || []).map((it) => it.text);
+          await addChecklist(copiedCard.id, ch.title, itemTexts);
+        }
+      }
+
+      // Copy labels if in same board
+      if (copiedCard && target.boardId === activeBoardIdRef.current && Array.isArray(sourceCard.labels)) {
+        for (const l of sourceCard.labels) {
+          await toggleCardLabel(copiedCard.id, l.id);
+        }
+      }
+
       if (target.boardId === activeBoardIdRef.current) {
         await loadActiveBoard(activeBoardIdRef.current, true);
       }
-      toast.success('Card copied');
+      toast.success('Card copied successfully');
     } catch (err) {
       toast.error(err?.message || 'Failed to copy card');
+      throw err;
     }
   };
 
@@ -1736,12 +1752,16 @@ export default function BoardPage() {
                 });
               }}
               card={selectedCard}
+              workspaces={workspaces}
+              currentWorkspaceId={workspaceId || activeWorkspace?.id}
+              currentBoardId={activeBoardIdRef.current || boardData?.id}
               boardMembers={boardData?.members || []}
               boardLabels={boardData?.labels || []}
               boardLists={boardData?.lists || []}
               boardActivity={boardData?.activity || []}
               onUpdateCard={handleUpdateCard}
               onDeleteCard={handleDeleteCard}
+              onMoveList={handleMoveCardList}
               onToggleLabel={handleToggleLabel}
               onToggleMember={handleToggleMember}
               onAddComment={handleAddComment}
@@ -1755,6 +1775,7 @@ export default function BoardPage() {
               onAddLinkAttachment={handleAddLinkAttachment}
               onDeleteAttachment={handleDeleteAttachment}
               onCreateBoardLabel={handleCreateBoardLabel}
+              onCopyCard={handleCopyCard}
             />
           )}
 

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Copy, X } from 'lucide-react';
 import { getBoards, getBoard } from '../../api/boards';
+import { getWorkspaces } from '../../api/workspaces';
 import Select from '../ui/Select';
+import Input from '../ui/Input';
 import Button from '../ui/Button';
 
 export default function CopyCardModal({
@@ -13,6 +15,9 @@ export default function CopyCardModal({
   currentBoardId,
   onCopyCard
 }) {
+  const [allWorkspaces, setAllWorkspaces] = useState(workspaces || []);
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(false);
+  const [cardTitle, setCardTitle] = useState('');
   const [workspaceId, setWorkspaceId] = useState('');
   const [boardId, setBoardId] = useState('');
   const [listId, setListId] = useState('');
@@ -23,19 +28,46 @@ export default function CopyCardModal({
   const [isCopying, setIsCopying] = useState(false);
   const [error, setError] = useState('');
 
+  // Sync or fetch workspaces
+  useEffect(() => {
+    if (Array.isArray(workspaces) && workspaces.length > 0) {
+      setAllWorkspaces(workspaces);
+    } else if (isOpen) {
+      setLoadingWorkspaces(true);
+      getWorkspaces()
+        .then((data) => {
+          if (data?.workspaces) {
+            setAllWorkspaces(data.workspaces);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load workspaces for copy:', err);
+        })
+        .finally(() => {
+          setLoadingWorkspaces(false);
+        });
+    }
+  }, [isOpen, workspaces]);
+
+  // Initialize form when opened
   useEffect(() => {
     if (!isOpen) return;
 
-    const initialWorkspaceId = currentWorkspaceId || workspaces[0]?.id || '';
+    const initialWorkspaceId = currentWorkspaceId || allWorkspaces[0]?.id || '';
     setWorkspaceId(initialWorkspaceId ? String(initialWorkspaceId) : '');
+    setCardTitle(card?.title ? `(Copy) ${card.title}` : 'Copy of Card');
     setBoardId('');
     setListId('');
     setError('');
-  }, [isOpen, currentWorkspaceId, workspaces]);
+  }, [isOpen, currentWorkspaceId, allWorkspaces, card?.title]);
 
+  // Load boards when workspace changes
   useEffect(() => {
     if (!isOpen || !workspaceId) {
       setBoards([]);
+      setBoardId('');
+      setLists([]);
+      setListId('');
       return;
     }
 
@@ -49,7 +81,8 @@ export default function CopyCardModal({
         if (!isMounted) return;
 
         setBoards(fetchedBoards);
-        const preferredBoard = fetchedBoards.find((b) => b.id === Number(currentBoardId)) || fetchedBoards[0];
+        const preferredBoard =
+          fetchedBoards.find((b) => String(b.id) === String(currentBoardId)) || fetchedBoards[0];
         setBoardId(preferredBoard ? String(preferredBoard.id) : '');
       } catch (err) {
         if (isMounted) setError(err.message || 'Failed to load boards');
@@ -64,6 +97,7 @@ export default function CopyCardModal({
     };
   }, [isOpen, workspaceId, currentBoardId]);
 
+  // Load lists when board changes
   useEffect(() => {
     if (!isOpen || !boardId) {
       setLists([]);
@@ -81,8 +115,8 @@ export default function CopyCardModal({
         if (!isMounted) return;
 
         setLists(fetchedLists);
-        const currentListId = card?.list_id;
-        const preferredList = fetchedLists.find((l) => l.id === Number(currentListId)) || fetchedLists[0];
+        const preferredList =
+          fetchedLists.find((l) => String(l.id) === String(card?.list_id)) || fetchedLists[0];
         setListId(preferredList ? String(preferredList.id) : '');
       } catch (err) {
         if (isMounted) setError(err.message || 'Failed to load lists');
@@ -104,11 +138,14 @@ export default function CopyCardModal({
     setIsCopying(true);
     setError('');
     try {
-      await onCopyCard(card, {
-        workspaceId: Number(workspaceId),
-        boardId: Number(boardId),
-        listId: Number(listId)
-      });
+      if (typeof onCopyCard === 'function') {
+        await onCopyCard(card, {
+          workspaceId: Number(workspaceId),
+          boardId: Number(boardId),
+          listId: Number(listId),
+          title: cardTitle.trim() || `(Copy) ${card?.title || 'Card'}`
+        });
+      }
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to copy card');
@@ -141,17 +178,28 @@ export default function CopyCardModal({
         </div>
 
         <div className="space-y-4 p-5">
-          <div className="rounded-lg border border-border bg-surface-muted px-3 py-2">
-            <p className="text-[11px] font-medium text-text-muted">New title</p>
-            <p className="mt-0.5 break-words text-sm font-semibold text-text-primary">(Copy) {card?.title}</p>
+          <div>
+            <Input
+              label="Card Title"
+              value={cardTitle}
+              onChange={(e) => setCardTitle(e.target.value)}
+              placeholder="Enter card title"
+              required
+            />
           </div>
 
           <div>
             <Select
               label="Workspace"
               value={workspaceId}
-              onChange={(val) => setWorkspaceId(val)}
-              options={workspaces.map((w) => ({ value: w.id, label: w.name }))}
+              onChange={(val) => {
+                setWorkspaceId(String(val));
+                setBoardId('');
+                setListId('');
+              }}
+              disabled={loadingWorkspaces || allWorkspaces.length === 0}
+              placeholder={loadingWorkspaces ? 'Loading workspaces...' : 'Select workspace'}
+              options={allWorkspaces.map((w) => ({ value: String(w.id), label: w.name }))}
             />
           </div>
 
@@ -159,10 +207,13 @@ export default function CopyCardModal({
             <Select
               label="Board"
               value={boardId}
-              onChange={(val) => setBoardId(val)}
+              onChange={(val) => {
+                setBoardId(String(val));
+                setListId('');
+              }}
               disabled={loadingBoards || boards.length === 0}
               placeholder={loadingBoards ? 'Loading boards...' : 'Select board'}
-              options={boards.map((b) => ({ value: b.id, label: b.name }))}
+              options={boards.map((b) => ({ value: String(b.id), label: b.name }))}
             />
           </div>
 
@@ -170,10 +221,10 @@ export default function CopyCardModal({
             <Select
               label="List"
               value={listId}
-              onChange={(val) => setListId(val)}
+              onChange={(val) => setListId(String(val))}
               disabled={loadingLists || lists.length === 0}
               placeholder={loadingLists ? 'Loading lists...' : 'Select list'}
-              options={lists.map((l) => ({ value: l.id, label: l.name }))}
+              options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
             />
           </div>
 
