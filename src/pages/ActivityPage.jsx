@@ -32,6 +32,7 @@ import { getWorkspaceActivity } from '../api/workspaces';
 import { formatDate, formatRelativeTime } from '../lib/dateFormat';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
+import Select from '../components/ui/Select';
 import Spinner from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
 
@@ -342,18 +343,23 @@ export default function ActivityPage({ workspace }) {
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
             {/* Search Input */}
             <div className="sm:col-span-7 relative">
+              <label htmlFor="activity-search-input" className="sr-only">
+                Search activity
+              </label>
               <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
+                id="activity-search-input"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search activity by task, member, or board..."
-                className="w-full pl-10 pr-9 py-2 bg-surface text-text-primary border border-border rounded-xl text-xs placeholder:text-text-muted focus:outline-hidden focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                className="w-full pl-10 pr-9 py-2 bg-surface text-text-primary border border-border rounded-xl text-xs placeholder:text-text-muted focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-all min-h-[40px]"
               />
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm('')}
+                  aria-label="Clear search"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-0.5"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -363,25 +369,18 @@ export default function ActivityPage({ workspace }) {
 
             {/* Board Selector */}
             <div className="sm:col-span-5">
-              <div className="relative">
-                <LayoutGrid className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <select
-                  value={selectedBoardId}
-                  onChange={(e) => {
-                    setSelectedBoardId(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full pl-9 pr-8 py-2 bg-surface text-text-primary border border-border rounded-xl text-xs font-medium focus:outline-hidden focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
-                >
-                  <option value="">All Boards ({boards.length})</option>
-                  {boards.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                <Filter className="w-3.5 h-3.5 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+              <Select
+                value={selectedBoardId}
+                onChange={(val) => {
+                  setSelectedBoardId(val);
+                  setPage(1);
+                }}
+                placeholder={`All Boards (${boards.length})`}
+                options={[
+                  { value: '', label: `All Boards (${boards.length})` },
+                  ...boards.map((b) => ({ value: String(b.id), label: b.name }))
+                ]}
+              />
             </div>
           </div>
 

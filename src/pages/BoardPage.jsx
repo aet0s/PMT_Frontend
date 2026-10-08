@@ -1034,14 +1034,14 @@ export default function BoardPage() {
     }
   };
 
-  const handleCopyCard = async (sourceCard, target) => {
+  const handleCopyCard = async (sourceCard, target = {}) => {
     try {
       await copyCard(sourceCard.id, {
-        listId: target.listId,
-        title: target.title
+        listId: target.listId || sourceCard.list_id,
+        title: target.title || `(Copy) ${sourceCard.title}`
       });
 
-      if (target.boardId === activeBoardIdRef.current) {
+      if (!target.boardId || target.boardId === activeBoardIdRef.current) {
         await loadActiveBoard(activeBoardIdRef.current, true);
       }
       toast.success('Card copied successfully');
@@ -1636,6 +1636,7 @@ export default function BoardPage() {
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
                 <ListView
                   board={boardData}
+                  onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
                   onCardClick={(c) => {
                     setSelectedCard(c);
                     setSearchParams((prev) => {
@@ -1650,6 +1651,7 @@ export default function BoardPage() {
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
                 <CalendarView
                   board={boardData}
+                  onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
                   onCardClick={(c) => {
                     setSelectedCard(c);
                     setSearchParams((prev) => {
@@ -1678,6 +1680,9 @@ export default function BoardPage() {
                   });
                 }}
                 onCreateCard={handleCreateCard}
+                onUpdateCard={handleUpdateCard}
+                onDeleteCard={handleDeleteCard}
+                onCopyCard={handleCopyCard}
                 onUpdateCardPosition={handleUpdateCardPosition}
                 onUpdateListPosition={handleUpdateListPosition}
                 onAddBoardMember={handleAddBoardMember}

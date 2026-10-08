@@ -184,13 +184,17 @@ export default function SecurityLogTab({ workspace }) {
         {/* Search */}
         <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
           <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <label htmlFor="security-search-input" className="sr-only">
+              Search event, user, or IP
+            </label>
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
             <input
+              id="security-search-input"
               type="text"
               placeholder="Search event, user, IP..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary transition"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 min-h-[38px] transition"
             />
           </div>
           <Button type="submit" variant="secondary" size="sm">
@@ -199,8 +203,8 @@ export default function SecurityLogTab({ workspace }) {
         </form>
       </div>
 
-      {/* Log Records Table - table-fixed with zero horizontal overflow */}
-      <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-xs w-full">
+      {/* Desktop Log Records Table (>= 768px) */}
+      <div className="hidden md:block bg-surface border border-border rounded-xl overflow-hidden shadow-xs w-full">
         <table className="w-full table-fixed text-xs text-left">
           <colgroup>
             <col className="w-[18%]" />
@@ -212,12 +216,12 @@ export default function SecurityLogTab({ workspace }) {
           </colgroup>
           <thead className="bg-surface-muted text-text-secondary border-b border-border uppercase text-[10px] tracking-wider font-bold">
             <tr>
-              <th className="py-3 px-3.5">Event</th>
-              <th className="py-3 px-3.5">Actor</th>
-              <th className="py-3 px-3.5">Details</th>
-              <th className="py-3 px-3.5">IP & Device</th>
-              <th className="py-3 px-3.5">Timestamp</th>
-              <th className="py-3 px-3 text-center">Inspect</th>
+              <th scope="col" className="py-3 px-3.5">Event</th>
+              <th scope="col" className="py-3 px-3.5">Actor</th>
+              <th scope="col" className="py-3 px-3.5">Details</th>
+              <th scope="col" className="py-3 px-3.5">IP & Device</th>
+              <th scope="col" className="py-3 px-3.5">Timestamp</th>
+              <th scope="col" className="py-3 px-3 text-center">Inspect</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border text-text-primary">
@@ -309,7 +313,7 @@ export default function SecurityLogTab({ workspace }) {
                           e.stopPropagation();
                           setSelectedLog(log);
                         }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-primary bg-primary-tint/60 hover:bg-primary-tint border border-primary/20 transition cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-primary bg-primary-tint/60 hover:bg-primary-tint border border-primary/20 transition cursor-pointer min-h-[30px]"
                         title="View audit event payload and metadata"
                         aria-label="View audit event payload and metadata"
                       >
@@ -323,6 +327,67 @@ export default function SecurityLogTab({ workspace }) {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Stacked Cards View (< 768px) */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          <div className="p-8 text-center bg-surface border border-border rounded-xl text-xs text-text-muted">
+            <RefreshCw className="w-5 h-5 animate-spin text-primary mx-auto mb-2" />
+            Loading audit records...
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="p-8 text-center bg-surface border border-border rounded-xl text-xs text-text-muted">
+            <ShieldCheck className="w-8 h-8 mx-auto mb-2 text-text-muted opacity-50" />
+            <p className="font-semibold text-text-primary">No security events found</p>
+          </div>
+        ) : (
+          logs.map((log) => {
+            const badgeProps = getEventBadgeProps(log.event || log.event_type);
+            return (
+              <div
+                key={log.id}
+                onClick={() => setSelectedLog(log)}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedLog(log);
+                  }
+                }}
+                className="p-4 bg-surface hover:bg-surface-hover border border-border rounded-xl shadow-2xs space-y-3 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant={badgeProps.variant} size="sm">
+                    <span className="flex items-center gap-1 font-mono text-[11px]">
+                      {badgeProps.icon}
+                      <span>{log.event || log.event_type || log.action || 'event'}</span>
+                    </span>
+                  </Badge>
+                  <span className="text-[11px] text-text-muted">{formatDate(log.created_at)}</span>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <Avatar name={log.user_name || log.user_email || 'System'} size="xs" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-text-primary truncate">
+                      {log.user_name || log.user_email || 'System'}
+                    </p>
+                    <p className="text-[10px] text-text-muted font-mono truncate">
+                      {log.ip || '127.0.0.1'} • {parseUserAgent(log.user_agent)}
+                    </p>
+                  </div>
+                </div>
+
+                {log.details && (
+                  <p className="text-xs text-text-secondary bg-surface-muted/50 p-2 rounded-lg border border-border/50 line-clamp-2">
+                    {log.details}
+                  </p>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Details Modal */}

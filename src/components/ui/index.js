@@ -22,3 +22,7 @@ export { ConfirmDialog } from './ConfirmDialog';
 export { ToastProvider, useToast } from './Toast';
 export { Tabs } from './Tabs';
 export { ProgressBar } from './ProgressBar';
+export { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell, TableCaption } from './Table';
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './Card';
+export { Alert, AlertTitle, AlertDescription } from './Alert';
+export { ThemeToggle, ThemeSelector } from './ThemeToggle';

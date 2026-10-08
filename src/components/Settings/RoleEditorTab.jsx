@@ -235,12 +235,12 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
 
         <div className="flex items-center gap-3">
           {/* View Mode Toggle */}
-          <div className="flex bg-surface-muted border border-border rounded-lg p-1">
+          <div className="flex bg-surface-muted border border-border rounded-xl p-1">
             <button
               onClick={() => setViewMode('grid')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition ${
                 viewMode === 'grid'
-                  ? 'bg-surface text-text-primary shadow-xs font-semibold'
+                  ? 'bg-surface text-text-primary shadow-xs font-bold'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
@@ -249,9 +249,9 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
             </button>
             <button
               onClick={() => setViewMode('cards')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition ${
                 viewMode === 'cards'
-                  ? 'bg-surface text-text-primary shadow-xs font-semibold'
+                  ? 'bg-surface text-text-primary shadow-xs font-bold'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
@@ -278,7 +278,7 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
         const permColPercent = Number((100 - roleColPercent * roles.length).toFixed(2));
 
         return (
-          <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-xs w-full">
+          <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-xs w-full">
             <div className="max-h-[680px] overflow-y-auto w-full">
               <table className="w-full table-fixed text-left border-collapse">
                 <colgroup>
@@ -404,7 +404,7 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
             return (
               <div
                 key={role.id}
-                className="bg-surface border border-border hover:border-border-strong rounded-xl p-5 flex flex-col justify-between transition group shadow-xs"
+                className="bg-surface border border-border hover:border-border-strong rounded-2xl p-5 flex flex-col justify-between transition group shadow-xs"
               >
                 <div>
                   <div className="flex items-center justify-between">

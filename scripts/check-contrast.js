@@ -1,5 +1,5 @@
 // client/scripts/check-contrast.js
-// Evaluates WCAG 2.1 contrast ratios for design token pairs.
+// Evaluates WCAG 2.1 / 2.2 AA contrast ratios for design token pairs across both Light & Dark modes.
 // Requires >= 4.5:1 for ANY text token (including muted/hint/placeholder)
 // on surface, app, surface-muted, board backgrounds, and tints.
 // Requires >= 3.0:1 for icon-only and border tokens.
@@ -33,19 +33,19 @@ function getContrastRatio(hex1, hex2) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-const TOKENS = {
+const LIGHT_TOKENS = {
   // Backgrounds
-  app: '#F5F6F8',
+  app: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceMuted: '#EEF0F4',
-  primaryTint: '#ECEEFB',
+  surfaceMuted: '#F8FAFC',
+  primaryTint: '#EFF6FF',
   successTint: '#E5F4EC',
   warningTint: '#FBF1DB',
   dangerTint: '#FBE8E8',
   infoTint: '#E5F1F7',
 
   // Board Backgrounds
-  boardNeutral: '#F5F6F8',
+  boardNeutral: '#F1F5FB',
   boardMistBlue: '#EBF1F6',
   boardLavender: '#EFEFF9',
   boardSage: '#EDF3EE',
@@ -58,142 +58,204 @@ const TOKENS = {
   boardLilac: '#F3EEF8',
 
   // Foreground Text (All text tokens must meet >= 4.5:1)
-  textPrimary: '#1F2A37',
-  textSecondary: '#5A6572',
-  textMuted: '#5F6B7A', // >= 4.5:1 on white, app, surfaceMuted, board bgs and tints
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#556376',
   textWhite: '#FFFFFF',
 
   // Solid Brand & Accent Fills
-  primary: '#5865C9',
-  primaryDark: '#4A57B5',
+  primary: '#2563EB',
+  primaryDark: '#1D4ED8',
   success: '#2E8B62',
   warning: '#B57C14',
   danger: '#C54343',
   info: '#337F9E',
 
   // Badge / Tint Text
-  primaryText: '#37419A',
+  primaryText: '#1D4ED8',
   successText: '#1E6344',
   warningText: '#7A5408',
   dangerText: '#922E2E',
   infoText: '#20556D',
 
   // Border & Icon Tokens (Must meet >= 3.0:1)
-  borderFocus: '#5865C9',
-  iconPrimary: '#1F2A37',
-  iconSecondary: '#5A6572',
-  iconMuted: '#5F6B7A'
+  borderFocus: '#2563EB',
+  iconPrimary: '#0F172A',
+  iconSecondary: '#475569',
+  iconMuted: '#556376'
 };
 
-const PAIRS_TO_CHECK = [];
+const DARK_TOKENS = {
+  // Backgrounds
+  app: '#0D1117',
+  surface: '#161B22',
+  surfaceMuted: '#21262D',
+  primaryTint: '#1C2242',
+  successTint: '#132B20',
+  warningTint: '#2E2210',
+  dangerTint: '#301618',
+  infoTint: '#142533',
 
-// 1. Text on standard application backgrounds (surface, app, surfaceMuted)
-const standardBgs = ['surface', 'app', 'surfaceMuted'];
-const textTokens = ['textPrimary', 'textSecondary', 'textMuted'];
+  // Board Backgrounds
+  boardNeutral: '#161B22',
+  boardMistBlue: '#101520',
+  boardLavender: '#151422',
+  boardSage: '#0F1713',
+  boardSand: '#171510',
+  boardBlush: '#191114',
+  boardSky: '#101722',
+  boardMint: '#0E1815',
+  boardStone: '#131518',
+  boardPeach: '#181310',
+  boardLilac: '#16111D',
 
-for (const bg of standardBgs) {
-  for (const text of textTokens) {
-    PAIRS_TO_CHECK.push({ text, bg, type: 'text', min: 4.5 });
+  // Foreground Text
+  textPrimary: '#F0F3F6',
+  textSecondary: '#A2ACB9',
+  textMuted: '#8B949E',
+  textWhite: '#FFFFFF',
+
+  // Solid Brand & Accent Fills (Must achieve >= 4.5:1 with white text)
+  primary: '#2563EB',
+  primaryDark: '#1D4ED8',
+  success: '#268D5B',
+  warning: '#B57C14',
+  danger: '#D03A3A',
+  info: '#337F9E',
+
+  // Badge / Tint Text
+  primaryText: '#B8C1FB',
+  successText: '#6EE7B7',
+  warningText: '#FCD34D',
+  dangerText: '#FCA5A5',
+  infoText: '#93C5FD',
+
+  // Border & Icon Tokens
+  borderFocus: '#7983EB',
+  iconPrimary: '#F0F3F6',
+  iconSecondary: '#A2ACB9',
+  iconMuted: '#8B949E'
+};
+
+function runContrastChecksForTheme(themeName, TOKENS) {
+  const PAIRS_TO_CHECK = [];
+
+  // 1. Text on standard application backgrounds (surface, app, surfaceMuted)
+  const standardBgs = ['surface', 'app', 'surfaceMuted'];
+  const textTokens = ['textPrimary', 'textSecondary', 'textMuted'];
+
+  for (const bg of standardBgs) {
+    for (const text of textTokens) {
+      PAIRS_TO_CHECK.push({ text, bg, type: 'text', min: 4.5 });
+    }
   }
-}
 
-// 2. Text on all board background colors
-const boardBgs = [
-  'boardNeutral',
-  'boardMistBlue',
-  'boardLavender',
-  'boardSage',
-  'boardSand',
-  'boardBlush',
-  'boardSky',
-  'boardMint',
-  'boardStone',
-  'boardPeach',
-  'boardLilac'
-];
+  // 2. Text on all board background colors
+  const boardBgs = [
+    'boardNeutral',
+    'boardMistBlue',
+    'boardLavender',
+    'boardSage',
+    'boardSand',
+    'boardBlush',
+    'boardSky',
+    'boardMint',
+    'boardStone',
+    'boardPeach',
+    'boardLilac'
+  ];
 
-for (const bg of boardBgs) {
-  for (const text of textTokens) {
-    PAIRS_TO_CHECK.push({ text, bg, type: 'board-text', min: 4.5 });
+  for (const bg of boardBgs) {
+    for (const text of textTokens) {
+      PAIRS_TO_CHECK.push({ text, bg, type: 'board-text', min: 4.5 });
+    }
   }
+
+  // 3. Text on every tint background (Badge & Hint text)
+  const tintBgs = [
+    { text: 'primaryText', bg: 'primaryTint' },
+    { text: 'successText', bg: 'successTint' },
+    { text: 'warningText', bg: 'warningTint' },
+    { text: 'dangerText', bg: 'dangerTint' },
+    { text: 'infoText', bg: 'infoTint' },
+    { text: 'textPrimary', bg: 'primaryTint' },
+    { text: 'textPrimary', bg: 'successTint' },
+    { text: 'textPrimary', bg: 'warningTint' },
+    { text: 'textPrimary', bg: 'dangerTint' },
+    { text: 'textPrimary', bg: 'infoTint' },
+    { text: 'textMuted', bg: 'primaryTint' },
+    { text: 'textMuted', bg: 'successTint' },
+    { text: 'textMuted', bg: 'warningTint' },
+    { text: 'textMuted', bg: 'dangerTint' },
+    { text: 'textMuted', bg: 'infoTint' }
+  ];
+
+  for (const { text, bg } of tintBgs) {
+    PAIRS_TO_CHECK.push({ text, bg, type: 'tint-text', min: 4.5 });
+  }
+
+  // 4. Solid buttons with white text
+  PAIRS_TO_CHECK.push(
+    { text: 'textWhite', bg: 'primary', type: 'button-label', min: 4.5 },
+    { text: 'textWhite', bg: 'primaryDark', type: 'button-label', min: 4.5 },
+    { text: 'textWhite', bg: 'danger', type: 'button-label', min: 4.5 },
+    { text: 'textWhite', bg: 'success', type: 'button-label', min: 3.5 }
+  );
+
+  // 5. Border and Icon tokens (>= 3.0:1)
+  PAIRS_TO_CHECK.push(
+    { text: 'borderFocus', bg: 'surface', type: 'border', min: 3.0 },
+    { text: 'borderFocus', bg: 'app', type: 'border', min: 3.0 },
+    { text: 'iconMuted', bg: 'surface', type: 'icon', min: 3.0 },
+    { text: 'iconMuted', bg: 'app', type: 'icon', min: 3.0 },
+    { text: 'iconMuted', bg: 'surfaceMuted', type: 'icon', min: 3.0 }
+  );
+
+  console.log(`\n--- Checking ${themeName} Mode Contrast (${PAIRS_TO_CHECK.length} pairs) ---`);
+  let passed = 0;
+  let failed = 0;
+
+  for (const check of PAIRS_TO_CHECK) {
+    const fg = TOKENS[check.text];
+    const bg = TOKENS[check.bg];
+    if (!fg || !bg) {
+      console.error(`Missing token definition: text=${check.text}, bg=${check.bg}`);
+      failed++;
+      continue;
+    }
+    const ratio = getContrastRatio(fg, bg);
+    const roundedRatio = Math.round(ratio * 100) / 100;
+    const isOk = ratio >= check.min;
+
+    if (isOk) {
+      passed++;
+      console.log(`  ✓ [${themeName}] ${check.text} (${fg}) on ${check.bg} (${bg}): ${roundedRatio}:1 (min ${check.min}:1) [${check.type}]`);
+    } else {
+      failed++;
+      console.error(`  ✗ [${themeName}] FAIL: ${check.text} (${fg}) on ${check.bg} (${bg}): ${roundedRatio}:1 < required ${check.min}:1 [${check.type}]`);
+    }
+  }
+
+  return { passed, failed };
 }
-
-// 3. Text on every tint background (Badge & Hint text)
-const tintBgs = [
-  { text: 'primaryText', bg: 'primaryTint' },
-  { text: 'successText', bg: 'successTint' },
-  { text: 'warningText', bg: 'warningTint' },
-  { text: 'dangerText', bg: 'dangerTint' },
-  { text: 'infoText', bg: 'infoTint' },
-  // Also check standard text & textMuted on all tints
-  { text: 'textPrimary', bg: 'primaryTint' },
-  { text: 'textPrimary', bg: 'successTint' },
-  { text: 'textPrimary', bg: 'warningTint' },
-  { text: 'textPrimary', bg: 'dangerTint' },
-  { text: 'textPrimary', bg: 'infoTint' },
-  { text: 'textMuted', bg: 'primaryTint' },
-  { text: 'textMuted', bg: 'successTint' },
-  { text: 'textMuted', bg: 'warningTint' },
-  { text: 'textMuted', bg: 'dangerTint' },
-  { text: 'textMuted', bg: 'infoTint' }
-];
-
-for (const { text, bg } of tintBgs) {
-  PAIRS_TO_CHECK.push({ text, bg, type: 'tint-text', min: 4.5 });
-}
-
-// 4. Solid buttons with white text
-PAIRS_TO_CHECK.push(
-  { text: 'textWhite', bg: 'primary', type: 'button-label', min: 4.5 },
-  { text: 'textWhite', bg: 'primaryDark', type: 'button-label', min: 4.5 },
-  { text: 'textWhite', bg: 'danger', type: 'button-label', min: 4.5 },
-  { text: 'textWhite', bg: 'success', type: 'button-label', min: 3.5 }
-);
-
-// 5. Border and Icon tokens (>= 3.0:1)
-PAIRS_TO_CHECK.push(
-  { text: 'borderFocus', bg: 'surface', type: 'border', min: 3.0 },
-  { text: 'borderFocus', bg: 'app', type: 'border', min: 3.0 },
-  { text: 'iconMuted', bg: 'surface', type: 'icon', min: 3.0 },
-  { text: 'iconMuted', bg: 'app', type: 'icon', min: 3.0 },
-  { text: 'iconMuted', bg: 'surfaceMuted', type: 'icon', min: 3.0 }
-);
 
 console.log('================================================================');
-console.log('                 WCAG 2.1 CONTRAST CHECK                        ');
+console.log('         WCAG 2.1 / 2.2 AA CONTRAST AUDIT (LIGHT & DARK)        ');
 console.log('================================================================');
 
-let passed = 0;
-let failed = 0;
+const lightRes = runContrastChecksForTheme('Light', LIGHT_TOKENS);
+const darkRes = runContrastChecksForTheme('Dark', DARK_TOKENS);
 
-for (const check of PAIRS_TO_CHECK) {
-  const fg = TOKENS[check.text];
-  const bg = TOKENS[check.bg];
-  if (!fg || !bg) {
-    console.error(`Missing token definition: text=${check.text}, bg=${check.bg}`);
-    failed++;
-    continue;
-  }
-  const ratio = getContrastRatio(fg, bg);
-  const roundedRatio = Math.round(ratio * 100) / 100;
-  const isOk = ratio >= check.min;
+const totalPassed = lightRes.passed + darkRes.passed;
+const totalFailed = lightRes.failed + darkRes.failed;
 
-  if (isOk) {
-    passed++;
-    console.log(`  ✓ ${check.text} (${fg}) on ${check.bg} (${bg}): ${roundedRatio}:1 (min ${check.min}:1) [${check.type}]`);
-  } else {
-    failed++;
-    console.error(`  ✗ FAIL: ${check.text} (${fg}) on ${check.bg} (${bg}): ${roundedRatio}:1 < required ${check.min}:1 [${check.type}]`);
-  }
-}
-
-console.log('================================================================');
-console.log(`Contrast Check Completed: ${passed} passed, ${failed} failed.`);
+console.log('\n================================================================');
+console.log(`Contrast Check Completed: ${totalPassed} passed, ${totalFailed} failed.`);
 console.log('================================================================\n');
 
-if (failed > 0) {
+if (totalFailed > 0) {
   process.exit(1);
 } else {
-  console.log('[CONTRAST AUDIT PASSED] All token pairs satisfy WCAG requirements.\n');
+  console.log('[CONTRAST AUDIT PASSED] All token pairs in both Light and Dark modes satisfy WCAG 2.2 AA requirements.\n');
   process.exit(0);
 }

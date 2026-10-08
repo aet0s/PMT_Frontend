@@ -3,12 +3,13 @@ import React, { forwardRef } from 'react';
 import Spinner from './Spinner';
 
 const VARIANTS = {
-  primary: 'bg-primary hover:bg-primary-hover active:bg-primary-active text-white border border-transparent shadow-sm',
-  secondary: 'bg-surface hover:bg-surface-hover active:bg-surface-active text-text-primary border border-border shadow-sm',
+  primary: 'bg-primary hover:bg-primary-hover active:bg-primary-active text-white border border-transparent shadow-xs',
+  secondary: 'bg-surface hover:bg-surface-hover active:bg-surface-active text-text-primary border border-border shadow-xs',
+  outline: 'bg-transparent hover:bg-surface-muted active:bg-surface-active text-text-primary border border-border shadow-xs',
   ghost: 'bg-transparent hover:bg-surface-muted active:bg-surface-active text-text-primary border border-transparent',
-  danger: 'bg-danger hover:bg-danger-hover active:bg-danger text-white border border-transparent shadow-sm',
+  danger: 'bg-danger hover:bg-danger-hover active:bg-danger text-white border border-transparent shadow-xs',
   dangerGhost: 'bg-transparent hover:bg-danger-tint active:bg-danger-tint text-danger-text border border-transparent',
-  success: 'bg-success hover:bg-success-hover active:bg-success text-white border border-transparent shadow-sm'
+  success: 'bg-success hover:bg-success-hover active:bg-success text-white border border-transparent shadow-xs'
 };
 
 const SIZES = {

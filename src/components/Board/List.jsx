@@ -11,6 +11,9 @@ export default function List({
   cards = [],
   onCardClick,
   onCreateCard,
+  onUpdateCard,
+  onDeleteCard,
+  onCopyCard,
   onUpdateList,
   onDeleteList,
   isOverlay = false,
@@ -33,7 +36,7 @@ export default function List({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging || isRemoteDragging ? 0.3 : 1
+    opacity: isDragging || isRemoteDragging ? 0.35 : 1
   };
 
   const { hasPermission } = usePermissions();
@@ -98,12 +101,12 @@ export default function List({
       id={`list-${list.id}`}
       ref={setNodeRef}
       style={style}
-      className={`w-72 shrink-0 bg-surface-muted/90 border border-border rounded-xl flex flex-col max-h-full shadow-sm snap-center ${
-        isOverlay ? 'border-primary shadow-xl scale-105 rotate-1 z-50 bg-surface' : ''
+      className={`w-72 lg:w-76 shrink-0 flex flex-col max-h-full snap-center transition-all ${
+        isOverlay ? 'shadow-2xl scale-105 rotate-1 z-50 bg-surface rounded-2xl p-2 border border-primary' : ''
       }`}
     >
-      {/* List Header */}
-      <div className="p-3.5 flex items-center justify-between border-b border-border select-none">
+      {/* Column Header (White rounded box matching reference Image 1) */}
+      <div className="bg-surface border border-border-strong/70 rounded-2xl px-4 py-3 flex items-center justify-between select-none shadow-xs mb-3">
         {isEditingTitle && canEditList ? (
           <form onSubmit={handleRenameSubmit} className="flex items-center gap-1.5 flex-1 pr-2">
             <input
@@ -112,7 +115,7 @@ export default function List({
               value={listName}
               onChange={(e) => setListName(e.target.value)}
               onBlur={handleRenameSubmit}
-              className="w-full px-2 py-1 bg-surface border border-primary rounded-md text-sm text-text-primary font-semibold focus:outline-none"
+              className="w-full px-2.5 py-1 bg-surface border border-primary rounded-xl text-base text-text-primary font-bold focus:outline-none"
             />
           </form>
         ) : (
@@ -121,7 +124,7 @@ export default function List({
             {...listeners}
             aria-roledescription="draggable list"
             aria-label={`List: ${list.name}. Press Space or Enter to reorder.`}
-            className="flex items-center gap-2 min-w-0 flex-1 cursor-grab active:cursor-grabbing"
+            className="flex items-center gap-2.5 min-w-0 flex-1 cursor-grab active:cursor-grabbing"
             title="Drag list"
           >
             <h3
@@ -131,129 +134,139 @@ export default function List({
                   setIsEditingTitle(true);
                 }
               }}
-              className={`text-sm font-bold text-text-primary truncate ${canEditList ? 'hover:text-primary cursor-pointer' : 'cursor-default'}`}
+              className={`text-base sm:text-[17px] font-extrabold text-text-primary truncate ${canEditList ? 'hover:text-primary cursor-pointer' : 'cursor-default'}`}
             >
               {list.name}
             </h3>
-            <span className="text-xs font-semibold px-2 py-0.2 rounded-full bg-surface border border-border text-text-secondary">
+            <span className="text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full bg-surface-muted text-text-secondary border border-border-strong/50 shadow-2xs">
               {cards.length}
             </span>
           </div>
         )}
 
-        {(canEditList || canDeleteList) && (
-          <div className="relative" ref={menuRef}>
+        <div className="flex items-center gap-1.5">
+          {/* Quick Add Button in soft circle matching reference image */}
+          {canCreateCard && (
             <button
               type="button"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="List options"
-              title="List options"
-              className="p-1 text-text-muted hover:text-text-primary hover:bg-surface rounded-md transition-colors cursor-pointer"
+              onClick={() => setIsAddingCard(true)}
+              aria-label={`Add card to ${list.name}`}
+              title={`Add card to ${list.name}`}
+              className="w-7.5 h-7.5 rounded-full bg-primary-tint text-primary hover:bg-primary hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-2xs"
             >
-              <MoreHorizontal className="w-4 h-4" />
+              <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
             </button>
+          )}
 
-            {isMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-44 bg-surface border border-border rounded-xl shadow-lg z-30 py-1">
-                {canEditList && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditingTitle(true);
-                      setIsMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left"
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-text-secondary" />
-                    Rename List
-                  </button>
-                )}
-                {canDeleteList && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onDeleteList(list.id);
-                      setIsMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-danger-text hover:bg-danger-tint transition-colors cursor-pointer text-left"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-danger" />
-                    Delete List
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+          {/* List Options Menu */}
+          {(canEditList || canDeleteList) && (
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                aria-label="List options"
+                title="List options"
+                className="w-7.5 h-7.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-muted flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <MoreHorizontal className="w-4.5 h-4.5" />
+              </button>
+
+              {isMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-44 bg-surface border border-border/80 rounded-2xl shadow-xl z-30 py-1.5 animate-sassy-dropdown">
+                  {canEditList && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingTitle(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-text-secondary" />
+                      Rename Column
+                    </button>
+                  )}
+                  {canDeleteList && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onDeleteList(list.id);
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-danger-text hover:bg-danger-tint transition-colors cursor-pointer text-left"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-danger" />
+                      Delete Column
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Cards Container */}
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 min-h-[60px]">
+      {/* Cards List Container */}
+      <div
+        className="flex-1 overflow-y-auto overscroll-y-contain px-1 py-1 space-y-3 no-scrollbar"
+        style={{ overscrollBehavior: 'contain' }}
+      >
         <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
             <Card
               key={card.id}
               card={card}
               onClick={() => onCardClick(card)}
-              isHighlighted={Number(highlightedCardId) === card.id}
-              isRemoteDragging={Boolean(remoteDraggedCardIds && remoteDraggedCardIds.has(card.id))}
+              onUpdateCard={onUpdateCard}
+              onDeleteCard={onDeleteCard}
+              onCopyCard={onCopyCard}
+              isHighlighted={highlightedCardId === card.id}
+              isRemoteDragging={remoteDraggedCardIds.has(card.id)}
             />
           ))}
         </SortableContext>
-      </div>
 
-      {/* Add Card Footer */}
-      {canCreateCard && (
-        <div className="p-2.5 border-t border-border bg-surface/50">
-          {isAddingCard ? (
-            <form onSubmit={handleAddCardSubmit} className="space-y-2">
-              <textarea
-                autoFocus
-                required
-                rows={2}
-                value={newCardTitle}
-                onChange={(e) => setNewCardTitle(e.target.value)}
-                placeholder="Enter card title..."
-                className="w-full p-2.5 bg-surface border border-border rounded-md text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 resize-none shadow-xs"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleAddCardSubmit(e);
-                  }
+        {/* Inline Card Composer */}
+        {isAddingCard && (
+          <form onSubmit={handleAddCardSubmit} className="p-3 bg-surface border border-primary/50 rounded-2xl shadow-sm space-y-2.5 animate-in fade-in duration-150">
+            <input
+              type="text"
+              autoFocus
+              placeholder="Enter card title..."
+              value={newCardTitle}
+              onChange={(e) => setNewCardTitle(e.target.value)}
+              className="w-full px-3 py-2 bg-surface-muted/50 border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+            />
+            <div className="flex items-center gap-2">
+              <Button type="submit" variant="primary" size="xs" className="rounded-xl px-3 py-1.5 font-bold">
+                Add Card
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingCard(false);
+                  setNewCardTitle('');
                 }}
-              />
-              <div className="flex items-center gap-2">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                >
-                  Add Card
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddingCard(false);
-                    setNewCardTitle('');
-                  }}
-                  className="p-1.5 text-text-muted hover:text-text-primary rounded-md transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsAddingCard(true)}
-              className="w-full flex items-center gap-2 p-2 text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-surface rounded-lg transition-colors cursor-pointer"
-            >
-              <Plus className="w-4 h-4 text-primary" />
-              Add a card
-            </button>
-          )}
-        </div>
-      )}
+                className="p-1 text-text-muted hover:text-text-primary rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Quick Add Card Button right below cards (No extra border line, clearly visible outline) */}
+        {!isAddingCard && canCreateCard && (
+          <button
+            type="button"
+            onClick={() => setIsAddingCard(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-bold text-text-secondary hover:text-primary bg-surface hover:bg-surface-hover border border-border-strong hover:border-primary shadow-xs transition-all cursor-pointer mt-1"
+          >
+            <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
+            <span>Add card</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

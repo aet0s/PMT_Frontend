@@ -325,21 +325,21 @@ export default function MembersTab({ workspace, onOpenInvite }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
+      <div className="flex items-center gap-1.5 bg-surface-muted p-1 rounded-2xl border border-border w-fit">
         <button
           type="button"
           onClick={() => setActiveTab('members')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'members'
               ? 'bg-primary text-white shadow-xs'
-              : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface'
           }`}
         >
           <Users className="w-3.5 h-3.5" />
           <span>Active Members</span>
           <span
-            className={`text-[11px] px-1.5 py-0.2 rounded-full ${
-              activeTab === 'members' ? 'bg-primary-tint text-primary-text font-bold' : 'bg-surface-muted text-text-muted'
+            className={`text-[11px] px-2 py-0.5 rounded-full ${
+              activeTab === 'members' ? 'bg-primary-tint text-primary-text font-bold' : 'bg-surface text-text-muted border border-border'
             }`}
           >
             {members.length}
@@ -349,17 +349,17 @@ export default function MembersTab({ workspace, onOpenInvite }) {
         <button
           type="button"
           onClick={() => setActiveTab('pending')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'pending'
               ? 'bg-primary text-white shadow-xs'
-              : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface'
           }`}
         >
           <Clock className="w-3.5 h-3.5" />
           <span>Pending Invitations</span>
           <span
-            className={`text-[11px] px-1.5 py-0.2 rounded-full ${
-              activeTab === 'pending' ? 'bg-primary-tint text-primary-text font-bold' : 'bg-surface-muted text-text-muted'
+            className={`text-[11px] px-2 py-0.5 rounded-full ${
+              activeTab === 'pending' ? 'bg-primary-tint text-primary-text font-bold' : 'bg-surface text-text-muted border border-border'
             }`}
           >
             {invitations.length}
@@ -369,19 +369,23 @@ export default function MembersTab({ workspace, onOpenInvite }) {
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" />
+        <label htmlFor="members-search-input" className="sr-only">
+          {activeTab === 'members' ? 'Filter members by name or email' : 'Filter pending invitations by email'}
+        </label>
+        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
         <input
+          id="members-search-input"
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={activeTab === 'members' ? 'Filter members by name or email...' : 'Filter pending invitations by email...'}
-          className="w-full pl-9 pr-3.5 py-2 bg-surface text-xs text-text-primary border border-border rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/40"
+          className="w-full pl-9 pr-3.5 py-2 bg-surface text-xs text-text-primary border border-border rounded-xl focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors shadow-2xs"
         />
       </div>
 
       {/* Active Members Tab */}
       {activeTab === 'members' && (
-        <div className="bg-surface border border-border rounded-xl divide-y divide-border overflow-hidden shadow-xs">
+        <div className="bg-surface border border-border rounded-2xl divide-y divide-border overflow-hidden shadow-xs">
           {isLoadingMembers ? (
             <div className="p-8 text-center text-xs text-text-muted">Loading workspace members...</div>
           ) : filteredMembers.length === 0 ? (
@@ -508,7 +512,7 @@ export default function MembersTab({ workspace, onOpenInvite }) {
 
       {/* Pending Invitations Tab */}
       {activeTab === 'pending' && (
-        <div className="bg-surface border border-border rounded-xl divide-y divide-border overflow-hidden shadow-xs">
+        <div className="bg-surface border border-border rounded-2xl divide-y divide-border overflow-hidden shadow-xs">
           {isLoadingInvitations ? (
             <div className="p-8 text-center text-xs text-text-muted">Loading pending invitations...</div>
           ) : filteredInvitations.length === 0 ? (

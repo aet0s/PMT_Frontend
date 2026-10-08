@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../context/PermissionContext';
 import { useSocket } from '../../context/SocketProvider';
 import Avatar from '../ui/Avatar';
 import PromptDialog from '../shared/PromptDialog';
+import { ThemeToggle } from '../ui/ThemeToggle';
 import { getThemeDotClass } from '../../lib/palettes';
 import {
   Trello,
@@ -26,7 +27,15 @@ import {
   Home,
   Users,
   Activity,
-  BarChart3
+  BarChart3,
+  Check,
+  X,
+  Layers,
+  Calendar,
+  CheckSquare,
+  Rocket,
+  MapPin,
+  Sparkles
 } from 'lucide-react';
 
 export default function WorkspaceSidebar({
@@ -50,6 +59,7 @@ export default function WorkspaceSidebar({
   onOpenSettings,
   onOpenProfile
 }) {
+  const navigate = useNavigate();
   const { user, logoutUser } = useAuth();
   const { unreadCount, byBoardUnread } = useSocket();
   const [isWsDropdownOpen, setIsWsDropdownOpen] = useState(false);
@@ -58,6 +68,7 @@ export default function WorkspaceSidebar({
   const [workspaceRenameValue, setWorkspaceRenameValue] = useState('');
   const menuRef = useRef(null);
 
+  // Close menus on outside click
   useEffect(() => {
     const handleOutsideClick = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -72,6 +83,19 @@ export default function WorkspaceSidebar({
       document.removeEventListener('touchstart', handleOutsideClick);
     };
   }, []);
+
+  // Keyboard navigation: Escape key closes menus / mobile drawer
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isWsDropdownOpen) setIsWsDropdownOpen(false);
+        if (isWsActionsOpen) setIsWsActionsOpen(false);
+        if (isMobileOpen && onCloseMobile) onCloseMobile();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isWsDropdownOpen, isWsActionsOpen, isMobileOpen, onCloseMobile]);
 
   const { hasPermission } = usePermissions();
   const canCreateBoard = hasPermission('board.create') || hasPermission('project.create');
@@ -90,202 +114,8 @@ export default function WorkspaceSidebar({
     setIsRenameDialogOpen(false);
   };
 
-  const handleSelectBoardMobile = (id) => {
-    onSelectBoard(id);
-    if (onCloseMobile) onCloseMobile();
-  };
-
-  // Minimized Sidebar on Desktop
-  if (isCollapsed) {
-    return (
-      <aside className="hidden lg:flex w-16 h-screen bg-surface border-r border-border flex-col items-center py-3 shrink-0 select-none z-20 transition-all duration-300">
-        <button
-          onClick={onToggleCollapse}
-          title="Expand Sidebar"
-          aria-label="Expand Sidebar"
-          className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm text-white hover:bg-primary-hover active:bg-primary-active transition-colors cursor-pointer shrink-0 mb-4"
-        >
-          <Trello className="w-5 h-5 shrink-0" />
-        </button>
-
-        <Link
-          to={`/w/${activeWorkspace?.id}/home`}
-          className="mb-4 flex flex-col items-center shrink-0"
-          title={activeWorkspace?.name || 'Workspace'}
-        >
-          <div className="w-9 h-9 rounded-xl bg-surface-muted border border-border flex items-center justify-center text-primary font-bold text-xs shadow-xs hover:border-primary transition-colors">
-            <Briefcase className="w-4 h-4 shrink-0" />
-          </div>
-        </Link>
-
-        <div className="flex-1 overflow-y-auto space-y-3 w-full px-2.5 py-2">
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/home`}
-            title="Home / My Work"
-            aria-label="Home / My Work"
-            className={({ isActive }) =>
-              `w-9 h-9 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isActive
-                  ? 'bg-primary-tint text-primary border-2 border-primary shadow-xs font-semibold'
-                  : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
-              }`
-            }
-          >
-            <Home className="w-4 h-4" />
-          </NavLink>
-
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/members`}
-            title="Members"
-            aria-label="Members"
-            className={({ isActive }) =>
-              `w-9 h-9 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isActive
-                  ? 'bg-primary-tint text-primary border-2 border-primary shadow-xs font-semibold'
-                  : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
-              }`
-            }
-          >
-            <Users className="w-4 h-4" />
-          </NavLink>
-
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/activity`}
-            title="Activity Feed"
-            aria-label="Activity Feed"
-            className={({ isActive }) =>
-              `w-9 h-9 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isActive
-                  ? 'bg-primary-tint text-primary border-2 border-primary shadow-xs font-semibold'
-                  : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
-              }`
-            }
-          >
-            <Activity className="w-4 h-4" />
-          </NavLink>
-
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/reports`}
-            title="Reports"
-            aria-label="Reports"
-            className={({ isActive }) =>
-              `w-9 h-9 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isActive
-                  ? 'bg-primary-tint text-primary border-2 border-primary shadow-xs font-semibold'
-                  : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
-              }`
-            }
-          >
-            <BarChart3 className="w-4 h-4" />
-          </NavLink>
-
-          <div className="w-6 h-px bg-border mx-auto my-1" />
-
-          {boards.map((b) => {
-            const bUnread = byBoardUnread?.[b.id] || byBoardUnread?.[String(b.id)] || 0;
-            return (
-              <NavLink
-                key={b.id}
-                to={`/w/${activeWorkspace?.id}/p/${b.id}/board`}
-                title={bUnread > 0 ? `${b.name} (${bUnread} unread)` : b.name}
-                aria-label={b.name}
-                className={({ isActive }) =>
-                  `relative w-9 h-9 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                    isActive
-                      ? 'bg-primary-tint text-primary-text border-2 border-primary shadow-xs font-semibold'
-                      : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
-                  }`
-                }
-              >
-                <div className={`w-3 h-3 rounded-full ${getThemeDotClass(b.background_color)} shrink-0 border border-border-strong`} />
-                {bUnread > 0 && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full ring-2 ring-surface animate-pulse" />
-                )}
-              </NavLink>
-            );
-          })}
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/notifications`}
-            title="Notifications Hub"
-            aria-label="Notifications Hub"
-            className={({ isActive }) =>
-              `relative w-9 h-9 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isActive
-                  ? 'bg-primary-tint text-primary border-2 border-primary font-semibold'
-                  : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
-              }`
-            }
-          >
-            <Bell className="w-4 h-4" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full ring-2 ring-surface animate-pulse" />
-            )}
-          </NavLink>
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/archive`}
-            title="View Archived"
-            aria-label="View Archived"
-            className={({ isActive }) =>
-              `w-9 h-9 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isActive
-                  ? 'bg-warning-tint text-warning border-2 border-warning font-semibold'
-                  : 'bg-surface hover:bg-surface-muted text-warning-text border border-border'
-              }`
-            }
-          >
-            <Archive className="w-4 h-4" />
-          </NavLink>
-        </div>
-
-        <div className="pt-3 border-t border-border flex flex-col items-center gap-2 shrink-0 w-full px-2">
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/profile`}
-            title="My Profile"
-            aria-label="My Profile"
-            className={({ isActive }) =>
-              `w-9 h-9 rounded-xl flex items-center justify-center border transition-colors cursor-pointer ${
-                isActive
-                  ? 'bg-primary-tint text-primary border-primary'
-                  : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-primary border border-border'
-              }`
-            }
-          >
-            <User className="w-4 h-4" />
-          </NavLink>
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/settings/general`}
-            title="Settings"
-            aria-label="Settings"
-            className={({ isActive }) =>
-              `w-9 h-9 rounded-xl flex items-center justify-center border transition-colors cursor-pointer ${
-                isActive
-                  ? 'bg-primary-tint text-primary border-primary'
-                  : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
-              }`
-            }
-          >
-            <Settings className="w-4 h-4" />
-          </NavLink>
-          <button
-            onClick={logoutUser}
-            title="Log Out"
-            aria-label="Log Out"
-            className="w-9 h-9 rounded-xl flex items-center justify-center bg-surface hover:bg-danger-tint text-text-secondary hover:text-danger-text border border-border transition-colors cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onToggleCollapse}
-            title="Expand Sidebar"
-            aria-label="Expand Sidebar"
-            className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-xl transition-colors cursor-pointer"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </aside>
-    );
-  }
+  // Determine current active project board ID fallback
+  const fallbackBoardId = activeBoardId || boards[0]?.id;
 
   return (
     <>
@@ -294,322 +124,457 @@ export default function WorkspaceSidebar({
         <div
           onClick={onCloseMobile}
           aria-hidden="true"
-          className="fixed inset-0 bg-text-primary/25 z-40 lg:hidden transition-opacity"
+          className="fixed inset-0 bg-text-primary/40 z-40 lg:hidden transition-opacity duration-300"
         />
       )}
 
       <aside
-        className={`w-72 h-screen bg-surface border-r border-border flex flex-col shrink-0 select-none transition-all duration-300 overflow-hidden ${
+        aria-label="Workspace navigation"
+        className={`h-screen flex shrink-0 select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isMobileOpen
-            ? 'fixed inset-y-0 left-0 z-50 shadow-xl translate-x-0 lg:relative lg:z-20'
+            ? 'fixed inset-y-0 left-0 z-50 shadow-2xl translate-x-0 lg:relative lg:z-20'
             : 'fixed inset-y-0 left-0 z-50 -translate-x-full lg:relative lg:translate-x-0 lg:z-20'
         }`}
       >
-        {/* Top Header / Branding + Collapse Toggle */}
-        <div className="h-16 px-5 flex items-center justify-between border-b border-border bg-surface shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-xs text-white shrink-0">
-              <Trello className="w-5 h-5" />
-            </div>
-            <span className="text-base font-extrabold tracking-tight text-text-primary truncate">
-              TaskFlow
-            </span>
-          </div>
-
-          <button
-            onClick={onToggleCollapse}
-            title="Collapse Sidebar"
-            aria-label="Collapse Sidebar"
-            className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-xl transition-colors cursor-pointer shrink-0 hidden lg:block"
+        {/* ======================================================== */}
+        {/* RAIL 1: DEEP VIBRANT BRAND BLUE RAIL (Matching Reference) */}
+        {/* ======================================================== */}
+        <div className="w-16 bg-primary flex flex-col items-center py-4 px-0 shrink-0 z-10">
+          {/* Logo Container at Top */}
+          <Link
+            to={activeWorkspace ? `/w/${activeWorkspace.id}/home` : '/'}
+            className="w-10 h-10 rounded-full bg-primary bg-white/20 hover:bg-white/30 border border-white/30 flex items-center justify-center text-white font-black text-xl shadow-inner transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-95"
+            title="TaskFlow"
+            aria-label="TaskFlow Home"
           >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-        </div>
+            <Trello className="w-5.5 h-5.5" />
+          </Link>
 
-        {/* Workspace Selector Dropdown */}
-        <div className="p-4 border-b border-border shrink-0">
-          <label className="block text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-2">
-            Current Workspace
-          </label>
-          <div className="relative" ref={menuRef}>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsWsDropdownOpen(!isWsDropdownOpen);
-                  setIsWsActionsOpen(false);
-                }}
-                className="min-w-0 flex-1 flex items-center justify-between p-2.5 bg-surface hover:bg-surface-hover active:bg-surface-active border border-border hover:border-border-strong rounded-xl text-left transition-colors cursor-pointer min-h-[40px]"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-primary-tint text-primary-text border border-primary/20 flex items-center justify-center font-bold text-xs shrink-0">
-                    {activeWorkspace?.name?.charAt(0)?.toUpperCase() || 'W'}
-                  </div>
-                  <span className="text-xs font-bold text-text-primary truncate">
-                    {activeWorkspace?.name || 'Select Workspace'}
-                  </span>
-                </div>
-                <ChevronDown className={`w-4 h-4 text-text-muted transition-transform ${isWsDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
+          {/* Expand Sidebar Toggle Button (At TOP of Rail 1 when collapsed) */}
+          {isCollapsed && (
+            <button
+              onClick={onToggleCollapse}
+              title="Expand Sidebar (Ctrl+B)"
+              aria-label="Expand Sidebar"
+              className="w-10 h-10 rounded-full bg-primary bg-white/20 hover:bg-white/35 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95 mt-3 hidden lg:flex"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
 
-              {activeWorkspace && (canEditWs || canDeleteWs) && (
-                <div className="relative">
+          {/* Divider between Logo/Toggle and Workspaces */}
+          <div className="w-8 h-px bg-white/20 my-3 shrink-0" />
+
+          {/* Workspace Circles Stack (Pure circles with zero clipping on any side) */}
+          <div className="flex-1 overflow-y-auto space-y-2.5 w-full flex flex-col items-center no-scrollbar py-1">
+            {workspaces.map((ws) => {
+              const isSelected = activeWorkspace?.id === ws.id;
+              return (
+                <div key={ws.id} className="relative w-full flex items-center justify-center group shrink-0">
+                  {/* Active selection capsule pill on far left edge */}
+                  {isSelected ? (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-r-full shadow-xs" />
+                  ) : (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-2 bg-white/50 rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
                   <button
                     type="button"
                     onClick={() => {
-                      setIsWsActionsOpen(!isWsActionsOpen);
-                      setIsWsDropdownOpen(false);
+                      onSelectWorkspace(ws);
+                      navigate(`/w/${ws.id}/home`);
+                      if (onCloseMobile) onCloseMobile();
                     }}
-                    className="p-2.5 bg-surface hover:bg-surface-hover border border-border hover:border-border-strong rounded-xl text-text-secondary hover:text-text-primary transition-colors cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
-                    title="Workspace settings & actions"
-                    aria-label="Workspace settings & actions"
+                    title={ws.name}
+                    aria-label={ws.name}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-white text-primary shadow-md font-black ring-2 ring-white/60'
+                        : 'bg-primary bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
+                    }`}
                   >
-                    <MoreHorizontal className="w-4 h-4" />
+                    {ws.name.charAt(0).toUpperCase()}
                   </button>
+                </div>
+              );
+            })}
 
-                  {isWsActionsOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-xl shadow-lg z-30 py-1 text-text-primary">
-                      {canEditWs && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={openRenameDialog}
-                            className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-text-secondary" />
-                            Rename Workspace
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWsActionsOpen(false);
-                              if (onArchiveWorkspace) onArchiveWorkspace();
-                            }}
-                            className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-warning-text hover:bg-warning-tint transition-colors cursor-pointer text-left"
-                          >
-                            <Archive className="w-3.5 h-3.5 text-warning" />
-                            Archive Workspace
-                          </button>
-                        </>
-                      )}
-                      {canDeleteWs && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsWsActionsOpen(false);
-                            if (onDeleteWorkspace) onDeleteWorkspace();
-                          }}
-                          className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-danger-text hover:bg-danger-tint transition-colors cursor-pointer text-left"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-danger" />
-                          Delete Workspace
-                        </button>
-                      )}
+            {/* Quick Add Workspace Button (+) */}
+            {canEditWs && (
+              <div className="w-full flex items-center justify-center pt-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCreateWorkspaceClick();
+                    if (onCloseMobile) onCloseMobile();
+                  }}
+                  title="Create Workspace"
+                  aria-label="Create Workspace"
+                  className="w-10 h-10 rounded-full bg-primary border-2 border-dashed border-white/40 hover:border-white text-white/80 hover:text-white hover:bg-white/15 flex items-center justify-center transition-all cursor-pointer active:scale-95"
+                >
+                  <Plus className="w-4.5 h-4.5" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Actions: Logout */}
+          <div className="pt-3 pb-1 flex flex-col items-center shrink-0">
+            <button
+              onClick={logoutUser}
+              title="Log Out"
+              aria-label="Log Out"
+              className="w-10 h-10 rounded-full bg-primary bg-white/15 hover:bg-danger text-white hover:text-white flex items-center justify-center transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-95"
+            >
+              <LogOut className="w-4.5 h-4.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* ======================================================== */}
+        {/* RAIL 2: LIGHT WORKSPACE NAVIGATION PANEL (Smooth sliding transition) */}
+        {/* ======================================================== */}
+        <div
+          className={`bg-app flex flex-col h-full overflow-hidden shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            isCollapsed
+              ? 'w-0 opacity-0 pointer-events-none'
+              : 'w-60 lg:w-64 opacity-100'
+          }`}
+        >
+          {/* Header: #WorkspaceName with actions dropdown */}
+          <div className="h-16 px-4 flex items-center justify-between shrink-0">
+            <div className="relative flex-1 min-w-0" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setIsWsDropdownOpen(!isWsDropdownOpen)}
+                className="w-full flex items-center justify-between gap-2 text-left group cursor-pointer focus:outline-none"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xl font-black text-primary shrink-0">#</span>
+                  <span className="text-[15px] sm:text-base font-extrabold text-text-primary truncate tracking-tight group-hover:text-primary transition-colors">
+                    {activeWorkspace?.name || 'Workspace'}
+                  </span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-text-muted transition-transform duration-200 shrink-0 ${isWsDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Workspace Switcher & Actions Dropdown with Sassy Animation */}
+              {isWsDropdownOpen && (
+                <div
+                  role="listbox"
+                  className="absolute left-0 right-0 top-full mt-2 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 p-1.5 space-y-1 animate-sassy-dropdown-left"
+                >
+                  {workspaces.map((ws) => {
+                    const isSelected = activeWorkspace?.id === ws.id;
+                    return (
+                      <button
+                        key={ws.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectWorkspace(ws);
+                          setIsWsDropdownOpen(false);
+                          if (onCloseMobile) onCloseMobile();
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-primary-tint text-primary font-bold'
+                            : 'text-text-primary hover:bg-surface-muted'
+                        }`}
+                      >
+                        <span className="truncate">{ws.name}</span>
+                        {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
+                      </button>
+                    );
+                  })}
+                  {canEditWs && (
+                    <div className="pt-1.5 mt-1 border-t border-border/60 flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={openRenameDialog}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-muted rounded-xl text-left transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Rename</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsWsDropdownOpen(false);
+                          onCreateWorkspaceClick();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-bold text-primary hover:bg-primary-tint rounded-xl text-left transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>New Workspace</span>
+                      </button>
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Workspace Selection Dropdown */}
-            {isWsDropdownOpen && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-surface border border-border rounded-xl shadow-lg z-30 max-h-60 overflow-y-auto p-1.5 space-y-1">
-                {workspaces.map((ws) => (
-                  <button
-                    key={ws.id}
-                    type="button"
-                    onClick={() => {
-                      onSelectWorkspace(ws);
-                      setIsWsDropdownOpen(false);
-                      if (onCloseMobile) onCloseMobile();
-                    }}
-                    className={`w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
-                      activeWorkspace?.id === ws.id
-                        ? 'bg-primary-tint text-primary-text border border-primary/20 font-semibold'
-                        : 'text-text-primary hover:bg-surface-muted'
-                    }`}
-                  >
-                    <div className="w-6 h-6 rounded-md bg-surface-muted text-text-primary flex items-center justify-center font-bold text-[10px] shrink-0 border border-border">
-                      {ws.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="truncate flex-1">{ws.name}</span>
-                  </button>
-                ))}
-                {canEditWs && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsWsDropdownOpen(false);
-                      onCreateWorkspaceClick();
-                      if (onCloseMobile) onCloseMobile();
-                    }}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-primary hover:bg-primary-tint transition-colors border border-dashed border-primary/30 mt-1 cursor-pointer"
-                  >
-                    <FolderPlus className="w-4 h-4" />
-                    Create Workspace
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+            {/* Collapse toggle button on Desktop */}
+            <button
+              onClick={onToggleCollapse}
+              title="Collapse Sidebar"
+              aria-label="Collapse Sidebar"
+              className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-xl transition-colors cursor-pointer hidden lg:flex items-center justify-center min-h-[34px] min-w-[34px]"
+            >
+              <ChevronLeft className="w-4.5 h-4.5" />
+            </button>
 
-        {/* Primary Workspace Navigation Links */}
-        <div className="px-4 pt-3 pb-1 space-y-1 shrink-0 border-b border-border">
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/home`}
-            onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[38px] ${
-                isActive
-                  ? 'bg-primary-tint text-primary-text border border-primary/20 shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-              }`
-            }
-          >
-            <Home className="w-4 h-4 shrink-0 text-primary" />
-            <span className="truncate">Home / My Work</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/members`}
-            onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[38px] ${
-                isActive
-                  ? 'bg-primary-tint text-primary-text border border-primary/20 shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-              }`
-            }
-          >
-            <Users className="w-4 h-4 shrink-0 text-primary" />
-            <span className="truncate">Members</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/activity`}
-            onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[38px] ${
-                isActive
-                  ? 'bg-primary-tint text-primary-text border border-primary/20 shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-              }`
-            }
-          >
-            <Activity className="w-4 h-4 shrink-0 text-primary" />
-            <span className="truncate">Activity Feed</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/reports`}
-            onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[38px] ${
-                isActive
-                  ? 'bg-primary-tint text-primary-text border border-primary/20 shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-              }`
-            }
-          >
-            <BarChart3 className="w-4 h-4 shrink-0 text-primary" />
-            <span className="truncate">Reports</span>
-          </NavLink>
-        </div>
-
-        {/* Boards List Section */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
-              <LayoutGrid className="w-3.5 h-3.5 text-primary" />
-              Boards
-            </span>
-            {canCreateBoard && (
-              <button
-                type="button"
-                onClick={() => {
-                  onCreateBoardClick();
-                  if (onCloseMobile) onCloseMobile();
-                }}
-                title="Create new board"
-                aria-label="Create new board"
-                className="p-1 text-text-secondary hover:text-text-primary bg-surface-muted hover:bg-surface-hover border border-border rounded-lg transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-            )}
+            {/* Close button on Mobile */}
+            <button
+              onClick={onCloseMobile}
+              title="Close navigation"
+              aria-label="Close navigation"
+              className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-xl transition-colors cursor-pointer lg:hidden flex items-center justify-center min-h-[36px] min-w-[36px]"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          <div className="space-y-1">
-            {boards.length === 0 ? (
-              <p className="text-xs text-text-muted italic px-2 py-3">No boards yet. Create one!</p>
-            ) : (
-              boards.map((b) => {
-                const dotColor = getThemeDotClass(b.background_color);
-                const bUnread = byBoardUnread?.[b.id] || byBoardUnread?.[String(b.id)] || 0;
-                return (
-                  <NavLink
-                    key={b.id}
-                    to={`/w/${activeWorkspace?.id}/p/${b.id}/board`}
-                    onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-                    className={({ isActive }) =>
-                      `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-left transition-all cursor-pointer min-h-[40px] ${
-                        isActive
-                          ? 'bg-primary-tint text-primary-text font-semibold border border-primary/20 shadow-xs'
-                          : 'text-text-primary hover:bg-surface-muted border border-transparent'
-                      }`
-                    }
-                  >
-                    <div className={`w-3.5 h-3.5 rounded-full ${dotColor} shrink-0 border border-border-strong`} />
-                    <span className="truncate flex-1">{b.name}</span>
-                    {bUnread > 0 && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-primary text-white rounded-full shrink-0 shadow-2xs">
-                        {bUnread > 99 ? '99+' : bUnread}
-                      </span>
-                    )}
-                  </NavLink>
-                );
-              })
-            )}
-          </div>
-
-          <div className="mt-4 space-y-1.5 pt-3 border-t border-border">
+          {/* Primary Navigation Links (Matching Reference UI labels & icons) */}
+          <nav aria-label="Primary sections" className="p-3 space-y-1 shrink-0 border-b border-border/60">
+            {/* Dashboard */}
             <NavLink
-              to={`/w/${activeWorkspace?.id}/notifications`}
+              to={`/w/${activeWorkspace?.id}/home`}
               onClick={() => { if (onCloseMobile) onCloseMobile(); }}
               className={({ isActive }) =>
-                `w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[38px] ${
+                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-primary-tint text-primary-text border border-primary/20'
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
                     : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                 }`
               }
             >
-              <span className="flex items-center gap-2.5 truncate">
-                <Bell className="w-4 h-4 shrink-0 text-primary" />
-                <span>Notifications</span>
+              <LayoutGrid className="w-4.5 h-4.5 shrink-0" />
+              <span>Dashboard</span>
+            </NavLink>
+
+            {/* Roadmap / Calendar */}
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/p/${fallbackBoardId || '1'}/calendar`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`
+              }
+            >
+              <Calendar className="w-4.5 h-4.5 shrink-0" />
+              <span>Roadmap</span>
+            </NavLink>
+
+            {/* Active Sprint (Board View) - Highlighted in reference */}
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/p/${fallbackBoardId || '1'}/board`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`
+              }
+            >
+              <Layers className="w-4.5 h-4.5 shrink-0" />
+              <span>Active Sprint</span>
+            </NavLink>
+
+            {/* Report */}
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/reports`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`
+              }
+            >
+              <BarChart3 className="w-4.5 h-4.5 shrink-0" />
+              <span>Report</span>
+            </NavLink>
+
+            {/* Issues / List */}
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/p/${fallbackBoardId || '1'}/list`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`
+              }
+            >
+              <CheckSquare className="w-4.5 h-4.5 shrink-0" />
+              <span>Issues</span>
+            </NavLink>
+
+            {/* Releases / Activity */}
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/activity`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`
+              }
+            >
+              <Activity className="w-4.5 h-4.5 shrink-0" />
+              <span>Releases</span>
+            </NavLink>
+
+            {/* Team Member */}
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/members`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`
+              }
+            >
+              <Users className="w-4.5 h-4.5 shrink-0" />
+              <span>Team Member</span>
+            </NavLink>
+
+            {/* Setting */}
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/settings/general`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`
+              }
+            >
+              <Settings className="w-4.5 h-4.5 shrink-0" />
+              <span>Setting</span>
+            </NavLink>
+          </nav>
+
+          {/* Boards List Section */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+            <div className="flex items-center justify-between px-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                Boards & Projects
               </span>
-              {unreadCount > 0 && (
-                <span className="px-2 py-0.5 text-[10px] font-bold bg-primary text-white rounded-full">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
+              {canCreateBoard && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCreateBoardClick();
+                    if (onCloseMobile) onCloseMobile();
+                  }}
+                  title="Create new board"
+                  aria-label="Create new board"
+                  className="p-1.5 text-text-secondary hover:text-primary bg-surface-muted hover:bg-primary-tint rounded-lg transition-colors cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
               )}
+            </div>
+
+            <div className="space-y-1">
+              {boards.length === 0 ? (
+                <p className="text-xs text-text-muted italic px-2 py-2">No boards yet.</p>
+              ) : (
+                boards.map((b) => {
+                  const dotColor = getThemeDotClass(b.background_color);
+                  const bUnread = byBoardUnread?.[b.id] || byBoardUnread?.[String(b.id)] || 0;
+                  return (
+                    <NavLink
+                      key={b.id}
+                      to={`/w/${activeWorkspace?.id}/p/${b.id}/board`}
+                      onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                      className={({ isActive }) =>
+                        `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] font-medium text-left transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                        }`
+                      }
+                    >
+                      <div className={`w-2.5 h-2.5 rounded-full ${dotColor} shrink-0 border border-border-strong`} />
+                      <span className="truncate flex-1">{b.name}</span>
+                      {bUnread > 0 && (
+                        <span className="px-2 py-0.5 text-xs font-bold bg-primary text-white rounded-full shrink-0">
+                          {bUnread}
+                        </span>
+                      )}
+                    </NavLink>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-2 pt-2 border-t border-border/60 space-y-1">
+              <NavLink
+                to={`/w/${activeWorkspace?.id}/notifications`}
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={({ isActive }) =>
+                  `w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${
+                    isActive
+                      ? 'bg-primary-tint text-primary font-bold'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <span className="flex items-center gap-2.5 truncate">
+                  <Bell className="w-4.5 h-4.5 text-primary shrink-0" />
+                  <span>Notifications</span>
+                </span>
+                {unreadCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs font-bold bg-primary text-white rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </NavLink>
+
+              <NavLink
+                to={`/w/${activeWorkspace?.id}/archive`}
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={({ isActive }) =>
+                  `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${
+                    isActive
+                      ? 'bg-warning-tint text-warning font-bold'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <Archive className="w-4.5 h-4.5 text-warning shrink-0" />
+                <span className="truncate">Archived</span>
+              </NavLink>
+            </div>
+          </div>
+
+          {/* User Profile & Theme Controls at Bottom of Panel */}
+          <div className="p-3 bg-surface-muted/50 rounded-2xl mx-3 mb-3 flex items-center justify-between gap-2 shrink-0">
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/profile`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity"
+              title="My Profile"
+            >
+              <Avatar name={user?.name} size="md" />
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-text-primary truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-text-muted truncate">Profile & Settings</p>
+              </div>
             </NavLink>
 
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/archive`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
-                `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[38px] ${
-                  isActive
-                    ? 'bg-warning-tint text-warning-text border border-warning/20'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                }`
-              }
-            >
-              <Archive className="w-4 h-4 shrink-0 text-warning" />
-              <span className="truncate">Archived Items</span>
-            </NavLink>
+            <ThemeToggle className="p-2 rounded-xl shadow-2xs" />
           </div>
         </div>
 
@@ -623,59 +588,6 @@ export default function WorkspaceSidebar({
           onConfirm={handleRenameConfirm}
           onCancel={() => setIsRenameDialogOpen(false)}
         />
-
-        {/* Bottom Navigation Footer: My Profile, Settings & Logout */}
-        <div className="p-3.5 border-t border-border bg-surface-muted/60 flex flex-col gap-2 shrink-0">
-          <NavLink
-            to={`/w/${activeWorkspace?.id}/profile`}
-            onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-            className={({ isActive }) =>
-              `w-full flex items-center justify-between p-2 rounded-xl border cursor-pointer transition-all group min-h-[44px] text-left ${
-                isActive
-                  ? 'bg-primary-tint text-primary-text border-primary/40 font-semibold'
-                  : 'bg-surface hover:bg-primary-tint/50 border-border hover:border-primary/30'
-              }`
-            }
-            title="Open My Profile"
-            aria-label="Open My Profile"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Avatar name={user?.name} size="sm" />
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-text-primary truncate group-hover:text-primary transition-colors">{user?.name}</p>
-                <p className="text-[11px] text-text-secondary truncate">My Profile</p>
-              </div>
-            </div>
-            <User className="w-4 h-4 text-text-secondary group-hover:text-primary transition-colors shrink-0" />
-          </NavLink>
-
-          <div className="flex items-center gap-1.5 pt-0.5">
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/settings/general`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
-                `flex-1 flex items-center justify-center gap-2 py-2 px-3 border rounded-xl text-xs font-semibold cursor-pointer transition-colors min-h-[40px] ${
-                  isActive
-                    ? 'bg-primary-tint text-primary-text border-primary/40 font-semibold'
-                    : 'bg-surface hover:bg-surface-hover active:bg-surface-active border-border text-text-primary'
-                }`
-              }
-            >
-              <Settings className="w-3.5 h-3.5 text-primary" />
-              Settings
-            </NavLink>
-
-            <button
-              type="button"
-              onClick={logoutUser}
-              title="Log Out"
-              aria-label="Log Out"
-              className="p-2 bg-surface hover:bg-danger-tint border border-border hover:border-danger/30 text-text-secondary hover:text-danger-text rounded-xl cursor-pointer transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
       </aside>
     </>
   );

@@ -26,7 +26,7 @@ export function Menu({
   const [activeIndex, setActiveIndex] = useState(null);
   const elementsRef = useRef([]);
 
-  const { refs, floatingStyles, context } = useFloating({
+  const { refs, floatingStyles, context, isPositioned } = useFloating({
     open: isOpen,
     onOpenChange: (nextOpen) => {
       setIsOpen(nextOpen);
@@ -37,6 +37,8 @@ export function Menu({
       }
     },
     placement,
+    strategy: 'fixed',
+    transform: false,
     whileElementsMounted: autoUpdate,
     middleware: [
       offset(offsetDistance),
@@ -105,18 +107,30 @@ export function Menu({
         if (typeof ref === 'function') ref(node);
         else if (ref && 'current' in ref) ref.current = node;
       },
-      ...getReferenceProps(triggerElement.props)
+      ...getReferenceProps({
+        ...triggerElement.props,
+        onClick(e) {
+          e.stopPropagation();
+          triggerElement.props?.onClick?.(e);
+        }
+      })
     })
   ) : (
     <button
       type="button"
       ref={refs.setReference}
-      {...getReferenceProps()}
+      {...getReferenceProps({
+        onClick(e) {
+          e.stopPropagation();
+        }
+      })}
       className="inline-flex items-center cursor-pointer"
     >
       {triggerElement}
     </button>
   );
+
+  const isPositionedReady = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || isPositioned;
 
   return (
     <>
@@ -127,13 +141,21 @@ export function Menu({
           <FloatingFocusManager context={context} modal={false} initialFocus={0}>
             <div
               ref={refs.setFloating}
-              style={floatingStyles}
-              role="menu"
-              aria-orientation="vertical"
-              {...getFloatingProps()}
-              className={`z-[900] min-w-[180px] bg-surface border border-border rounded-xl shadow-xl p-1 text-text-primary text-sm motion-safe:transition-all motion-safe:duration-150 outline-none ${className}`}
+              style={{
+                ...floatingStyles,
+                visibility: isPositionedReady ? 'visible' : 'hidden',
+                opacity: isPositionedReady ? 1 : 0
+              }}
+              className="z-[900]"
             >
-              {typeof children === 'function' ? children({ close: closeMenu }) : renderedChildren}
+              <div
+                role="menu"
+                aria-orientation="vertical"
+                {...getFloatingProps()}
+                className={`min-w-[180px] bg-surface border border-border rounded-2xl shadow-xl p-1.5 text-text-primary text-sm outline-none animate-sassy-dropdown ${className}`}
+              >
+                {typeof children === 'function' ? children({ close: closeMenu }) : renderedChildren}
+              </div>
             </div>
           </FloatingFocusManager>
         </FloatingPortal>

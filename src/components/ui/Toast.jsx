@@ -64,7 +64,7 @@ export function ToastProvider({ children }) {
   }, [showToast]);
 
   return (
-    <ToastContext.Provider value={{ showToast, removeToast, success, error, warning, info, show }}>
+    <ToastContext.Provider value={{ showToast, addToast: showToast, removeToast, success, error, warning, info, show }}>
       {children}
       {/* Toast Render Container */}
       <div

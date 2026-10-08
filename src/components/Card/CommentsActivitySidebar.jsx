@@ -120,27 +120,31 @@ export default function CommentsActivitySidebar({
 
           {isEditingComment ? (
             <form onSubmit={handleSaveComment} className="space-y-2">
+              <label htmlFor="write-comment-input" className="sr-only">
+                Write a comment
+              </label>
               <textarea
+                id="write-comment-input"
                 rows={3}
                 autoFocus
                 value={commentText}
                 onChange={handleCommentChange}
                 placeholder="Write a comment..."
-                className="w-full p-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 text-xs text-text-primary placeholder:text-text-muted font-sans"
+                className="w-full p-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 text-xs text-text-primary placeholder:text-text-muted font-sans"
               />
 
               <div className="flex items-center gap-2">
                 <button
                   type="submit"
                   disabled={isSubmitting || !commentText.trim()}
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover active:bg-primary-active disabled:opacity-50 text-white font-medium text-xs rounded-md shadow-xs transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover active:bg-primary-active disabled:opacity-50 text-white font-medium text-xs rounded-md shadow-xs transition-colors cursor-pointer min-h-[36px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Comment'}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancelComment}
-                  className="px-3 py-2 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                  className="px-3 py-2 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer min-h-[36px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   Cancel
                 </button>

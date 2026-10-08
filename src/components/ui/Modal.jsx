@@ -109,7 +109,7 @@ export function Modal({
       {/* Modal Dialog Card */}
       <div
         ref={modalRef}
-        className={`relative z-10 w-full ${sizeClass} bg-surface border border-border sm:rounded-xl shadow-lg flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden transition-all text-left ${className}`}
+        className={`relative z-10 w-full ${sizeClass} bg-surface border border-border sm:rounded-3xl shadow-xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden transition-all text-left ${className}`}
       >
         {/* Header */}
         {(title || showCloseButton) && (

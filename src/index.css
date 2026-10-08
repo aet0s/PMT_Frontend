@@ -3,57 +3,53 @@
 
 :root {
   color-scheme: light;
-}
 
-@theme {
-  --font-sans: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-
-  /* App Canvas & Surfaces */
-  --color-app: #F5F6F8;
+  /* App Canvas & Surfaces (Light) */
+  --color-app: #FFFFFF;
   --color-surface: #FFFFFF;
-  --color-surface-muted: #EEF0F4;
-  --color-surface-hover: #F8F9FA;
-  --color-surface-active: #E9ECEF;
+  --color-surface-muted: #F8FAFC;
+  --color-surface-hover: #F1F5F9;
+  --color-surface-active: #E2E8F0;
 
-  /* Borders */
-  --color-border: #E1E4EA;
-  --color-border-strong: #CDD2DB;
-  --color-border-focus: #5865C9;
+  /* Borders (Light) */
+  --color-border: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+  --color-border-focus: #2563EB;
 
-  /* Typography */
-  --color-text-primary: #1F2A37;
-  --color-text-secondary: #5A6572;
-  --color-text-muted: #5F6B7A;
+  /* Typography (Light) */
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #556376;
 
-  /* Brand / Primary */
-  --color-primary: #5865C9;
-  --color-primary-hover: #4A57B5;
-  --color-primary-active: #3F4BA3;
-  --color-primary-tint: #ECEEFB;
-  --color-primary-text: #37419A;
+  /* Brand / Primary (Light) */
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-active: #1E40AF;
+  --color-primary-tint: #EFF6FF;
+  --color-primary-text: #1D4ED8;
 
-  /* Status Colors */
-  --color-success: #3D9A72;
-  --color-success-hover: #328360;
+  /* Status Colors (Light) */
+  --color-success: #2E8B62;
+  --color-success-hover: #226749;
   --color-success-tint: #E5F4EC;
-  --color-success-text: #226749;
+  --color-success-text: #1E6344;
 
-  --color-warning: #C28A1E;
-  --color-warning-hover: #A87618;
+  --color-warning: #B57C14;
+  --color-warning-hover: #825A0B;
   --color-warning-tint: #FBF1DB;
-  --color-warning-text: #825A0B;
+  --color-warning-text: #7A5408;
 
   --color-danger: #C54343;
-  --color-danger-hover: #B03838;
+  --color-danger-hover: #963535;
   --color-danger-tint: #FBE8E8;
-  --color-danger-text: #963535;
+  --color-danger-text: #922E2E;
 
-  --color-info: #3F8FB4;
-  --color-info-hover: #327696;
+  --color-info: #337F9E;
+  --color-info-hover: #26607C;
   --color-info-tint: #E5F1F7;
-  --color-info-text: #26607C;
+  --color-info-text: #20556D;
 
-  /* Pastel Label Palette */
+  /* Pastel Label Palette (Light) */
   --color-label-blue: #E8F1FC;
   --color-label-blue-text: #1E4E8C;
   --color-label-green: #E8F6ED;
@@ -70,7 +66,7 @@
   --color-label-slate-text: #2B3847;
 
   /* 10 Soft Light Board Backgrounds */
-  --color-board-neutral: #F5F6F8;
+  --color-board-neutral: #F1F5FB;
   --color-board-mist-blue: #EBF1F6;
   --color-board-lavender: #EFEFF9;
   --color-board-sage: #EDF3EE;
@@ -82,7 +78,7 @@
   --color-board-peach: #FAF0E8;
   --color-board-lilac: #F3EEF8;
 
-  /* Board Dot Indicators */
+  /* Board Dot Indicators (Light) */
   --color-board-dot-neutral: #CDD2DB;
   --color-board-dot-mist-blue: #A2B7CC;
   --color-board-dot-lavender: #ACB3E3;
@@ -95,16 +91,253 @@
   --color-board-dot-peach: #EBB696;
   --color-board-dot-lilac: #C8A8E2;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(31, 42, 55, 0.06);
-  --shadow-md: 0 4px 12px rgba(31, 42, 55, 0.06);
-  --shadow-lg: 0 8px 24px rgba(31, 42, 55, 0.08);
+  /* Shadcn-compatible semantic variables */
+  --background: var(--color-app);
+  --foreground: var(--color-text-primary);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text-primary);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text-primary);
+  --primary: var(--color-primary);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--color-surface-muted);
+  --secondary-foreground: var(--color-text-primary);
+  --muted: var(--color-surface-muted);
+  --muted-foreground: var(--color-text-secondary);
+  --accent: var(--color-surface-hover);
+  --accent-foreground: var(--color-text-primary);
+  --destructive: var(--color-danger);
+  --destructive-foreground: #FFFFFF;
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-border-focus);
+}
 
-  /* Radii */
+.dark, [data-theme="dark"] {
+  color-scheme: dark;
+
+  /* App Canvas & Surfaces (Dark) */
+  --color-app: #0D1117;
+  --color-surface: #161B22;
+  --color-surface-muted: #21262D;
+  --color-surface-hover: #262C36;
+  --color-surface-active: #30363D;
+
+  /* Borders (Dark) */
+  --color-border: #30363D;
+  --color-border-strong: #484F58;
+  --color-border-focus: #7983EB;
+
+  /* Typography (Dark - Contrast Checked) */
+  --color-text-primary: #F0F3F6;
+  --color-text-secondary: #A2ACB9;
+  --color-text-muted: #8B949E;
+
+  /* Brand / Primary (Dark) */
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-active: #1E40AF;
+  --color-primary-tint: #1C2242;
+  --color-primary-text: #B8C1FB;
+
+  /* Status Colors (Dark) */
+  --color-success: #268D5B;
+  --color-success-hover: #32A069;
+  --color-success-tint: #132B20;
+  --color-success-text: #6EE7B7;
+
+  --color-warning: #B57C14;
+  --color-warning-hover: #CA8D1C;
+  --color-warning-tint: #2E2210;
+  --color-warning-text: #FCD34D;
+
+  --color-danger: #D03A3A;
+  --color-danger-hover: #DE4C4C;
+  --color-danger-tint: #301618;
+  --color-danger-text: #FCA5A5;
+
+  --color-info: #337F9E;
+  --color-info-hover: #4193B4;
+  --color-info-tint: #142533;
+  --color-info-text: #93C5FD;
+
+  /* Pastel Label Palette (Dark - rich muted tones) */
+  --color-label-blue: #1A273D;
+  --color-label-blue-text: #93C5FD;
+  --color-label-green: #142B21;
+  --color-label-green-text: #86EFAC;
+  --color-label-purple: #261E3B;
+  --color-label-purple-text: #D8B4FE;
+  --color-label-amber: #2E2212;
+  --color-label-amber-text: #FDE68A;
+  --color-label-rose: #331A21;
+  --color-label-rose-text: #FDA4AF;
+  --color-label-teal: #132B29;
+  --color-label-teal-text: #5EEAD4;
+  --color-label-slate: #21262D;
+  --color-label-slate-text: #CBD5E1;
+
+  /* 10 Dark Board Backgrounds */
+  --color-board-neutral: #161B22;
+  --color-board-mist-blue: #101520;
+  --color-board-lavender: #151422;
+  --color-board-sage: #0F1713;
+  --color-board-sand: #171510;
+  --color-board-blush: #191114;
+  --color-board-sky: #101722;
+  --color-board-mint: #0E1815;
+  --color-board-stone: #131518;
+  --color-board-peach: #181310;
+  --color-board-lilac: #16111D;
+
+  /* Board Dot Indicators (Dark) */
+  --color-board-dot-neutral: #484F58;
+  --color-board-dot-mist-blue: #586B82;
+  --color-board-dot-lavender: #6B6B99;
+  --color-board-dot-sage: #4E6855;
+  --color-board-dot-sand: #7A6F56;
+  --color-board-dot-blush: #7A535B;
+  --color-board-dot-sky: #4F6D8A;
+  --color-board-dot-mint: #477063;
+  --color-board-dot-stone: #555A60;
+  --color-board-dot-peach: #7B5F4E;
+  --color-board-dot-lilac: #6B567E;
+
+  /* Shadcn-compatible semantic variables (Dark) */
+  --background: var(--color-app);
+  --foreground: var(--color-text-primary);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text-primary);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text-primary);
+  --primary: var(--color-primary);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--color-surface-muted);
+  --secondary-foreground: var(--color-text-primary);
+  --muted: var(--color-surface-muted);
+  --muted-foreground: var(--color-text-secondary);
+  --accent: var(--color-surface-hover);
+  --accent-foreground: var(--color-text-primary);
+  --destructive: var(--color-danger);
+  --destructive-foreground: #FFFFFF;
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-border-focus);
+}
+
+@theme {
+  --font-sans: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+
+  /* Canvas & Surfaces */
+  --color-app: var(--color-app);
+  --color-surface: var(--color-surface);
+  --color-surface-muted: var(--color-surface-muted);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-active: var(--color-surface-active);
+
+  /* Borders */
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-focus: var(--color-border-focus);
+
+  /* Typography */
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+
+  /* Brand / Primary */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-active: var(--color-primary-active);
+  --color-primary-tint: var(--color-primary-tint);
+  --color-primary-text: var(--color-primary-text);
+
+  /* Status Colors */
+  --color-success: var(--color-success);
+  --color-success-hover: var(--color-success-hover);
+  --color-success-tint: var(--color-success-tint);
+  --color-success-text: var(--color-success-text);
+
+  --color-warning: var(--color-warning);
+  --color-warning-hover: var(--color-warning-hover);
+  --color-warning-tint: var(--color-warning-tint);
+  --color-warning-text: var(--color-warning-text);
+
+  --color-danger: var(--color-danger);
+  --color-danger-hover: var(--color-danger-hover);
+  --color-danger-tint: var(--color-danger-tint);
+  --color-danger-text: var(--color-danger-text);
+
+  --color-info: var(--color-info);
+  --color-info-hover: var(--color-info-hover);
+  --color-info-tint: var(--color-info-tint);
+  --color-info-text: var(--color-info-text);
+
+  /* Shadcn Aliases */
+  --color-background: var(--color-app);
+  --color-foreground: var(--color-text-primary);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text-primary);
+  --color-muted: var(--color-surface-muted);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-ring: var(--color-border-focus);
+
+  /* Pastel Label Palette */
+  --color-label-blue: var(--color-label-blue);
+  --color-label-blue-text: var(--color-label-blue-text);
+  --color-label-green: var(--color-label-green);
+  --color-label-green-text: var(--color-label-green-text);
+  --color-label-purple: var(--color-label-purple);
+  --color-label-purple-text: var(--color-label-purple-text);
+  --color-label-amber: var(--color-label-amber);
+  --color-label-amber-text: var(--color-label-amber-text);
+  --color-label-rose: var(--color-label-rose);
+  --color-label-rose-text: var(--color-label-rose-text);
+  --color-label-teal: var(--color-label-teal);
+  --color-label-teal-text: var(--color-label-teal-text);
+  --color-label-slate: var(--color-label-slate);
+  --color-label-slate-text: var(--color-label-slate-text);
+
+  /* Board Backgrounds */
+  --color-board-neutral: var(--color-board-neutral);
+  --color-board-mist-blue: var(--color-board-mist-blue);
+  --color-board-lavender: var(--color-board-lavender);
+  --color-board-sage: var(--color-board-sage);
+  --color-board-sand: var(--color-board-sand);
+  --color-board-blush: var(--color-board-blush);
+  --color-board-sky: var(--color-board-sky);
+  --color-board-mint: var(--color-board-mint);
+  --color-board-stone: var(--color-board-stone);
+  --color-board-peach: var(--color-board-peach);
+  --color-board-lilac: var(--color-board-lilac);
+
+  /* Board Dot Indicators */
+  --color-board-dot-neutral: var(--color-board-dot-neutral);
+  --color-board-dot-mist-blue: var(--color-board-dot-mist-blue);
+  --color-board-dot-lavender: var(--color-board-dot-lavender);
+  --color-board-dot-sage: var(--color-board-dot-sage);
+  --color-board-dot-sand: var(--color-board-dot-sand);
+  --color-board-dot-blush: var(--color-board-dot-blush);
+  --color-board-dot-sky: var(--color-board-dot-sky);
+  --color-board-dot-mint: var(--color-board-dot-mint);
+  --color-board-dot-stone: var(--color-board-dot-stone);
+  --color-board-dot-peach: var(--color-board-dot-peach);
+  --color-board-dot-lilac: var(--color-board-dot-lilac);
+
+  /* Subtle Shadows */
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Restrained Radii (Enterprise SaaS) */
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  --radius-2xl: 20px;
 }
 
 @layer base {
@@ -233,4 +466,59 @@
   border-radius: var(--radius-md) !important;
   border: 1px solid var(--color-border) !important;
   overflow-x: auto !important;
+}
+
+/* Visible, easily grabbable scrollbar for Kanban board and scrollable panels */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-surface-muted);
+  border-radius: 9999px;
+  margin: 0 0.5rem;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 9999px;
+  border: 2px solid var(--color-surface-muted);
+  background-clip: padding-box;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+  border: 1px solid var(--color-surface-muted);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Sassy Spring & Bounce Dropdown Keyframes */
+@keyframes sassy-dropdown {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-8px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.025) translateY(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-sassy-dropdown {
+  animation: sassy-dropdown 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top right;
+}
+
+.animate-sassy-dropdown-left {
+  animation: sassy-dropdown 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top left;
 }

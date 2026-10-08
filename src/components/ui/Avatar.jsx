@@ -1,5 +1,5 @@
-// client/src/components/ui/Avatar.jsx
 import React, { useState } from 'react';
+import { getFileUrl } from '../../api/config';
 
 const SIZES = {
   xs: 'w-6 h-6 text-[10px]',
@@ -36,7 +36,10 @@ function getPaletteIndex(str) {
 
 export function Avatar({
   src,
+  avatarUrl,
+  avatar_url,
   name,
+  email,
   size = 'md',
   className = '',
   status, // 'online' | 'offline' | 'busy'
@@ -44,12 +47,16 @@ export function Avatar({
 }) {
   const [imgError, setImgError] = useState(false);
   const sizeClass = SIZES[size] || SIZES.md;
-  const initials = getInitials(name);
-  const pastelClass = PASTEL_PALETTE[getPaletteIndex(name || '')];
-  const showImage = src && !imgError;
+  const displayName = name || email || '';
+  const initials = getInitials(displayName);
+  const pastelClass = PASTEL_PALETTE[getPaletteIndex(displayName)];
+  
+  const rawUrl = src || avatarUrl || avatar_url;
+  const finalSrc = rawUrl ? (rawUrl.startsWith('http') || rawUrl.startsWith('data:') ? rawUrl : getFileUrl(rawUrl)) : null;
+  const showImage = finalSrc && !imgError;
 
   return (
-    <div className={`relative inline-flex items-center justify-center shrink-0 ${sizeClass} ${className}`} {...props}>
+    <div className={`relative inline-flex items-center justify-center shrink-0 rounded-full ${sizeClass} ${className}`} {...props}>
       {showImage ? (
         <img
           src={src}

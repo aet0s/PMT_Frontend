@@ -496,14 +496,17 @@ export default function NotificationsPage({
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
               {/* Search Box */}
               <div className="relative flex-1">
-                <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <label htmlFor="notifications-search-input" className="sr-only">
+                  Search notifications
+                </label>
+                <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="notifications-search-input"
                   type="text"
-                  aria-label="Search notifications"
                   placeholder="Search notifications by keyword, person, card, or board..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                  className="w-full pl-9 pr-4 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 min-h-[40px] transition-colors"
                 />
               </div>
 

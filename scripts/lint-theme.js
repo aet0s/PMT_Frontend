@@ -13,11 +13,7 @@ const FORBIDDEN_PATTERNS = [
   { name: 'backdrop-blur', regex: /backdrop-blur(-\w+)?/g },
   { name: 'glass-panel', regex: /\bglass-panel\b/g },
   { name: 'glass-card', regex: /\bglass-card\b/g },
-  { name: 'isLight', regex: /\bisLight\b/g },
-  { name: 'bg-slate-9/8/7', regex: /\bbg-slate-[789]\d{1,2}\b/g },
-  { name: 'bg-black', regex: /\bbg-black\b/g },
-  { name: 'bg-gray-9', regex: /\bbg-gray-9\d{1,2}\b/g },
-  { name: 'dark: variant', regex: /\bdark:[a-zA-Z0-9_-]+/g },
+  { name: 'bg-black', regex: /\bbg-black\b/g }
 ];
 
 // Hex colors allowed ONLY in the token file (src/index.css)

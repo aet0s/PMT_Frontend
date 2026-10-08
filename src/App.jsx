@@ -11,6 +11,7 @@ import {
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SocketProvider } from './context/SocketProvider';
 import { ToastProvider } from './components/ui/Toast';
+import { ThemeProvider } from './context/ThemeContext';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { UnsavedChangesProvider } from './context/UnsavedChangesContext';
 import Spinner from './components/ui/Spinner';
@@ -290,13 +291,15 @@ const router = createBrowserRouter([
 export default function App() {
   return (
     <ErrorBoundary>
-      <ToastProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <RouterProvider router={router} future={{ v7_startTransition: true }} />
-          </SocketProvider>
-        </AuthProvider>
-      </ToastProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <RouterProvider router={router} future={{ v7_startTransition: true }} />
+            </SocketProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

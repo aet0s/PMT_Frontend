@@ -28,7 +28,9 @@ import { PALETTES, getBoardBgClass } from '../../lib/palettes';
 import { useBoardSocket } from '../../hooks/useBoardSocket';
 import { useSocket } from '../../context/SocketProvider';
 import { usePermissions } from '../../context/PermissionContext';
+import { useAuth } from '../../hooks/useAuth';
 import { matchesCardFilter } from '../../lib/filterCards';
+import RightContextPanel from './RightContextPanel';
 
 import {
   Plus,
@@ -43,7 +45,12 @@ import {
   Pencil,
   Check,
   Menu,
-  MousePointer2
+  MousePointer2,
+  UserPlus,
+  PanelRightClose,
+  PanelRightOpen,
+  Calendar,
+  Sparkles
 } from 'lucide-react';
 
 export default function Board({
@@ -56,6 +63,9 @@ export default function Board({
   onDeleteList,
   onCardClick,
   onCreateCard,
+  onUpdateCard,
+  onDeleteCard,
+  onCopyCard,
   onUpdateCardPosition,
   onUpdateListPosition,
   onAddBoardMember,
@@ -66,8 +76,10 @@ export default function Board({
   onOpenAllNotifications,
   onBoardSocketEvent
 }) {
+  const { user } = useAuth();
   const [activeId, setActiveId] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   const { workspaceId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -257,6 +269,71 @@ export default function Board({
       document.removeEventListener('touchstart', handleOutsideClick);
     };
   }, []);
+
+  // Board Horizontal Mouse Scrolling & Mouse Drag Panning
+  const boardScrollRef = useRef(null);
+  const isDraggingBoardRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartScrollLeftRef = useRef(0);
+
+  useEffect(() => {
+    const el = boardScrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e) => {
+      // 1. Shift key is standard modifier for horizontal scrolling
+      if (e.shiftKey) {
+        if (e.deltaY !== 0) {
+          e.preventDefault();
+          el.scrollLeft += e.deltaY * 1.25;
+        }
+        return;
+      }
+
+      // 2. Direct horizontal trackpad swipe gesture
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        return; // Allow native trackpad horizontal scrolling
+      }
+
+      // 3. Check if wheel event originates inside a list or vertically scrollable cards container
+      const insideList = e.target.closest('.overflow-y-auto, [id^="list-"]');
+      if (insideList && insideList !== el) {
+        // If cursor is anywhere over a list, vertical scrolling belongs exclusively to the list.
+        // Prevent scroll chaining so reaching the top/bottom never jerks the board horizontally.
+        return;
+      }
+
+      // 4. Cursor is on the open board canvas (between lists or empty space):
+      // Convert vertical wheel to smooth horizontal board scroll.
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY * 1.25;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  const handleBoardMouseDown = (e) => {
+    // Only drag scroll if clicking on board background or empty list area (not on cards, buttons, or inputs)
+    if (e.target.closest('button, input, textarea, a, select, [draggable="true"], .cursor-grab, [role="button"], .group')) {
+      return;
+    }
+    isDraggingBoardRef.current = true;
+    dragStartXRef.current = e.pageX;
+    dragStartScrollLeftRef.current = boardScrollRef.current ? boardScrollRef.current.scrollLeft : 0;
+  };
+
+  const handleBoardMouseMove = (e) => {
+    if (!isDraggingBoardRef.current || !boardScrollRef.current) return;
+    const dx = e.pageX - dragStartXRef.current;
+    boardScrollRef.current.scrollLeft = dragStartScrollLeftRef.current - dx;
+  };
+
+  const handleBoardMouseUpOrLeave = () => {
+    isDraggingBoardRef.current = false;
+  };
 
   const { hasPermission } = usePermissions();
   const canEditBoard = hasPermission('board.edit_settings') || hasPermission('project.edit_settings');
@@ -513,10 +590,13 @@ export default function Board({
 
   const boardBgClass = getBoardBgClass(board.background_color);
 
+  // Aggregate all cards across lists for context panel
+  const allBoardCards = (board.lists || []).flatMap((l) => l.cards || []);
+
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden transition-all duration-300 ${boardBgClass}`}>
-      {/* Board Header */}
-      <header className="relative z-30 h-16 px-4 sm:px-6 border-b border-border bg-surface flex items-center justify-between shrink-0 select-none shadow-xs">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-app text-text-primary select-none relative">
+      {/* Tier 1: Modern Minimal Header on the White Outer Shell (No hard bottom divider) */}
+      <header className="relative z-30 h-16 px-4 sm:px-6 lg:px-8 bg-app flex items-center justify-between shrink-0 select-none">
         <div className="flex items-center gap-3 min-w-0">
           {/* Mobile Sidebar Hamburger Toggle */}
           <button
@@ -540,12 +620,12 @@ export default function Board({
                   if (e.key === 'Enter') handleSaveRename();
                   if (e.key === 'Escape') setIsEditingBoardTitle(false);
                 }}
-                className="text-base sm:text-lg font-bold text-text-primary bg-surface border border-primary rounded-lg px-2.5 py-1 focus:outline-none"
+                className="text-base sm:text-lg font-bold text-text-primary bg-surface border border-primary rounded-xl px-2.5 py-1 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={handleSaveRename}
-                className="p-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg cursor-pointer transition-colors"
+                className="p-1.5 bg-primary hover:bg-primary-hover text-white rounded-xl cursor-pointer transition-colors"
                 title="Save board name"
                 aria-label="Save board name"
               >
@@ -558,66 +638,49 @@ export default function Board({
               onClick={canEditBoard ? handleStartRename : undefined}
               title={canEditBoard ? 'Click to rename board' : undefined}
             >
-              <h2 className="text-lg sm:text-xl font-bold text-text-primary tracking-tight truncate group-hover:text-primary transition-colors">
-                {board.name}
+              <h2 className="text-lg sm:text-xl font-black text-text-primary tracking-tight truncate group-hover:text-primary transition-colors flex items-center gap-2">
+                <span>{board.name}</span>
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-tint text-primary">
+                  Active Sprint
+                </span>
               </h2>
               {canEditBoard && (
                 <Pencil className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100 shrink-0" />
               )}
             </div>
           )}
-
-          {/* Project View Switcher (Board | List | Calendar) */}
-          <div className="hidden md:flex items-center gap-1 ml-3 bg-surface-muted/60 p-0.5 rounded-lg border border-border text-xs">
-            <NavLink
-              to={`/w/${workspaceId}/p/${board.id}/board`}
-              className={({ isActive }) =>
-                `px-2.5 py-1 rounded-md font-medium transition-colors ${
-                  isActive
-                    ? 'bg-surface text-primary shadow-xs font-semibold'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`
-              }
-            >
-              Board
-            </NavLink>
-            <NavLink
-              to={`/w/${workspaceId}/p/${board.id}/list`}
-              className={({ isActive }) =>
-                `px-2.5 py-1 rounded-md font-medium transition-colors ${
-                  isActive
-                    ? 'bg-surface text-primary shadow-xs font-semibold'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`
-              }
-            >
-              List
-            </NavLink>
-            <NavLink
-              to={`/w/${workspaceId}/p/${board.id}/calendar`}
-              className={({ isActive }) =>
-                `px-2.5 py-1 rounded-md font-medium transition-colors ${
-                  isActive
-                    ? 'bg-surface text-primary shadow-xs font-semibold'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`
-              }
-            >
-              Calendar
-            </NavLink>
-          </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Live Online Presence Avatars */}
-          {onlineMembers.length > 0 && (
-            <div className="hidden sm:flex items-center -space-x-2 mr-1">
-              {onlineMembers.map((m) => (
-                <div key={m.id} className="relative" title={`${m.name} (Online live)`}>
-                  <Avatar name={m.name} size="sm" status="online" className="ring-2 ring-surface" />
-                </div>
-              ))}
-            </div>
+        {/* Center: Global Pill Search & Quick Actions (Centered in Navbar) */}
+        <div className="flex-1 flex items-center justify-center gap-2 sm:gap-3 px-2 min-w-0">
+          {/* Pill Search input matching reference */}
+          <div className="relative hidden md:block w-56 lg:w-72 xl:w-80">
+            <label htmlFor="board-search-input" className="sr-only">
+              Search task, project, label
+            </label>
+            <input
+              id="board-search-input"
+              type="text"
+              placeholder="Search task, project, label ..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-4 pr-10 py-2 bg-surface-muted/60 border border-border/80 rounded-full text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-primary focus:bg-surface focus-visible:ring-2 focus-visible:ring-primary/20 transition-all min-h-[38px]"
+            />
+            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+          </div>
+
+          {/* Theme Palette Button */}
+          {canEditBoard && (
+            <button
+              ref={paletteButtonRef}
+              type="button"
+              onClick={() => setIsPaletteOpen(!isPaletteOpen)}
+              className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs"
+              title="Change Board Theme"
+              aria-label="Change Board Theme"
+            >
+              <Palette className="w-4 h-4" />
+            </button>
           )}
 
           {/* Notification Bell */}
@@ -626,40 +689,24 @@ export default function Board({
             onOpenAllNotifications={onOpenAllNotifications}
           />
 
-          {/* Share Board & Permissions Button */}
-          {canManageBoardMembers && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onInviteClick || (() => setIsAddMemberOpen(true))}
-              leftIcon={<ShieldCheck className="w-4 h-4 text-primary" />}
-              title="Share board & manage member permissions"
-              aria-label="Share board & manage member permissions"
-            >
-              <span className="hidden sm:inline">Share & Permissions</span>
-            </Button>
-          )}
+          {/* Activity Drawer Button */}
+          <button
+            type="button"
+            onClick={() => setIsActivityOpen(!isActivityOpen)}
+            aria-label="Activity log"
+            title="Activity log"
+            className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs"
+          >
+            <Activity className="w-4 h-4" />
+          </button>
 
-          {/* Theme Palette Button */}
-          {canEditBoard && (
-            <button
-              ref={paletteButtonRef}
-              type="button"
-              onClick={() => setIsPaletteOpen(!isPaletteOpen)}
-              className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
-              title="Change Board Theme"
-              aria-label="Change Board Theme"
-            >
-              <Palette className="w-4 h-4" />
-            </button>
-          )}
-
+          {/* Board Overflow Menu (Board actions) */}
           {(canEditBoard || canDeleteBoard || canArchiveBoard) && (
             <div className="relative" ref={boardMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsBoardMenuOpen((prev) => !prev)}
-                className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
+                className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs"
                 title="Board actions"
                 aria-label="Board actions"
               >
@@ -667,12 +714,12 @@ export default function Board({
               </button>
 
               {isBoardMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-xl shadow-lg z-50 py-1 text-text-primary">
+                <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 py-1.5 text-text-primary animate-sassy-dropdown">
                   {canEditBoard && (
                     <button
                       type="button"
                       onClick={handleStartRename}
-                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left"
+                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left"
                     >
                       <Pencil className="w-3.5 h-3.5 text-text-secondary" />
                       Rename Board
@@ -685,7 +732,7 @@ export default function Board({
                         setIsBoardMenuOpen(false);
                         if (onArchiveBoard) onArchiveBoard();
                       }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-warning-text hover:bg-warning-tint transition-colors cursor-pointer text-left"
+                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-warning-text hover:bg-warning-tint transition-colors cursor-pointer text-left"
                     >
                       <Archive className="w-3.5 h-3.5 text-warning" />
                       Archive Board
@@ -698,7 +745,7 @@ export default function Board({
                         setIsBoardMenuOpen(false);
                         if (onDeleteBoard) onDeleteBoard();
                       }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-danger-text hover:bg-danger-tint transition-colors cursor-pointer text-left"
+                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-danger-text hover:bg-danger-tint transition-colors cursor-pointer text-left"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-danger" />
                       Delete Board
@@ -708,209 +755,254 @@ export default function Board({
               )}
             </div>
           )}
+        </div>
 
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsActivityOpen(!isActivityOpen)}
-            aria-label="Activity log"
-            title="Activity log"
-            leftIcon={<Activity className="w-3.5 h-3.5" />}
+        {/* Right: Toggle Calendar Sidebar Button (Prominent & easy to find) */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+            title={isRightPanelOpen ? 'Hide calendar panel' : 'Show calendar panel'}
+            aria-label={isRightPanelOpen ? 'Hide calendar panel' : 'Show calendar panel'}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 cursor-pointer min-h-[38px] shadow-2xs text-xs font-bold ${
+              isRightPanelOpen
+                ? 'bg-primary-tint border-primary/40 text-primary hover:bg-primary-tint/80 shadow-xs'
+                : 'bg-surface hover:bg-surface-muted border-border text-text-secondary hover:text-text-primary'
+            }`}
           >
-            <span className="hidden sm:inline">Activity</span>
-          </Button>
+            <Calendar className={`w-4 h-4 text-primary transition-transform duration-300 ${isRightPanelOpen ? 'scale-110' : 'scale-100'}`} />
+            <span className="hidden sm:inline">Calendar</span>
+            <span className="inline-flex transition-transform duration-300">
+              {isRightPanelOpen ? (
+                <PanelRightClose className="w-3.5 h-3.5 opacity-70 animate-in fade-in zoom-in-95 duration-200" />
+              ) : (
+                <PanelRightOpen className="w-3.5 h-3.5 opacity-70 animate-in fade-in zoom-in-95 duration-200" />
+              )}
+            </span>
+          </button>
         </div>
       </header>
 
-      {/* Filter / Search Bar */}
-      <div className="px-4 sm:px-6 py-2.5 border-b border-border bg-surface-muted/80 flex flex-wrap items-center gap-2.5 text-xs shrink-0 select-none">
-        <div className="relative min-w-[180px] flex-1 sm:flex-initial">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <input
-            type="text"
-            placeholder="Search cards..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 text-xs min-h-[40px]"
-          />
-        </div>
-
-        <div className="min-w-[130px] flex-1 sm:flex-initial">
-          <Select
-            value={filterMemberId !== null && filterMemberId !== undefined ? String(filterMemberId) : ''}
-            onChange={(val) => setFilterMemberId(val ? Number(val) : null)}
-            placeholder="All Members"
-            size="sm"
-            options={[
-              { value: '', label: 'All Members' },
-              ...(board.members || []).map((m) => ({ value: String(m.id), label: m.name }))
-            ]}
-          />
-        </div>
-
-        <div className="min-w-[130px] flex-1 sm:flex-initial">
-          <Select
-            value={filterLabelId !== null && filterLabelId !== undefined ? String(filterLabelId) : ''}
-            onChange={(val) => setFilterLabelId(val ? Number(val) : null)}
-            placeholder="All Labels"
-            size="sm"
-            options={[
-              { value: '', label: 'All Labels' },
-              ...uniqueLabels.map((l) => ({ value: String(l.id), label: l.name }))
-            ]}
-          />
-        </div>
-
-        <div className="min-w-[120px] flex-1 sm:flex-initial">
-          <Select
-            value={filterDueDate || 'all'}
-            onChange={(val) => setFilterDueDate(val || 'all')}
-            size="sm"
-            options={[
-              { value: 'all', label: 'All Dates' },
-              { value: 'overdue', label: 'Overdue' },
-              { value: 'soon', label: 'Due in 24h' }
-            ]}
-          />
-        </div>
-      </div>
-
-      {/* Mobile List Switcher Tabs */}
-      <div className="md:hidden px-4 py-2 bg-surface border-b border-border flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-        <button
-          type="button"
-          onClick={() => setActiveMobileListId('all')}
-          className={`px-3 py-1.5 rounded-md text-xs font-semibold shrink-0 transition-colors ${
-            activeMobileListId === 'all'
-              ? 'bg-primary-tint text-primary-text border border-primary/20'
-              : 'bg-surface text-text-secondary hover:text-text-primary'
-          }`}
+      {/* Main Workspace Body with Floating Inset Rounded Board & Right Context Area */}
+      <div className="flex-1 flex overflow-hidden min-h-0 px-3 pb-3 sm:px-5 sm:pb-5 lg:px-6 lg:pb-6 gap-4 lg:gap-6 relative">
+        {/* ======================================================== */}
+        {/* FLOATING INSET ROUNDED BOARD SURFACE (Matching Reference) */}
+        {/* ======================================================== */}
+        <section
+          aria-label="Sprint Board Workspace"
+          className={`flex-1 min-w-0 h-full rounded-[28px] lg:rounded-[36px] ${boardBgClass} p-4 sm:p-5 lg:p-6 flex flex-col overflow-hidden shadow-xs relative`}
         >
-          All Lists ({listsWithFilteredCards.length})
-        </button>
-        {listsWithFilteredCards.map((l) => (
-          <button
-            key={l.id}
-            type="button"
-            onClick={() => setActiveMobileListId(String(l.id))}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold shrink-0 truncate max-w-[120px] transition-colors ${
-              activeMobileListId === String(l.id)
-                ? 'bg-primary-tint text-primary-text border border-primary/20'
-                : 'bg-surface text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            {l.name} ({l.cards.length})
-          </button>
-        ))}
-      </div>
-
-      {/* Main Board Lists Container (With snap scroll on mobile) */}
-      <div className="flex-1 overflow-x-auto p-4 sm:p-6 snap-x snap-mandatory">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          accessibility={{
-            announcements,
-            screenReaderInstructions
-          }}
-        >
-          <SortableContext items={listIds} strategy={horizontalListSortingStrategy}>
-            <div className="flex items-start gap-5 h-full min-h-0 max-md:w-full">
+          {/* Top of Board Surface: Teammates, Invite Pill, and "Create Task +" CTA (Matching Reference Image) */}
+          <div className="flex items-center justify-between gap-3 text-xs shrink-0 select-none pb-4">
+            {/* Left: Teammates Avatars Group & "Invite People" Pill */}
+            <div className="flex items-center gap-3">
               {(() => {
-                const remoteDraggedCardIds = new Set(
-                  Object.values(remoteDragCursors)
-                    .map((r) => Number(r.cardId))
-                    .filter(Boolean)
+                const membersList = (board.members && board.members.length > 0)
+                  ? board.members
+                  : onlineMembers;
+                const visibleMembers = membersList.slice(0, 3);
+                const extraCount = membersList.length - 3;
+
+                return (
+                  membersList.length > 0 && (
+                    <div className="flex items-center -space-x-2">
+                      {visibleMembers.map((m) => {
+                        const isOnline = onlineMembers.some((om) => om.id === m.id);
+                        return (
+                          <div
+                            key={m.id}
+                            className="relative rounded-full ring-2 ring-surface shadow-2xs"
+                            title={`${m.name}${isOnline ? ' (Online)' : ''}`}
+                          >
+                            <Avatar name={m.name} size="sm" status={isOnline ? 'online' : undefined} />
+                          </div>
+                        );
+                      })}
+                      {extraCount > 0 && (
+                        <div
+                          className="w-8 h-8 rounded-full bg-surface border border-border/80 text-text-secondary font-bold text-xs flex items-center justify-center shadow-2xs ring-2 ring-surface z-10"
+                          title={`${extraCount} more members`}
+                        >
+                          +{extraCount}
+                        </div>
+                      )}
+                    </div>
+                  )
                 );
-                const remoteDraggedListIds = new Set(
-                  Object.values(remoteDragCursors)
-                    .map((r) => Number(r.listId))
-                    .filter(Boolean)
-                );
-                return visibleLists.map((list) => (
-                  <List
-                    key={list.id}
-                    list={list}
-                    cards={list.cards}
-                    onUpdateList={onUpdateList}
-                    onDeleteList={onDeleteList}
-                    onCardClick={onCardClick}
-                    onCreateCard={onCreateCard}
-                    highlightedCardId={highlightedCardId}
-                    remoteDraggedCardIds={remoteDraggedCardIds}
-                    isRemoteDragging={remoteDraggedListIds.has(list.id)}
-                  />
-                ));
               })()}
 
-              {/* Add New List Button */}
-              {canCreateList && (
-                <div className="w-72 shrink-0 max-md:w-full snap-center">
-                  {isAddingList ? (
-                    <form
-                      onSubmit={handleAddListSubmit}
-                      className="p-4 bg-surface border border-border rounded-xl shadow-md space-y-3"
-                    >
-                      <input
-                        type="text"
-                        autoFocus
-                        required
-                        placeholder="Enter list title..."
-                        value={newListTitle}
-                        onChange={(e) => setNewListTitle(e.target.value)}
-                        className="w-full px-3 py-2 bg-surface border border-border rounded-md text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 min-h-[40px]"
-                      />
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="submit"
-                          variant="primary"
-                          size="sm"
-                        >
-                          Add List
-                        </Button>
-                        <button
-                          type="button"
-                          onClick={() => setIsAddingList(false)}
-                          className="p-1.5 text-text-muted hover:text-text-primary rounded-md transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setIsAddingList(true)}
-                      className="w-full flex items-center gap-2.5 p-3.5 bg-surface/80 hover:bg-surface border border-border hover:border-border-strong rounded-xl text-sm font-semibold text-text-secondary hover:text-text-primary transition-all cursor-pointer shadow-xs min-h-[44px]"
-                    >
-                      <Plus className="w-4 h-4 text-primary" />
-                      Add another list
-                    </button>
-                  )}
-                </div>
+              {/* Invite People Button */}
+              {canManageBoardMembers && (
+                <button
+                  type="button"
+                  onClick={onInviteClick || (() => setIsAddMemberOpen(true))}
+                  className="flex items-center gap-2 px-4 py-2 bg-surface hover:bg-surface-hover border border-border/80 text-text-primary text-xs sm:text-sm font-bold rounded-full shadow-2xs transition-all cursor-pointer min-h-[36px]"
+                >
+                  <UserPlus className="w-4 h-4 text-primary" />
+                  <span>Invite People</span>
+                </button>
               )}
             </div>
-          </SortableContext>
 
-          {/* Drag Overlay */}
-          <DragOverlay>
-            {activeItem?.type === 'list' && (
-              <List
-                list={activeItem.list}
-                cards={listsWithFilteredCards.find((l) => l.id === activeItem.list.id)?.cards || activeItem.list.cards || []}
-                isOverlay={true}
-              />
-            )}
-            {activeItem?.type === 'card' && (
-              <div className="w-72">
-                <Card card={activeItem.card} isOverlay={true} />
+            {/* Right: "Create Task +" Primary CTA */}
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (board.lists && board.lists.length > 0) {
+                    onCreateCard(board.lists[0].id, 'New Task');
+                  } else if (canCreateList) {
+                    setIsAddingList(true);
+                  }
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white text-xs sm:text-sm font-bold rounded-full shadow-sm hover:shadow transition-all cursor-pointer min-h-[38px]"
+              >
+                <span>Create Task</span>
+                <Plus className="w-4 h-4 stroke-[3]" />
+              </button>
+            </div>
+          </div>
+
+          {/* Kanban Columns Container with Smooth Horizontal Mouse Scroll */}
+          <div
+            ref={boardScrollRef}
+            onMouseDown={handleBoardMouseDown}
+            onMouseMove={handleBoardMouseMove}
+            onMouseUp={handleBoardMouseUpOrLeave}
+            onMouseLeave={handleBoardMouseUpOrLeave}
+            className="flex-1 overflow-x-auto min-h-0 max-md:snap-x max-md:snap-mandatory custom-scrollbar pt-1 pb-3 cursor-default"
+          >
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            accessibility={{
+              announcements,
+              screenReaderInstructions
+            }}
+          >
+            <SortableContext items={listIds} strategy={horizontalListSortingStrategy}>
+              <div className="flex items-start gap-5 h-full min-h-0 max-md:w-full">
+                {(() => {
+                  const remoteDraggedCardIds = new Set(
+                    Object.values(remoteDragCursors)
+                      .map((r) => Number(r.cardId))
+                      .filter(Boolean)
+                  );
+                  const remoteDraggedListIds = new Set(
+                    Object.values(remoteDragCursors)
+                      .map((r) => Number(r.listId))
+                      .filter(Boolean)
+                  );
+                  return visibleLists.map((list) => (
+                    <List
+                      key={list.id}
+                      list={list}
+                      cards={list.cards}
+                      onUpdateList={onUpdateList}
+                      onDeleteList={onDeleteList}
+                      onCardClick={onCardClick}
+                      onCreateCard={onCreateCard}
+                      onUpdateCard={onUpdateCard}
+                      onDeleteCard={onDeleteCard}
+                      onCopyCard={onCopyCard}
+                      highlightedCardId={highlightedCardId}
+                      remoteDraggedCardIds={remoteDraggedCardIds}
+                      isRemoteDragging={remoteDraggedListIds.has(list.id)}
+                    />
+                  ));
+                })()}
+
+                {/* Add New List Button */}
+                {canCreateList && (
+                  <div className="w-76 shrink-0 max-md:w-full snap-center">
+                    {isAddingList ? (
+                      <form
+                        onSubmit={handleAddListSubmit}
+                        className="p-4 bg-surface border border-border/80 rounded-2xl shadow-md space-y-3"
+                      >
+                        <input
+                          type="text"
+                          autoFocus
+                          required
+                          placeholder="Enter list title..."
+                          value={newListTitle}
+                          onChange={(e) => setNewListTitle(e.target.value)}
+                          className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 min-h-[40px]"
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="submit"
+                            variant="primary"
+                            size="sm"
+                            className="rounded-xl font-bold"
+                          >
+                            Add List
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingList(false)}
+                            className="p-1.5 text-text-muted hover:text-text-primary rounded-xl transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingList(true)}
+                        className="w-full flex items-center gap-2.5 p-3.5 bg-surface-muted/60 hover:bg-surface border border-dashed border-border/80 hover:border-primary/40 rounded-2xl text-sm font-bold text-text-secondary hover:text-primary transition-all cursor-pointer shadow-2xs min-h-[44px]"
+                      >
+                        <Plus className="w-4 h-4 text-primary" />
+                        <span>Add column</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </DragOverlay>
-        </DndContext>
+            </SortableContext>
+
+            {/* Drag Overlay */}
+            <DragOverlay>
+              {activeItem?.type === 'list' && (
+                <List
+                  list={activeItem.list}
+                  cards={listsWithFilteredCards.find((l) => l.id === activeItem.list.id)?.cards || activeItem.list.cards || []}
+                  isOverlay={true}
+                />
+              )}
+              {activeItem?.type === 'card' && (
+                <div className="w-72">
+                  <Card card={activeItem.card} isOverlay={true} />
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+        </div>
+      </section>
+
+      {/* Right Context Panel (Calendar & Upcoming Tasks) with Smooth Animated Toggle */}
+      <div
+        className={`hidden xl:flex flex-col h-full transition-all duration-300 ease-in-out shrink-0 overflow-hidden ${
+          isRightPanelOpen
+            ? 'w-76 xl:w-84 opacity-100 translate-x-0'
+            : 'w-0 opacity-0 translate-x-8 pointer-events-none -mr-4 lg:-mr-6'
+        }`}
+        aria-hidden={!isRightPanelOpen}
+      >
+        <div className="w-76 xl:w-84 h-full shrink-0">
+          <RightContextPanel
+            user={user}
+            board={board}
+            cards={allBoardCards}
+            onCardClick={onCardClick}
+            className="w-full h-full"
+          />
+        </div>
       </div>
+    </div>
 
       {/* Board Theme Palette Picker */}
       {isPaletteOpen && (
