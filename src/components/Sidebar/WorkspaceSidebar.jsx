@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../context/PermissionContext';
 import { useSocket } from '../../context/SocketProvider';
@@ -100,7 +100,15 @@ export default function WorkspaceSidebar({
   const { hasPermission } = usePermissions();
   const canCreateBoard = hasPermission('board.create') || hasPermission('project.create');
   const canEditWs = hasPermission('workspace.edit_settings');
+  const canCreateWs = hasPermission('workspace.create') || hasPermission('workspace.edit_settings');
   const canDeleteWs = hasPermission('workspace.delete');
+  const canViewRoadmap = hasPermission('project.view') || hasPermission('task.view');
+  const canViewSprint = hasPermission('project.view') || hasPermission('task.view');
+  const canViewReports = hasPermission('workspace.view');
+  const canViewIssues = hasPermission('task.view');
+  const canViewActivity = hasPermission('activity.view');
+  const canViewMembers = hasPermission('member.view');
+  const canViewSettings = hasPermission('workspace.edit') || hasPermission('role.view') || hasPermission('member.invite');
 
   const openRenameDialog = () => {
     setWorkspaceRenameValue(activeWorkspace?.name || '');
@@ -114,8 +122,47 @@ export default function WorkspaceSidebar({
     setIsRenameDialogOpen(false);
   };
 
-  // Determine current active project board ID fallback
-  const fallbackBoardId = activeBoardId || boards[0]?.id;
+  const location = useLocation();
+
+  // Explicit route active checks to prevent conflicting active highlights
+  const isDashboardActive =
+    location.pathname === `/w/${activeWorkspace?.id}/home` ||
+    location.pathname === `/w/${activeWorkspace?.id}` ||
+    location.pathname === `/w/${activeWorkspace?.id}/`;
+  const isRoadmapActive = location.pathname.endsWith('/calendar') || location.pathname.endsWith('/roadmap');
+  const isSprintActive = location.pathname.endsWith('/board') || location.pathname.endsWith('/sprint');
+  const isIssuesActive = location.pathname.endsWith('/list') || location.pathname.endsWith('/issues');
+  const isReportActive = location.pathname.endsWith('/reports');
+  const isReleasesActive = location.pathname.endsWith('/activity');
+  const isWorkspaceMembersActive = location.pathname.endsWith('/members') || location.pathname.endsWith('/workspace-members');
+  const isCompanyMembersActive = location.pathname.endsWith('/company-members');
+  const isSettingsActive = location.pathname.includes('/settings');
+
+  // Determine current active project board ID fallback (priority: active board -> pinned board -> last visited board -> first board)
+  const pinnedBoardId = (() => {
+    try {
+      return localStorage.getItem(`taskflow_pinned_board_${activeWorkspace?.id}`);
+    } catch {
+      return null;
+    }
+  })();
+  const effectivePinnedBoardId =
+    boards.some((b) => String(b.id) === String(pinnedBoardId))
+      ? Number(pinnedBoardId)
+      : null;
+
+  const lastVisitedBoardId = (() => {
+    try {
+      return localStorage.getItem(`taskflow_last_board_${activeWorkspace?.id}`);
+    } catch {
+      return null;
+    }
+  })();
+  const effectiveLastBoardId =
+    boards.some((b) => String(b.id) === String(lastVisitedBoardId))
+      ? Number(lastVisitedBoardId)
+      : null;
+  const fallbackBoardId = activeBoardId || effectivePinnedBoardId || effectiveLastBoardId || boards[0]?.id;
 
   return (
     <>
@@ -199,7 +246,7 @@ export default function WorkspaceSidebar({
             })}
 
             {/* Quick Add Workspace Button (+) */}
-            {canEditWs && (
+            {canCreateWs && (
               <div className="w-full flex items-center justify-center pt-1 shrink-0">
                 <button
                   type="button"
@@ -248,11 +295,18 @@ export default function WorkspaceSidebar({
                 onClick={() => setIsWsDropdownOpen(!isWsDropdownOpen)}
                 className="w-full flex items-center justify-between gap-2 text-left group cursor-pointer focus:outline-none"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xl font-black text-primary shrink-0">#</span>
-                  <span className="text-[15px] sm:text-base font-extrabold text-text-primary truncate tracking-tight group-hover:text-primary transition-colors">
-                    {activeWorkspace?.name || 'Workspace'}
-                  </span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xl font-black text-primary shrink-0">#</span>
+                    <span className="text-[15px] sm:text-base font-extrabold text-text-primary truncate tracking-tight group-hover:text-primary transition-colors">
+                      {activeWorkspace?.name || 'Workspace'}
+                    </span>
+                  </div>
+                  {activeWorkspace?.description && (
+                    <span className="text-[11px] text-text-muted truncate pl-5">
+                      {activeWorkspace.description}
+                    </span>
+                  )}
                 </div>
                 <ChevronDown className={`w-4 h-4 text-text-muted transition-transform duration-200 shrink-0 ${isWsDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -285,27 +339,31 @@ export default function WorkspaceSidebar({
                       </button>
                     );
                   })}
-                  {canEditWs && (
+                  {(canEditWs || canCreateWs) && (
                     <div className="pt-1.5 mt-1 border-t border-border/60 flex flex-col gap-1">
-                      <button
-                        type="button"
-                        onClick={openRenameDialog}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-muted rounded-xl text-left transition-colors cursor-pointer"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                        <span>Rename</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsWsDropdownOpen(false);
-                          onCreateWorkspaceClick();
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-bold text-primary hover:bg-primary-tint rounded-xl text-left transition-colors cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>New Workspace</span>
-                      </button>
+                      {canEditWs && (
+                        <button
+                          type="button"
+                          onClick={openRenameDialog}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-muted rounded-xl text-left transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>Rename</span>
+                        </button>
+                      )}
+                      {canCreateWs && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsWsDropdownOpen(false);
+                            onCreateWorkspaceClick();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-bold text-primary hover:bg-primary-tint rounded-xl text-left transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>New Workspace</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -339,9 +397,9 @@ export default function WorkspaceSidebar({
             <NavLink
               to={`/w/${activeWorkspace?.id}/home`}
               onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
+              className={() =>
                 `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
+                  isDashboardActive
                     ? 'bg-primary-tint text-primary font-bold shadow-2xs'
                     : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                 }`
@@ -352,116 +410,143 @@ export default function WorkspaceSidebar({
             </NavLink>
 
             {/* Roadmap / Calendar */}
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/p/${fallbackBoardId || '1'}/calendar`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
-                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                }`
-              }
-            >
-              <Calendar className="w-4.5 h-4.5 shrink-0" />
-              <span>Roadmap</span>
-            </NavLink>
+            {canViewRoadmap && (
+              <NavLink
+                to={
+                  fallbackBoardId
+                    ? `/w/${activeWorkspace?.id}/p/${fallbackBoardId}/calendar`
+                    : `/w/${activeWorkspace?.id}/roadmap`
+                }
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={() =>
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                    isRoadmapActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <Calendar className="w-4.5 h-4.5 shrink-0" />
+                <span>Roadmap</span>
+              </NavLink>
+            )}
 
-            {/* Active Sprint (Board View) - Highlighted in reference */}
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/p/${fallbackBoardId || '1'}/board`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
-                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                }`
-              }
-            >
-              <Layers className="w-4.5 h-4.5 shrink-0" />
-              <span>Active Sprint</span>
-            </NavLink>
+            {/* Kanban Board View (Active Board / Sprint) */}
+            {canViewSprint && (
+              <NavLink
+                to={
+                  fallbackBoardId
+                    ? `/w/${activeWorkspace?.id}/p/${fallbackBoardId}/board`
+                    : `/w/${activeWorkspace?.id}/board`
+                }
+                aria-label="Kanban Board (Active Sprint)"
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={() =>
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                    isSprintActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <Layers className="w-4.5 h-4.5 shrink-0" />
+                <span>Kanban Board</span>
+              </NavLink>
+            )}
 
             {/* Report */}
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/reports`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
-                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                }`
-              }
-            >
-              <BarChart3 className="w-4.5 h-4.5 shrink-0" />
-              <span>Report</span>
-            </NavLink>
+            {canViewReports && (
+              <NavLink
+                to={`/w/${activeWorkspace?.id}/reports`}
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={() =>
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                    isReportActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <BarChart3 className="w-4.5 h-4.5 shrink-0" />
+                <span>Report</span>
+              </NavLink>
+            )}
 
             {/* Issues / List */}
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/p/${fallbackBoardId || '1'}/list`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
-                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                }`
-              }
-            >
-              <CheckSquare className="w-4.5 h-4.5 shrink-0" />
-              <span>Issues</span>
-            </NavLink>
+            {canViewIssues && (
+              <NavLink
+                to={
+                  fallbackBoardId
+                    ? `/w/${activeWorkspace?.id}/p/${fallbackBoardId}/list`
+                    : `/w/${activeWorkspace?.id}/list`
+                }
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={() =>
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                    isIssuesActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <CheckSquare className="w-4.5 h-4.5 shrink-0" />
+                <span>Issues</span>
+              </NavLink>
+            )}
 
             {/* Releases / Activity */}
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/activity`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
-                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                }`
-              }
-            >
-              <Activity className="w-4.5 h-4.5 shrink-0" />
-              <span>Releases</span>
-            </NavLink>
+            {canViewActivity && (
+              <NavLink
+                to={`/w/${activeWorkspace?.id}/activity`}
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={() =>
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                    isReleasesActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <Activity className="w-4.5 h-4.5 shrink-0" />
+                <span>Releases</span>
+              </NavLink>
+            )}
 
-            {/* Team Member */}
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/members`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
-                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                }`
-              }
-            >
-              <Users className="w-4.5 h-4.5 shrink-0" />
-              <span>Team Member</span>
-            </NavLink>
+            {/* Workspace Members */}
+            {canViewMembers && (
+              <NavLink
+                to={`/w/${activeWorkspace?.id}/members`}
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={() =>
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                    isWorkspaceMembersActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <Users className="w-4.5 h-4.5 shrink-0" />
+                <span>Workspace Members</span>
+              </NavLink>
+            )}
 
             {/* Setting */}
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/settings/general`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className={({ isActive }) =>
-                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                }`
-              }
-            >
-              <Settings className="w-4.5 h-4.5 shrink-0" />
-              <span>Setting</span>
-            </NavLink>
+            {canViewSettings && (
+              <NavLink
+                to={`/w/${activeWorkspace?.id}/settings/general`}
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={() =>
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
+                    isSettingsActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <Settings className="w-4.5 h-4.5 shrink-0" />
+                <span>Setting</span>
+              </NavLink>
+            )}
           </nav>
 
           {/* Boards List Section */}
@@ -520,6 +605,26 @@ export default function WorkspaceSidebar({
             </div>
 
             <div className="mt-2 pt-2 border-t border-border/60 space-y-1">
+              {/* Members (Company Directory) */}
+              {canViewMembers && (
+                <NavLink
+                  to={`/w/${activeWorkspace?.id}/company-members`}
+                  onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                  className={() =>
+                    `w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${
+                      isCompanyMembersActive
+                        ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                    }`
+                  }
+                >
+                  <span className="flex items-center gap-2.5 truncate">
+                    <Users className="w-4.5 h-4.5 text-primary shrink-0" />
+                    <span>Members</span>
+                  </span>
+                </NavLink>
+              )}
+
               <NavLink
                 to={`/w/${activeWorkspace?.id}/notifications`}
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}

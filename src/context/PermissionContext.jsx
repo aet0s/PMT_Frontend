@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../api/client';
+import { useSocket } from './SocketProvider';
+import { hasPermissionPure } from '../utils/permissionUtils';
 
 const PermissionContext = createContext({
   userRole: null,
@@ -9,15 +11,36 @@ const PermissionContext = createContext({
   refetchPermissions: () => {}
 });
 
-export function PermissionProvider({ workspaceId, children }) {
-  const [userRole, setUserRole] = useState(null);
-  const [permissions, setPermissions] = useState([]);
-  const [loading, setLoading] = useState(true);
+export function PermissionProvider({
+  workspaceId,
+  role = null,
+  permissions: propPerms = null,
+  children
+}) {
+  const resolvedRole = role ? (typeof role === 'string' ? { name: role } : role) : null;
+  const [userRole, setUserRole] = useState(resolvedRole);
+  const [permissions, setPermissions] = useState(propPerms || []);
+  const [loading, setLoading] = useState(!resolvedRole && !propPerms && !!workspaceId);
+
+  let socket = null;
+  try {
+    const socketCtx = useSocket();
+    socket = socketCtx?.socket;
+  } catch (e) {
+    // Graceful fallback when rendered without SocketProvider (e.g. tests)
+  }
 
   const fetchPermissions = useCallback(async () => {
+    if (propPerms !== null && propPerms !== undefined) {
+      setLoading(false);
+      return;
+    }
+
     if (!workspaceId) {
-      setUserRole(null);
-      setPermissions([]);
+      if (!resolvedRole && !propPerms) {
+        setUserRole(null);
+        setPermissions([]);
+      }
       setLoading(false);
       return;
     }
@@ -40,47 +63,27 @@ export function PermissionProvider({ workspaceId, children }) {
     fetchPermissions();
   }, [fetchPermissions]);
 
+  useEffect(() => {
+    if (!socket || !workspaceId) return;
+
+    const handleUpdate = () => {
+      fetchPermissions();
+    };
+
+    socket.on('user:permissions_updated', handleUpdate);
+    socket.on('workspace:role_updated', handleUpdate);
+    socket.on('workspace:member_updated', handleUpdate);
+
+    return () => {
+      socket.off('user:permissions_updated', handleUpdate);
+      socket.off('workspace:role_updated', handleUpdate);
+      socket.off('workspace:member_updated', handleUpdate);
+    };
+  }, [socket, workspaceId, fetchPermissions]);
+
   const hasPermission = useCallback(
     (permissionKey, projectId = null) => {
-      if (!permissionKey) return true;
-      if (userRole?.name === 'Super Admin' || userRole?.name === 'Owner') return true;
-
-      // Direct match
-      if (permissions.includes(permissionKey)) return true;
-
-      // Legacy aliases
-      const aliases = {
-        'board.create': 'project.create',
-        'board.edit_settings': 'project.edit_settings',
-        'board.delete': 'project.delete',
-        'board.archive': 'project.archive',
-        'board.manage_members': 'project.manage_members',
-        'card.create': 'task.create',
-        'card.edit': 'task.edit',
-        'card.delete': 'task.delete',
-        'card.move': 'task.move',
-        'card.comment': 'comment.create',
-        'card.manage_attachments': 'attachment.upload',
-        'card.assign_members': 'task.assign',
-        'member.view_all': 'member.view',
-        'workspace.edit_settings': 'workspace.edit',
-        'workspace.manage_roles': 'role.create',
-        'workspace.invite_members': 'member.invite',
-        'role.manage': 'role.view'
-      };
-
-      if (aliases[permissionKey] && permissions.includes(aliases[permissionKey])) {
-        return true;
-      }
-
-      // Check reverse
-      for (const [oldKey, newKey] of Object.entries(aliases)) {
-        if (newKey === permissionKey && permissions.includes(oldKey)) {
-          return true;
-        }
-      }
-
-      return false;
+      return hasPermissionPure(userRole, permissions, permissionKey, projectId);
     },
     [userRole, permissions]
   );

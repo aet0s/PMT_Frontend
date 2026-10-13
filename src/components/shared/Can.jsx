@@ -9,14 +9,15 @@ import { usePermissions } from '../../context/PermissionContext';
  *   <DeleteButton />
  * </Can>
  */
-export function Can({ permission, projectId = null, fallback = null, children }) {
+export function Can({ permission, I, projectId = null, fallback = null, children }) {
   const { hasPermission, loading } = usePermissions();
 
   if (loading) {
     return null;
   }
 
-  const permissionsToCheck = Array.isArray(permission) ? permission : [permission];
+  const targetPerm = permission || I;
+  const permissionsToCheck = Array.isArray(targetPerm) ? targetPerm : [targetPerm];
   const allowed = permissionsToCheck.some((p) => hasPermission(p, projectId));
 
   if (!allowed) {

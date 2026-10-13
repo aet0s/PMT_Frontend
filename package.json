@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "check:contrast": "node scripts/check-contrast.js",
     "check:prod-bundle": "node scripts/check-prod-bundle.js",
+    "check:ui-permissions": "node src/scripts/checkUiPermissions.cjs",
     "lint:theme": "node scripts/lint-theme.js",
     "lint:ui": "node scripts/lint-ui.js",
     "test:unit": "vitest run",

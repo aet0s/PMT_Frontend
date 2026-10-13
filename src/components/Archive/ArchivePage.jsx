@@ -10,6 +10,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { formatShortDate } from '../../lib/dateFormat';
+import { usePermissions } from '../../context/PermissionContext';
 
 function EmptyState({ label }) {
   return (
@@ -19,26 +20,31 @@ function EmptyState({ label }) {
   );
 }
 
-function ItemActions({ onRestore, onDelete }) {
+function ItemActions({ onRestore, onDelete, canRestore = true, canDelete = true }) {
+  if (!canRestore && !canDelete) return null;
   return (
     <div className="flex items-center gap-2 shrink-0">
-      <button
-        type="button"
-        onClick={onRestore}
-        className="flex items-center gap-1.5 rounded-md bg-success-tint px-2.5 py-1.5 text-[11px] font-semibold text-success-text transition-colors hover:bg-success-tint/80 cursor-pointer"
-      >
-        <RotateCcw className="h-3.5 w-3.5" />
-        Restore
-      </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="rounded-md p-1.5 text-danger-text transition-colors hover:bg-danger-tint cursor-pointer"
-        title="Delete permanently"
-        aria-label="Delete permanently"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+      {canRestore && onRestore && (
+        <button
+          type="button"
+          onClick={onRestore}
+          className="flex items-center gap-1.5 rounded-md bg-success-tint px-2.5 py-1.5 text-[11px] font-semibold text-success-text transition-colors hover:bg-success-tint/80 cursor-pointer"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Restore
+        </button>
+      )}
+      {canDelete && onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="rounded-md p-1.5 text-danger-text transition-colors hover:bg-danger-tint cursor-pointer"
+          title="Delete permanently"
+          aria-label="Delete permanently"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -75,6 +81,14 @@ export default function ArchivePage({
   const workspaces = archiveData?.workspaces || [];
   const boards = archiveData?.boards || [];
   const cards = archiveData?.cards || [];
+
+  const { hasPermission } = usePermissions();
+  const canDeleteWorkspace = hasPermission('workspace.delete');
+  const canRestoreWorkspace = hasPermission('workspace.edit') || hasPermission('workspace.archive');
+  const canDeleteBoard = hasPermission('project.delete');
+  const canRestoreBoard = hasPermission('project.edit_settings') || hasPermission('project.archive');
+  const canDeleteCard = hasPermission('task.delete');
+  const canRestoreCard = hasPermission('task.restore') || hasPermission('task.archive');
 
   return (
     <div className="flex-1 overflow-y-auto bg-app text-text-primary">
@@ -135,6 +149,8 @@ export default function ArchivePage({
                         <ItemActions
                           onRestore={() => onRestoreWorkspace(workspace.id)}
                           onDelete={() => onDeleteWorkspace(workspace.id)}
+                          canRestore={canRestoreWorkspace}
+                          canDelete={canDeleteWorkspace}
                         />
                       </div>
                     </article>
@@ -160,6 +176,8 @@ export default function ArchivePage({
                         <ItemActions
                           onRestore={() => onRestoreBoard(board.id)}
                           onDelete={() => onDeleteBoard(board.id)}
+                          canRestore={canRestoreBoard}
+                          canDelete={canDeleteBoard}
                         />
                       </div>
                     </article>
@@ -192,6 +210,8 @@ export default function ArchivePage({
                         <ItemActions
                           onRestore={() => onRestoreCard(card.id)}
                           onDelete={() => onDeleteCard(card.id)}
+                          canRestore={canRestoreCard}
+                          canDelete={canDeleteCard}
                         />
                       </div>
                     </article>

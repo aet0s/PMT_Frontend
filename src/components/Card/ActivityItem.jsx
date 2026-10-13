@@ -2,8 +2,15 @@ import React from 'react';
 import Avatar from '../ui/Avatar';
 import { formatDate, formatRelativeTime } from '../../lib/dateFormat';
 import { Trash2 } from 'lucide-react';
+import { usePermissions } from '../../context/PermissionContext';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function ActivityItem({ item, onDeleteComment }) {
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canDeleteOwn = hasPermission('comment.delete_own');
+  const canDeleteAny = hasPermission('comment.delete_any');
+  const canDeleteComment = canDeleteAny || (canDeleteOwn && Number(user?.id) === Number(item?.user_id));
   const isComment = item.type === 'comment' || item.action_type === 'added_comment';
   const commentBody = item.body || item.meta_json?.body || '';
   const cardName = item.card_title || item.meta_json?.card_title || item.meta_json?.title || '';
@@ -86,7 +93,7 @@ export default function ActivityItem({ item, onDeleteComment }) {
               className="prose prose-xs text-text-primary text-xs bg-surface-muted p-2.5 rounded-lg border border-border break-words overflow-hidden"
               dangerouslySetInnerHTML={{ __html: commentBody }}
             />
-            {onDeleteComment && (
+            {onDeleteComment && canDeleteComment && (
               <div className="flex justify-end">
                 <button
                   type="button"
