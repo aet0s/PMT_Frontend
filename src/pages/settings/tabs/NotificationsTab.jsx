@@ -17,13 +17,14 @@ import Button from '../../../components/ui/Button';
 import Switch from '../../../components/ui/Switch';
 import { useToast } from '../../../components/ui/Toast';
 import { getNotificationPreferences, updateNotificationPreferences } from '../../../api/notifications';
+import { playNotificationBellSound } from '../../../lib/notificationSound';
 
 export default function NotificationsTab({ workspace, setFormDirty }) {
   const toast = useToast();
   const [notifyAssignments, setNotifyAssignments] = useState(true);
   const [notifyMentions, setNotifyMentions] = useState(true);
   const [notifyDueDates, setNotifyDueDates] = useState(true);
-  const [soundEffects, setSoundEffects] = useState(false);
+  const [soundEffects, setSoundEffects] = useState(() => localStorage.getItem('soundEffectsEnabled') !== 'false');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -38,7 +39,7 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
             setNotifyMentions(res.preferences.notify_mentions ?? true);
             setNotifyDueDates(res.preferences.notify_due_dates ?? true);
           }
-          const soundVal = Boolean(res.play_sound ?? res.sound_effects ?? false);
+          const soundVal = res.play_sound !== undefined ? Boolean(res.play_sound) : (res.sound_effects !== undefined ? Boolean(res.sound_effects) : true);
           setSoundEffects(soundVal);
           localStorage.setItem('soundEffectsEnabled', String(soundVal));
         }
@@ -83,19 +84,8 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
 
   const handleTestChime = () => {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-      toast.show('Chime preview played', 'info');
+      playNotificationBellSound();
+      toast.show('Notification bell chime played', 'info');
     } catch {
       toast.show('Audio chime test triggered', 'info');
     }

@@ -73,6 +73,7 @@ export default function ReportsPage({ workspace }) {
 
   // Detailed Member Dossier Modal state
   const [selectedMemberDossier, setSelectedMemberDossier] = useState(null);
+  const [dossierScope, setDossierScope] = useState('assigned'); // 'assigned' | 'created'
   const [dossierTaskTab, setDossierTaskTab] = useState('all'); // 'all', 'todo', 'in_progress', 'overdue', 'completed'
 
   useEffect(() => {
@@ -329,6 +330,9 @@ export default function ReportsPage({ workspace }) {
       if (userStatusFilter === 'completed') {
         return member.assigned_tasks > 0 && member.completion_rate === 100;
       }
+      if (userStatusFilter === 'creators') {
+        return (member.created_tasks || 0) > 0;
+      }
 
       return true;
     });
@@ -365,16 +369,24 @@ export default function ReportsPage({ workspace }) {
     );
   }, [overdueTasksList, overdueSearchQuery]);
 
+  // Dossier tasks list according to scope (assigned tasks vs cards created/reported)
+  const activeDossierList = useMemo(() => {
+    if (!selectedMemberDossier) return [];
+    return dossierScope === 'created'
+      ? (selectedMemberDossier.created_cards || [])
+      : (selectedMemberDossier.tasks || []);
+  }, [selectedMemberDossier, dossierScope]);
+
   // Dossier tasks filtered by active sub-tab
   const dossierTasks = useMemo(() => {
     if (!selectedMemberDossier) return [];
-    const tasks = selectedMemberDossier.tasks || [];
+    const tasks = activeDossierList;
     if (dossierTaskTab === 'todo') return tasks.filter((t) => t.stage === 'todo' && !t.is_complete);
     if (dossierTaskTab === 'in_progress') return tasks.filter((t) => (t.stage === 'in_progress' || t.stage === 'review' || (!t.stage && !t.is_complete && !t.is_overdue)) && !t.is_complete && !t.is_overdue);
     if (dossierTaskTab === 'overdue') return tasks.filter((t) => t.is_overdue);
     if (dossierTaskTab === 'completed') return tasks.filter((t) => t.is_complete || t.stage === 'done');
     return tasks;
-  }, [selectedMemberDossier, dossierTaskTab]);
+  }, [selectedMemberDossier, activeDossierList, dossierTaskTab]);
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-4 sm:p-6 md:p-8 custom-scrollbar">
@@ -1162,6 +1174,11 @@ export default function ReportsPage({ workspace }) {
                       {[
                         { id: 'all', label: 'All Members', count: membersWorkload.length },
                         {
+                          id: 'creators',
+                          label: 'Card Creators & Testers',
+                          count: membersWorkload.filter((m) => (m.created_tasks || 0) > 0).length
+                        },
+                        {
                           id: 'todo',
                           label: 'With To Do',
                           count: membersWorkload.filter((m) => (m.todo_tasks || 0) > 0).length
@@ -1212,12 +1229,13 @@ export default function ReportsPage({ workspace }) {
                       <thead className="bg-surface-muted/80 sticky top-0 z-10 border-b border-border text-text-secondary uppercase text-[10px] tracking-wider">
                         <tr>
                           <th className="py-3 px-4 font-semibold">Team Member</th>
+                          <th className="py-3 px-3 font-semibold text-center">Cards Created</th>
                           <th className="py-3 px-3 font-semibold text-center">Assigned</th>
                           <th className="py-3 px-3 font-semibold text-center">To Do</th>
                           <th className="py-3 px-3 font-semibold text-center">In Progress</th>
                           <th className="py-3 px-3 font-semibold text-center">Done</th>
                           <th className="py-3 px-3 font-semibold text-center">Overdue</th>
-                          <th className="py-3 px-3 font-semibold min-w-[140px]">Completion Rate</th>
+                          <th className="py-3 px-3 font-semibold min-w-[150px]">Progress & Resolution</th>
                           <th className="py-3 px-4 font-semibold text-right">Actions</th>
                         </tr>
                       </thead>
@@ -1228,6 +1246,7 @@ export default function ReportsPage({ workspace }) {
                             className="hover:bg-surface-hover/70 transition-colors cursor-pointer group"
                             onClick={() => {
                               setSelectedMemberDossier(member);
+                              setDossierScope((member.assigned_tasks === 0 && member.created_tasks > 0) ? 'created' : 'assigned');
                               setDossierTaskTab('all');
                             }}
                           >
@@ -1246,6 +1265,23 @@ export default function ReportsPage({ workspace }) {
                                   </span>
                                 </div>
                               </div>
+                            </td>
+
+                            <td className="py-3 px-3 text-center">
+                              {member.created_tasks > 0 ? (
+                                <div className="inline-flex flex-col items-center">
+                                  <span className="font-bold text-primary text-sm">
+                                    {member.created_tasks}
+                                  </span>
+                                  {member.created_completed_tasks > 0 && (
+                                    <span className="text-[10px] text-success-text font-medium">
+                                      {member.created_completed_tasks} resolved
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-text-muted">—</span>
+                              )}
                             </td>
 
                             <td className="py-3 px-3 text-center">
@@ -1275,20 +1311,50 @@ export default function ReportsPage({ workspace }) {
                             </td>
 
                             <td className="py-3 px-3">
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between text-[11px]">
-                                  <span className="font-bold text-text-primary">{member.completion_rate}%</span>
-                                  <span className="text-text-muted">
-                                    {member.completed_tasks}/{member.assigned_tasks} done
+                              {member.assigned_tasks > 0 ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-bold text-text-primary">{member.completion_rate}%</span>
+                                    <span className="text-text-muted">
+                                      {member.completed_tasks}/{member.assigned_tasks} done
+                                    </span>
+                                  </div>
+                                  <ProgressBar
+                                    value={member.completion_rate}
+                                    max={100}
+                                    variant={member.completion_rate === 100 ? 'success' : 'primary'}
+                                    size="sm"
+                                  />
+                                  {member.created_tasks > 0 && (
+                                    <div className="flex items-center justify-between text-[10px] text-text-muted pt-0.5">
+                                      <span>Created: {member.created_tasks}</span>
+                                      <span className="text-success-text font-medium">{member.created_resolution_rate}% resolved</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : member.created_tasks > 0 ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-bold text-primary">{member.created_resolution_rate}%</span>
+                                    <span className="text-text-muted">
+                                      {member.created_completed_tasks}/{member.created_tasks} resolved
+                                    </span>
+                                  </div>
+                                  <ProgressBar
+                                    value={member.created_resolution_rate}
+                                    max={100}
+                                    variant={member.created_resolution_rate === 100 ? 'success' : 'primary'}
+                                    size="sm"
+                                  />
+                                  <span className="text-[10px] font-semibold text-primary block">
+                                    Tester / Creator Progress
                                   </span>
                                 </div>
-                                <ProgressBar
-                                  value={member.completion_rate}
-                                  max={100}
-                                  variant={member.completion_rate === 100 ? 'success' : 'primary'}
-                                  size="sm"
-                                />
-                              </div>
+                              ) : (
+                                <div className="text-center text-text-muted text-[11px]">
+                                  —
+                                </div>
+                              )}
                             </td>
 
                             <td className="py-3 px-4 text-right">
@@ -1298,6 +1364,7 @@ export default function ReportsPage({ workspace }) {
                                   size="sm"
                                   onClick={() => {
                                     setSelectedMemberDossier(member);
+                                    setDossierScope((member.assigned_tasks === 0 && member.created_tasks > 0) ? 'created' : 'assigned');
                                     setDossierTaskTab('all');
                                   }}
                                   leftIcon={<Eye className="w-3.5 h-3.5" />}
@@ -1789,48 +1856,112 @@ export default function ReportsPage({ workspace }) {
           }
         >
           <div className="space-y-4 py-1">
+            {/* Dual-Scope Switcher: Assigned Work vs Created/Reported Cards */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-muted/60 p-1.5 rounded-xl border border-border">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDossierScope('assigned');
+                    setDossierTaskTab('all');
+                  }}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                    dossierScope === 'assigned'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  <CheckSquare className="w-3.5 h-3.5" />
+                  <span>Assigned Work ({selectedMemberDossier.assigned_tasks || 0})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDossierScope('created');
+                    setDossierTaskTab('all');
+                  }}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                    dossierScope === 'created'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Created & Reported Cards ({selectedMemberDossier.created_tasks || 0})</span>
+                </button>
+              </div>
+
+              <span className="text-[11px] text-text-muted px-2">
+                {dossierScope === 'created'
+                  ? 'Tracking cards created, bug logging & team resolution rate'
+                  : 'Tracking task execution and assigned delivery velocity'}
+              </span>
+            </div>
+
             {/* 5-KPI Chips Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
               <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
-                <span className="text-[10px] uppercase font-bold text-text-muted block">Assigned</span>
+                <span className="text-[10px] uppercase font-bold text-text-muted block">
+                  {dossierScope === 'created' ? 'Created Cards' : 'Assigned Tasks'}
+                </span>
                 <span className="text-lg font-bold text-text-primary mt-0.5 block">
-                  {selectedMemberDossier.assigned_tasks}
+                  {dossierScope === 'created'
+                    ? selectedMemberDossier.created_tasks || 0
+                    : selectedMemberDossier.assigned_tasks || 0}
                 </span>
               </div>
               <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
-                <span className="text-[10px] uppercase font-bold text-text-muted block">To Do</span>
+                <span className="text-[10px] uppercase font-bold text-text-muted block">To Do / Backlog</span>
                 <span className="text-lg font-bold text-text-secondary mt-0.5 block">
-                  {selectedMemberDossier.todo_tasks || 0}
+                  {dossierScope === 'created'
+                    ? selectedMemberDossier.created_todo_tasks || 0
+                    : selectedMemberDossier.todo_tasks || 0}
                 </span>
               </div>
               <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
                 <span className="text-[10px] uppercase font-bold text-text-muted block">In Progress</span>
                 <span className="text-lg font-bold text-primary mt-0.5 block">
-                  {selectedMemberDossier.in_progress_tasks || 0}
+                  {dossierScope === 'created'
+                    ? selectedMemberDossier.created_in_progress_tasks || 0
+                    : selectedMemberDossier.in_progress_tasks || 0}
                 </span>
               </div>
               <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
-                <span className="text-[10px] uppercase font-bold text-text-muted block">Completed</span>
+                <span className="text-[10px] uppercase font-bold text-text-muted block">
+                  {dossierScope === 'created' ? 'Resolved Rate' : 'Completed'}
+                </span>
                 <span className="text-lg font-bold text-success-text mt-0.5 block">
-                  {selectedMemberDossier.completion_rate}%
+                  {dossierScope === 'created'
+                    ? `${selectedMemberDossier.created_resolution_rate || 0}%`
+                    : `${selectedMemberDossier.completion_rate || 0}%`}
+                </span>
+                <span className="text-[10px] text-text-muted">
+                  {dossierScope === 'created'
+                    ? `${selectedMemberDossier.created_completed_tasks || 0} done`
+                    : `${selectedMemberDossier.completed_tasks || 0} done`}
                 </span>
               </div>
               <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
                 <span className="text-[10px] uppercase font-bold text-text-muted block">Overdue</span>
                 <span
                   className={`text-lg font-bold mt-0.5 block ${
-                    selectedMemberDossier.overdue_tasks > 0 ? 'text-danger-text' : 'text-text-secondary'
+                    (dossierScope === 'created' ? selectedMemberDossier.created_overdue_tasks : selectedMemberDossier.overdue_tasks) > 0
+                      ? 'text-danger-text'
+                      : 'text-text-secondary'
                   }`}
                 >
-                  {selectedMemberDossier.overdue_tasks}
+                  {dossierScope === 'created'
+                    ? selectedMemberDossier.created_overdue_tasks || 0
+                    : selectedMemberDossier.overdue_tasks || 0}
                 </span>
               </div>
             </div>
 
-            {/* Boards assigned */}
+            {/* Boards assigned or involved */}
             {selectedMemberDossier.boards && selectedMemberDossier.boards.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-xs font-semibold text-text-secondary">Assigned on:</span>
+                <span className="text-xs font-semibold text-text-secondary">Projects:</span>
                 {selectedMemberDossier.boards.map((b) => (
                   <Badge key={b.id} variant="secondary" size="sm">
                     {b.name} ({b.completed_count}/{b.task_count})
@@ -1843,33 +1974,33 @@ export default function ReportsPage({ workspace }) {
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 pt-2">
               <div className="flex items-center gap-1.5 flex-wrap">
                 {[
-                  { id: 'all', label: 'All Tasks', count: (selectedMemberDossier.tasks || []).length },
+                  { id: 'all', label: 'All Tasks', count: activeDossierList.length },
                   {
                     id: 'todo',
                     label: 'To Do',
-                    count: (selectedMemberDossier.tasks || []).filter((t) => t.stage === 'todo' && !t.is_complete).length
+                    count: activeDossierList.filter((t) => t.stage === 'todo' && !t.is_complete).length
                   },
                   {
                     id: 'in_progress',
                     label: 'In Progress',
-                    count: (selectedMemberDossier.tasks || []).filter((t) => (t.stage === 'in_progress' || t.stage === 'review' || (!t.stage && !t.is_complete && !t.is_overdue)) && !t.is_complete && !t.is_overdue).length
+                    count: activeDossierList.filter((t) => (t.stage === 'in_progress' || t.stage === 'review' || (!t.stage && !t.is_complete && !t.is_overdue)) && !t.is_complete && !t.is_overdue).length
                   },
                   {
                     id: 'completed',
-                    label: 'Completed',
-                    count: (selectedMemberDossier.tasks || []).filter((t) => t.is_complete || t.stage === 'done').length
+                    label: dossierScope === 'created' ? 'Resolved' : 'Completed',
+                    count: activeDossierList.filter((t) => t.is_complete || t.stage === 'done').length
                   },
                   {
                     id: 'overdue',
                     label: 'Overdue',
-                    count: (selectedMemberDossier.tasks || []).filter((t) => t.is_overdue).length
+                    count: activeDossierList.filter((t) => t.is_overdue).length
                   }
                 ].map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => setDossierTaskTab(tab.id)}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
                       dossierTaskTab === tab.id
                         ? 'bg-primary text-white font-bold shadow-xs'
                         : 'bg-surface-muted text-text-secondary hover:text-text-primary'
@@ -1881,7 +2012,7 @@ export default function ReportsPage({ workspace }) {
               </div>
 
               <span className="text-xs text-text-muted">
-                Showing {dossierTasks.length} task{dossierTasks.length === 1 ? '' : 's'}
+                Showing {dossierTasks.length} {dossierScope === 'created' ? 'created card' : 'task'}{dossierTasks.length === 1 ? '' : 's'}
               </span>
             </div>
 
@@ -1889,14 +2020,19 @@ export default function ReportsPage({ workspace }) {
             <div className="max-h-[340px] overflow-y-auto custom-scrollbar border border-border rounded-lg overflow-hidden">
               {dossierTasks.length === 0 ? (
                 <div className="py-12 text-center text-text-muted text-xs">
-                  No tasks found under this filter.
+                  {dossierScope === 'created'
+                    ? 'No created cards found under this filter.'
+                    : 'No assigned tasks found under this filter.'}
                 </div>
               ) : (
                 <table className="w-full text-left text-xs bg-surface">
                   <thead className="bg-surface-muted/70 sticky top-0 border-b border-border text-text-secondary uppercase text-[10px] tracking-wider z-10">
                     <tr>
-                      <th className="py-2.5 px-3 font-semibold">Task Title</th>
+                      <th className="py-2.5 px-3 font-semibold">Card Title</th>
                       <th className="py-2.5 px-3 font-semibold">Board / List</th>
+                      {dossierScope === 'created' && (
+                        <th className="py-2.5 px-3 font-semibold">Assigned To</th>
+                      )}
                       <th className="py-2.5 px-3 font-semibold">Due Date</th>
                       <th className="py-2.5 px-3 font-semibold">Status</th>
                       <th className="py-2.5 px-3 font-semibold text-right">Action</th>
@@ -1925,6 +2061,24 @@ export default function ReportsPage({ workspace }) {
                           <span className="font-semibold text-text-primary">{task.board_name}</span>
                           <span className="text-primary font-medium ml-1">/ {task.list_name}</span>
                         </td>
+                        {dossierScope === 'created' && (
+                          <td className="py-2.5 px-3">
+                            {task.members && task.members.length > 0 ? (
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex items-center -space-x-1.5">
+                                  {task.members.slice(0, 3).map((m) => (
+                                    <Avatar key={m.id} name={m.name} src={m.avatar_url || m.avatar} user={m} size="xs" />
+                                  ))}
+                                </div>
+                                <span className="text-text-secondary text-[11px] truncate max-w-[120px]">
+                                  {task.members.map((m) => m.name).join(', ')}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-text-muted italic text-[11px]">Unassigned</span>
+                            )}
+                          </td>
+                        )}
                         <td className="py-2.5 px-3 text-text-secondary">
                           {task.due_date ? formatShortDate(task.due_date) : 'No due date'}
                         </td>
@@ -1962,7 +2116,7 @@ export default function ReportsPage({ workspace }) {
                               setSelectedMemberDossier(null);
                               navigate(`/b/${task.board_id}?card=${task.id}`);
                             }}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover transition-colors cursor-pointer"
                           >
                             <span>Open</span>
                             <ExternalLink className="w-3 h-3" />

@@ -10,6 +10,7 @@ import {
   muteTarget,
   unmuteTarget
 } from '../api/notifications';
+import { playNotificationBellSound } from '../lib/notificationSound';
 import { useToast } from '../components/ui/Toast';
 
 const SocketContext = createContext(null);
@@ -57,20 +58,12 @@ export function SocketProvider({ children }) {
     };
   }, []);
 
-  // Audio chime player (OFF by default, unlocked by gesture, respects mutes and reduced-motion)
+  // Audio bell player (respects mutes, reduced-motion, and user setting)
   const playNotificationSound = useCallback((notification) => {
     try {
-      // Must be explicitly enabled by user (OFF by default)
+      // Respect sound preference (enabled by default unless explicitly turned off)
       const soundPref = localStorage.getItem('soundEffectsEnabled');
-      if (soundPref !== 'true') return;
-
-      // Only played after a user gesture has unlocked audio
-      if (!audioUnlockedRef.current) return;
-
-      // Respect reduced motion / silent settings
-      if (typeof window !== 'undefined' && window.matchMedia) {
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      }
+      if (soundPref === 'false') return;
 
       // Never play for muted boards
       if (notification?.board_id && mutes.boards?.some((id) => Number(id) === Number(notification.board_id))) {
@@ -82,20 +75,9 @@ export function SocketProvider({ children }) {
         return;
       }
 
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.3);
+      playNotificationBellSound();
     } catch {
-      // AudioContext not allowed or not supported
+      // Audio playback failed or blocked
     }
   }, [mutes]);
 

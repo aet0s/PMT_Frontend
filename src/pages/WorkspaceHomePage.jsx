@@ -541,7 +541,8 @@ export default function WorkspaceHomePage({
                   const cardCount = Number(b.card_count) || 0;
                   const listCount = Number(b.list_count) || 0;
                   const isPinned = String(pinnedBoardId) === String(b.id);
-                  const progressPercent = cardCount === 0 ? 0 : Math.min(100, Math.round(((cardCount * 0.7) / Math.max(1, cardCount)) * 100));
+                  const completedCount = Number(b.completed_card_count) || 0;
+                  const progressPercent = cardCount === 0 ? 0 : Math.min(100, Math.round((completedCount / cardCount) * 100));
 
                   return (
                     <Link
@@ -748,7 +749,8 @@ export default function WorkspaceHomePage({
                         const listCount = Number(b.list_count) || 0;
                         const memberCount = Number(b.member_count) || 0;
                         const isPinned = String(pinnedBoardId) === String(b.id);
-                        const progressPercent = cardCount === 0 ? 0 : Math.min(100, Math.round(((cardCount * 0.7) / Math.max(1, cardCount)) * 100));
+                        const completedCount = Number(b.completed_card_count) || 0;
+                        const progressPercent = cardCount === 0 ? 0 : Math.min(100, Math.round((completedCount / cardCount) * 100));
 
                         const rowBgStyle = getBoardStyle(b.background_color);
 
