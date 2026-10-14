@@ -1,27 +1,28 @@
 // client/src/pages/settings/tabs/SecurityLogTab.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ShieldCheck,
   Download,
-  Filter,
-  Clock,
   Search,
   RefreshCw,
   Eye,
-  X,
-  Laptop,
   Key,
   Shield,
-  User,
-  Sliders,
   CheckCircle,
   AlertTriangle,
   Info,
-  ChevronRight
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  CheckSquare,
+  MessageSquare,
+  LayoutGrid,
+  Users,
+  Briefcase,
+  X
 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
-import Input from '../../../components/ui/Input';
 import Avatar from '../../../components/ui/Avatar';
 import { Modal } from '../../../components/ui/Modal';
 import { useToast } from '../../../components/ui/Toast';
@@ -33,43 +34,104 @@ export default function SecurityLogTab({ workspace }) {
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all'); // 'all' | 'auth' | 'roles' | 'workspace'
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [category, setCategory] = useState('all');
+  const [scope, setScope] = useState('company'); // 'company' (all users in company) | 'workspace' (current workspace only)
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1
+  });
   const [selectedLog, setSelectedLog] = useState(null);
 
-  const loadLogs = async () => {
+  // Debounce search input for seamless API search queries
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const loadLogs = useCallback(async (targetPage = page) => {
     setIsLoading(true);
     try {
       const qParams = new URLSearchParams();
-      if (workspace?.id) qParams.set('workspace_id', workspace.id);
-      if (search.trim()) qParams.set('search', search.trim());
-      if (category !== 'all') qParams.set('category', category);
+      qParams.set('page', String(targetPage));
+      qParams.set('limit', '20'); // Exactly 20 items per page
+
+      if (scope === 'workspace' && workspace?.id) {
+        qParams.set('workspace_id', String(workspace.id));
+      }
+      if (debouncedSearch) {
+        qParams.set('search', debouncedSearch);
+      }
+      if (category !== 'all') {
+        qParams.set('category', category);
+      }
 
       const res = await apiFetch(`/api/auth/activity?${qParams.toString()}`).catch(() => ({
-        events: []
+        events: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 1 }
       }));
-      setLogs(res.events || res.logs || []);
+
+      const eventsList = res.events || res.logs || res.activities || [];
+      setLogs(eventsList);
+
+      if (res.pagination) {
+        setPagination({
+          page: res.pagination.page || targetPage,
+          limit: res.pagination.limit || 20,
+          total: res.pagination.total || 0,
+          totalPages: res.pagination.totalPages || Math.ceil((res.pagination.total || 0) / (res.pagination.limit || 20)) || 1
+        });
+      } else {
+        setPagination((prev) => ({
+          ...prev,
+          page: targetPage,
+          total: eventsList.length,
+          totalPages: 1
+        }));
+      }
     } catch (err) {
-      console.warn('Failed to load audit logs:', err);
-      toast.show('Failed to refresh security logs', 'error');
+      console.warn('Failed to load company audit logs:', err);
+      toast.show('Failed to refresh activity logs', 'error');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [debouncedSearch, category, scope, workspace?.id, page, toast]);
 
   useEffect(() => {
-    if (workspace?.id) {
-      loadLogs();
-    }
-  }, [workspace?.id, category]);
+    loadLogs(page);
+  }, [loadLogs, page]);
+
+  const handleCategoryChange = (newCat) => {
+    setCategory(newCat);
+    setPage(1);
+  };
+
+  const handleScopeChange = (newScope) => {
+    setScope(newScope);
+    setPage(1);
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    loadLogs();
+    setDebouncedSearch(search.trim());
+    setPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearch('');
+    setDebouncedSearch('');
+    setPage(1);
   };
 
   const getEventBadgeProps = (eventType = '') => {
     const et = String(eventType).toLowerCase();
-    if (et.includes('fail') || et.includes('denied') || et.includes('delete') || et.includes('revoke')) {
+    if (et.includes('fail') || et.includes('denied') || et.includes('delete') || et.includes('revoke') || et.includes('removed')) {
       return { variant: 'danger', icon: <AlertTriangle className="w-3 h-3" /> };
     }
     if (et.includes('role') || et.includes('permission') || et.includes('security')) {
@@ -78,19 +140,29 @@ export default function SecurityLogTab({ workspace }) {
     if (et.includes('login') || et.includes('auth') || et.includes('2fa') || et.includes('session')) {
       return { variant: 'info', icon: <Key className="w-3 h-3" /> };
     }
-    if (et.includes('workspace') || et.includes('board') || et.includes('create')) {
-      return { variant: 'success', icon: <CheckCircle className="w-3 h-3" /> };
+    if (et.includes('comment')) {
+      return { variant: 'info', icon: <MessageSquare className="w-3 h-3" /> };
+    }
+    if (et.includes('checklist') || et.includes('complete') || et.includes('card') || et.includes('task')) {
+      return { variant: 'success', icon: <CheckSquare className="w-3 h-3" /> };
+    }
+    if (et.includes('board') || et.includes('list')) {
+      return { variant: 'primary', icon: <LayoutGrid className="w-3 h-3" /> };
+    }
+    if (et.includes('member') || et.includes('invite')) {
+      return { variant: 'neutral', icon: <Users className="w-3 h-3" /> };
     }
     return { variant: 'neutral', icon: <Info className="w-3 h-3" /> };
   };
 
   const parseUserAgent = (ua) => {
-    if (!ua) return 'Unknown Device';
-    if (ua.includes('Chrome')) return 'Chrome / Desktop';
-    if (ua.includes('Firefox')) return 'Firefox / Desktop';
+    if (!ua) return 'Web / Desktop';
+    if (ua.includes('Chrome')) return 'Chrome';
+    if (ua.includes('Firefox')) return 'Firefox';
     if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
+    if (ua.includes('Edge')) return 'Edge';
     if (ua.includes('Postman') || ua.includes('curl')) return 'API Client';
-    return ua.length > 30 ? `${ua.slice(0, 30)}...` : ua;
+    return ua.length > 20 ? `${ua.slice(0, 20)}...` : ua;
   };
 
   const handleExportCsv = () => {
@@ -98,27 +170,32 @@ export default function SecurityLogTab({ workspace }) {
       toast.show('No logs to export', 'info');
       return;
     }
-    const header = ['ID', 'Event Type', 'Action', 'Actor Name', 'Actor Email', 'IP Address', 'Details', 'Timestamp'];
+    const header = ['ID', 'Action Type', 'Actor Name', 'Actor Email', 'Workspace', 'Board', 'Card', 'Details', 'IP Address', 'Timestamp'];
     const rows = logs.map((l) => [
       l.id,
-      `"${l.event || l.event_type || ''}"`,
-      `"${l.action || ''}"`,
+      `"${l.action_type || l.event || ''}"`,
       `"${l.user_name || 'System'}"`,
       `"${l.user_email || ''}"`,
-      `"${l.ip || '127.0.0.1'}"`,
+      `"${l.workspace_name || ''}"`,
+      `"${l.board_name || ''}"`,
+      `"${l.card_title || ''}"`,
       `"${String(l.details || '').replace(/"/g, '""')}"`,
+      `"${l.ip || '127.0.0.1'}"`,
       `"${l.created_at || ''}"`
     ]);
     const csvContent = 'data:text/csv;charset=utf-8,' + [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `security_log_ws_${workspace?.id || 'all'}.csv`);
+    link.setAttribute('download', `audit_log_page_${page}_${scope}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.show('Security log exported to CSV', 'success');
+    toast.show('Activity log exported to CSV', 'success');
   };
+
+  const startRecord = (pagination.page - 1) * pagination.limit + 1;
+  const endRecord = Math.min(pagination.page * pagination.limit, pagination.total);
 
   return (
     <div className="space-y-6 w-full max-w-full text-left">
@@ -127,10 +204,10 @@ export default function SecurityLogTab({ workspace }) {
         <div>
           <h2 className="text-lg font-bold text-text-primary tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-primary" />
-            Security Audit Log
+            Company Activity & Audit Log
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
-            Immutable log of administrative, permission, and authentication events in this workspace.
+            Complete, immutable audit trail of every user and action across this company — cards, checklists, comments, boards, permissions, and security.
           </p>
         </div>
 
@@ -138,7 +215,7 @@ export default function SecurityLogTab({ workspace }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={loadLogs}
+            onClick={() => loadLogs(page)}
             disabled={isLoading}
             leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />}
           >
@@ -157,50 +234,96 @@ export default function SecurityLogTab({ workspace }) {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Category Pills */}
-        <div className="flex items-center gap-1.5 p-1 bg-surface-muted/60 border border-border rounded-xl self-start flex-wrap">
-          {[
-            { id: 'all', label: 'All Events' },
-            { id: 'auth', label: 'Auth & Sessions' },
-            { id: 'roles', label: 'Roles & RBAC' },
-            { id: 'workspace', label: 'Workspace' }
-          ].map((cat) => (
+      {/* Scope Selector & Search Bar */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        {/* Scope Selector: Company-Wide vs Workspace */}
+        <div className="flex items-center gap-1.5 p-1 bg-surface-muted/70 border border-border rounded-xl">
+          <button
+            type="button"
+            onClick={() => handleScopeChange('company')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              scope === 'company'
+                ? 'bg-surface text-primary shadow-xs border border-border font-bold'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface/50'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+            <span>Entire Company (All Users)</span>
+          </button>
+
+          {workspace?.name && (
             <button
-              key={cat.id}
-              onClick={() => setCategory(cat.id)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                category === cat.id
+              type="button"
+              onClick={() => handleScopeChange('workspace')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                scope === 'workspace'
                   ? 'bg-surface text-primary shadow-xs border border-border font-bold'
                   : 'text-text-secondary hover:text-text-primary hover:bg-surface/50'
               }`}
             >
-              {cat.label}
+              <Briefcase className="w-3.5 h-3.5 text-indigo-400" />
+              <span>{workspace.name} Only</span>
             </button>
-          ))}
+          )}
         </div>
 
         {/* Search */}
-        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-          <div className="relative w-full sm:w-64">
-            <label htmlFor="security-search-input" className="sr-only">
-              Search event, user, or IP
+        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full lg:w-auto">
+          <div className="relative w-full sm:w-72">
+            <label htmlFor="activity-search-input" className="sr-only">
+              Search activities, users, cards, or IP
             </label>
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
             <input
-              id="security-search-input"
+              id="activity-search-input"
               type="text"
-              placeholder="Search event, user, IP..."
+              placeholder="Search user, card, board, IP, event..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 min-h-[38px] transition"
+              className="w-full pl-8 pr-8 py-1.5 text-xs bg-surface border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 min-h-[36px] transition"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-0.5 rounded cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
           <Button type="submit" variant="secondary" size="sm">
             Search
           </Button>
         </form>
+      </div>
+
+      {/* Category Pills */}
+      <div className="flex items-center gap-1.5 p-1 bg-surface-muted/50 border border-border rounded-xl flex-wrap">
+        {[
+          { id: 'all', label: 'All Activities', icon: <ShieldCheck className="w-3 h-3" /> },
+          { id: 'tasks', label: 'Tasks & Cards', icon: <CheckSquare className="w-3 h-3" /> },
+          { id: 'comments', label: 'Comments', icon: <MessageSquare className="w-3 h-3" /> },
+          { id: 'boards', label: 'Boards & Lists', icon: <LayoutGrid className="w-3 h-3" /> },
+          { id: 'auth', label: 'Auth & Security', icon: <Key className="w-3 h-3" /> },
+          { id: 'members', label: 'Members', icon: <Users className="w-3 h-3" /> },
+          { id: 'roles', label: 'Roles & RBAC', icon: <Shield className="w-3 h-3" /> },
+          { id: 'workspace', label: 'Workspaces', icon: <Briefcase className="w-3 h-3" /> }
+        ].map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => handleCategoryChange(cat.id)}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              category === cat.id
+                ? 'bg-primary text-white shadow-xs font-bold'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface'
+            }`}
+          >
+            {cat.icon}
+            <span>{cat.label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Desktop Log Records Table (>= 768px) */}
@@ -209,16 +332,16 @@ export default function SecurityLogTab({ workspace }) {
           <colgroup>
             <col className="w-[18%]" />
             <col className="w-[17%]" />
-            <col className="w-[29%]" />
+            <col className="w-[32%]" />
+            <col className="w-[12%]" />
             <col className="w-[13%]" />
-            <col className="w-[14%]" />
-            <col className="w-[9%]" />
+            <col className="w-[8%]" />
           </colgroup>
           <thead className="bg-surface-muted text-text-secondary border-b border-border uppercase text-[10px] tracking-wider font-bold">
             <tr>
-              <th scope="col" className="py-3 px-3.5">Event</th>
-              <th scope="col" className="py-3 px-3.5">Actor</th>
-              <th scope="col" className="py-3 px-3.5">Details</th>
+              <th scope="col" className="py-3 px-3.5">Action</th>
+              <th scope="col" className="py-3 px-3.5">Actor (User)</th>
+              <th scope="col" className="py-3 px-3.5">Activity Details</th>
               <th scope="col" className="py-3 px-3.5">IP & Device</th>
               <th scope="col" className="py-3 px-3.5">Timestamp</th>
               <th scope="col" className="py-3 px-3 text-center">Inspect</th>
@@ -238,15 +361,15 @@ export default function SecurityLogTab({ workspace }) {
               <tr>
                 <td colSpan={6} className="py-12 text-center text-text-muted">
                   <ShieldCheck className="w-8 h-8 mx-auto mb-2 text-text-muted opacity-50" />
-                  <p className="font-semibold text-text-primary">No security events found</p>
+                  <p className="font-semibold text-text-primary">No activity records found</p>
                   <p className="text-xs text-text-secondary mt-1">
-                    {search ? 'Try clearing your search query.' : 'Administrative activities will be logged here automatically.'}
+                    {search ? 'Try clearing your search query or selecting a different filter.' : 'All user activities and audit events will appear here.'}
                   </p>
                 </td>
               </tr>
             ) : (
               logs.map((log) => {
-                const badgeProps = getEventBadgeProps(log.event || log.event_type);
+                const badgeProps = getEventBadgeProps(log.action_type || log.event || log.event_type);
                 return (
                   <tr
                     key={log.id}
@@ -259,7 +382,7 @@ export default function SecurityLogTab({ workspace }) {
                         <Badge variant={badgeProps.variant} size="sm">
                           <span className="flex items-center gap-1 font-mono text-[11px] truncate">
                             {badgeProps.icon}
-                            <span className="truncate">{log.event || log.event_type || log.action || 'event'}</span>
+                            <span className="truncate">{log.action_type || log.event || log.event_type || 'activity'}</span>
                           </span>
                         </Badge>
                       </div>
@@ -270,13 +393,14 @@ export default function SecurityLogTab({ workspace }) {
                       <div className="flex items-center gap-2 min-w-0">
                         <Avatar
                           name={log.user_name || log.user_email || 'System'}
+                          src={log.user_avatar}
                           size="xs"
                         />
                         <div className="min-w-0 flex-1 truncate">
                           <div className="font-semibold text-text-primary text-xs truncate">
                             {log.user_name || log.user_email || 'System'}
                           </div>
-                          {log.user_email && log.user_name && (
+                          {log.user_email && (
                             <div className="text-[10px] text-text-muted truncate">
                               {log.user_email}
                             </div>
@@ -287,9 +411,18 @@ export default function SecurityLogTab({ workspace }) {
 
                     {/* Details summary */}
                     <td className="py-3 px-3.5 min-w-0">
-                      <span className="truncate block text-xs text-text-secondary font-medium" title={log.details}>
-                        {log.details || '—'}
-                      </span>
+                      <div className="space-y-0.5 min-w-0">
+                        <span className="truncate block text-xs text-text-primary font-medium" title={log.details}>
+                          {log.details || log.action || '—'}
+                        </span>
+                        {(log.card_title || log.board_name || log.workspace_name) && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-text-muted truncate">
+                            {log.workspace_name && <span className="truncate">WS: {log.workspace_name}</span>}
+                            {log.board_name && <span className="truncate">• Board: {log.board_name}</span>}
+                            {log.card_title && <span className="truncate text-primary font-medium">• Task: {log.card_title}</span>}
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* IP & Device */}
@@ -339,11 +472,11 @@ export default function SecurityLogTab({ workspace }) {
         ) : logs.length === 0 ? (
           <div className="p-8 text-center bg-surface border border-border rounded-xl text-xs text-text-muted">
             <ShieldCheck className="w-8 h-8 mx-auto mb-2 text-text-muted opacity-50" />
-            <p className="font-semibold text-text-primary">No security events found</p>
+            <p className="font-semibold text-text-primary">No activity records found</p>
           </div>
         ) : (
           logs.map((log) => {
-            const badgeProps = getEventBadgeProps(log.event || log.event_type);
+            const badgeProps = getEventBadgeProps(log.action_type || log.event || log.event_type);
             return (
               <div
                 key={log.id}
@@ -361,14 +494,14 @@ export default function SecurityLogTab({ workspace }) {
                   <Badge variant={badgeProps.variant} size="sm">
                     <span className="flex items-center gap-1 font-mono text-[11px]">
                       {badgeProps.icon}
-                      <span>{log.event || log.event_type || log.action || 'event'}</span>
+                      <span>{log.action_type || log.event || log.event_type || 'activity'}</span>
                     </span>
                   </Badge>
                   <span className="text-[11px] text-text-muted">{formatDate(log.created_at)}</span>
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                  <Avatar name={log.user_name || log.user_email || 'System'} size="xs" />
+                  <Avatar name={log.user_name || log.user_email || 'System'} src={log.user_avatar} size="xs" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-text-primary truncate">
                       {log.user_name || log.user_email || 'System'}
@@ -390,6 +523,47 @@ export default function SecurityLogTab({ workspace }) {
         )}
       </div>
 
+      {/* Server-Side Pagination Controls (20 items per page) */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border text-xs text-text-secondary">
+        <div>
+          {pagination.total > 0 ? (
+            <span>
+              Showing <strong className="text-text-primary">{startRecord}</strong> to{' '}
+              <strong className="text-text-primary">{endRecord}</strong> of{' '}
+              <strong className="text-text-primary">{pagination.total}</strong> activities (20 per page)
+            </span>
+          ) : (
+            <span>No activities to display</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1 || isLoading}
+            leftIcon={<ChevronLeft className="w-3.5 h-3.5" />}
+          >
+            Previous
+          </Button>
+
+          <span className="px-3 py-1 bg-surface-muted rounded-lg font-medium text-text-primary border border-border">
+            Page {pagination.page} of {pagination.totalPages || 1}
+          </span>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+            disabled={page >= pagination.totalPages || isLoading}
+            rightIcon={<ChevronRight className="w-3.5 h-3.5" />}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
       {/* Details Modal */}
       <Modal
         isOpen={!!selectedLog}
@@ -397,12 +571,12 @@ export default function SecurityLogTab({ workspace }) {
         title={
           selectedLog ? (
             <div className="flex items-center gap-2">
-              <Badge variant={getEventBadgeProps(selectedLog.event || selectedLog.event_type).variant}>
-                {selectedLog.event || selectedLog.event_type || 'Event'}
+              <Badge variant={getEventBadgeProps(selectedLog.action_type || selectedLog.event).variant}>
+                {selectedLog.action_type || selectedLog.event || 'Activity'}
               </Badge>
-              <span>{selectedLog.action || selectedLog.event || 'Security Event Details'}</span>
+              <span>{selectedLog.action || selectedLog.action_type || 'Activity Details'}</span>
             </div>
-          ) : 'Security Event Details'
+          ) : 'Activity Details'
         }
         description={selectedLog ? `Audit Record #${selectedLog.id}` : ''}
         size="md"
@@ -450,6 +624,33 @@ export default function SecurityLogTab({ workspace }) {
                 </p>
               </div>
             </div>
+
+            {/* Target Entities (Workspace / Board / Card) */}
+            {(selectedLog.workspace_name || selectedLog.board_name || selectedLog.card_title) && (
+              <div className="p-3 bg-surface-muted/30 rounded-xl border border-border space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block">Target Context</span>
+                <div className="grid grid-cols-3 gap-2">
+                  {selectedLog.workspace_name && (
+                    <div>
+                      <span className="text-[10px] text-text-muted block">Workspace</span>
+                      <p className="font-medium text-text-primary truncate">{selectedLog.workspace_name}</p>
+                    </div>
+                  )}
+                  {selectedLog.board_name && (
+                    <div>
+                      <span className="text-[10px] text-text-muted block">Board</span>
+                      <p className="font-medium text-text-primary truncate">{selectedLog.board_name}</p>
+                    </div>
+                  )}
+                  {selectedLog.card_title && (
+                    <div>
+                      <span className="text-[10px] text-text-muted block">Card / Task</span>
+                      <p className="font-medium text-primary truncate">{selectedLog.card_title}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Summary Description */}
             <div className="space-y-1">

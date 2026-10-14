@@ -8,29 +8,27 @@ import {
   Clock,
   AlertTriangle,
   Layers,
-  Calendar,
-  Filter,
   RefreshCw,
   Download,
   Users,
   ExternalLink,
   CheckSquare,
   ArrowUpRight,
-  ChevronDown,
-  ChevronUp,
   Search,
-  FileText,
   UserCheck,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  LayoutDashboard,
+  Kanban
 } from 'lucide-react';
 import { getWorkspaceReports } from '../api/workspaces';
 import { formatDate, formatShortDate } from '../lib/dateFormat';
 import Avatar from '../components/ui/Avatar';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
-import Spinner from '../components/ui/Spinner';
 import ProgressBar from '../components/ui/ProgressBar';
 import Select from '../components/ui/Select';
+import { Modal } from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 
 const TIMEFRAME_OPTIONS = [
@@ -51,11 +49,19 @@ export default function ReportsPage({ workspace }) {
   const [selectedTimeframe, setSelectedTimeframe] = useState('all');
   const [error, setError] = useState(null);
 
-  // User-wise section states
-  const [expandedUserIds, setExpandedUserIds] = useState(new Set());
+  // Active section view tab: 'overview' | 'team' | 'boards' | 'pipeline' | 'overdue'
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // Search & Filter States
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userStatusFilter, setUserStatusFilter] = useState('all'); // 'all', 'active', 'overdue', 'completed'
-  const [userTaskTabMap, setUserTaskTabMap] = useState({}); // userId -> 'all' | 'in_progress' | 'overdue' | 'completed'
+  const [boardSearchQuery, setBoardSearchQuery] = useState('');
+  const [pipelineSearchQuery, setPipelineSearchQuery] = useState('');
+  const [overdueSearchQuery, setOverdueSearchQuery] = useState('');
+
+  // Detailed Member Dossier Modal state
+  const [selectedMemberDossier, setSelectedMemberDossier] = useState(null);
+  const [dossierTaskTab, setDossierTaskTab] = useState('all'); // 'all', 'in_progress', 'overdue', 'completed'
 
   useEffect(() => {
     document.title = `${workspace?.name || 'Workspace'} - Reports & Analytics | TaskFlow`;
@@ -96,36 +102,6 @@ export default function ReportsPage({ workspace }) {
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
-
-  // Toggle single user accordion expansion
-  const toggleUserExpanded = (userId) => {
-    setExpandedUserIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(userId)) {
-        next.delete(userId);
-      } else {
-        next.add(userId);
-      }
-      return next;
-    });
-  };
-
-  // Expand or collapse all users
-  const handleToggleAllUsers = (expand) => {
-    if (expand && reportsData?.members_workload) {
-      setExpandedUserIds(new Set(reportsData.members_workload.map((m) => m.id)));
-    } else {
-      setExpandedUserIds(new Set());
-    }
-  };
-
-  // Set active tab for a specific user's task breakdown
-  const setUserTaskTab = (userId, tab) => {
-    setUserTaskTabMap((prev) => ({
-      ...prev,
-      [userId]: tab
-    }));
-  };
 
   // Export specific user's report to CSV
   const handleExportUserCsv = (member) => {
@@ -272,7 +248,7 @@ export default function ReportsPage({ workspace }) {
   const overdueTasksList = reportsData?.overdue_tasks_list || [];
   const velocity = reportsData?.velocity || [];
 
-  // Find max count in 7-day velocity for bar chart scaling
+  // Velocity max calculation for bar scaling
   const maxVelocityCount = useMemo(() => {
     let max = 1;
     velocity.forEach((v) => {
@@ -282,10 +258,9 @@ export default function ReportsPage({ workspace }) {
     return max;
   }, [velocity]);
 
-  // Filtered members for the user-wise report section
+  // Filtered members for team performance
   const filteredMembers = useMemo(() => {
     return membersWorkload.filter((member) => {
-      // 1. Search query filter
       if (userSearchQuery.trim()) {
         const q = userSearchQuery.toLowerCase();
         const matchesName = (member.name || '').toLowerCase().includes(q);
@@ -294,7 +269,6 @@ export default function ReportsPage({ workspace }) {
         if (!matchesName && !matchesEmail && !matchesRole) return false;
       }
 
-      // 2. Status filter
       if (userStatusFilter === 'active') {
         return member.in_progress_tasks > 0;
       }
@@ -309,25 +283,63 @@ export default function ReportsPage({ workspace }) {
     });
   }, [membersWorkload, userSearchQuery, userStatusFilter]);
 
+  // Filtered boards for boards breakdown tab
+  const filteredBoards = useMemo(() => {
+    if (!boardSearchQuery.trim()) return boardsBreakdown;
+    const q = boardSearchQuery.toLowerCase();
+    return boardsBreakdown.filter((b) => (b.name || '').toLowerCase().includes(q));
+  }, [boardsBreakdown, boardSearchQuery]);
+
+  // Filtered column pipeline
+  const filteredPipeline = useMemo(() => {
+    if (!pipelineSearchQuery.trim()) return statusBreakdown;
+    const q = pipelineSearchQuery.toLowerCase();
+    return statusBreakdown.filter(
+      (s) =>
+        (s.list_name || '').toLowerCase().includes(q) ||
+        (s.board_name || '').toLowerCase().includes(q)
+    );
+  }, [statusBreakdown, pipelineSearchQuery]);
+
+  // Filtered overdue tasks
+  const filteredOverdue = useMemo(() => {
+    if (!overdueSearchQuery.trim()) return overdueTasksList;
+    const q = overdueSearchQuery.toLowerCase();
+    return overdueTasksList.filter(
+      (t) =>
+        (t.title || '').toLowerCase().includes(q) ||
+        (t.board_name || '').toLowerCase().includes(q) ||
+        (t.list_name || '').toLowerCase().includes(q)
+    );
+  }, [overdueTasksList, overdueSearchQuery]);
+
+  // Dossier tasks filtered by active sub-tab
+  const dossierTasks = useMemo(() => {
+    if (!selectedMemberDossier) return [];
+    const tasks = selectedMemberDossier.tasks || [];
+    if (dossierTaskTab === 'in_progress') return tasks.filter((t) => !t.is_complete && !t.is_overdue);
+    if (dossierTaskTab === 'overdue') return tasks.filter((t) => t.is_overdue);
+    if (dossierTaskTab === 'completed') return tasks.filter((t) => t.is_complete);
+    return tasks;
+  }, [selectedMemberDossier, dossierTaskTab]);
+
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-4 sm:p-6 md:p-8">
+    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-4 sm:p-6 md:p-8 custom-scrollbar">
       <div className="max-w-7xl mx-auto w-full space-y-6 pb-16">
-        {/* Header Section */}
+        {/* Top Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-primary-tint border border-primary/20 flex items-center justify-center text-primary shadow-xs">
-                <BarChart3 className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 tabIndex={-1} className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
-                  Workspace Reports & Analytics
-                </h1>
-                <p className="text-xs sm:text-sm text-text-secondary mt-0.5">
-                  Live data insights on task completion, team velocity, and project throughput for{' '}
-                  <span className="font-semibold text-text-primary">{workspace?.name || 'Workspace'}</span>.
-                </p>
-              </div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-primary-tint border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 tabIndex={-1} className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
+                Workspace Reports & Analytics
+              </h1>
+              <p className="text-xs sm:text-sm text-text-secondary mt-0.5">
+                Live data insights on task completion, team velocity, and project throughput for{' '}
+                <span className="font-semibold text-text-primary">{workspace?.name || 'Workspace'}</span>.
+              </p>
             </div>
           </div>
 
@@ -417,13 +429,13 @@ export default function ReportsPage({ workspace }) {
               ))}
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="h-64 bg-surface border border-border rounded-xl animate-pulse" />
-              <div className="h-64 bg-surface border border-border rounded-xl animate-pulse" />
+              <div className="h-72 bg-surface border border-border rounded-xl animate-pulse" />
+              <div className="h-72 bg-surface border border-border rounded-xl animate-pulse" />
             </div>
           </div>
         ) : (
           <>
-            {/* 1. Primary KPI Metric Cards */}
+            {/* Primary KPI Metric Cards (Bounded, Standard Height) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Total Tasks Card */}
               <div className="p-4 sm:p-5 bg-surface border border-border rounded-xl shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between">
@@ -565,33 +577,138 @@ export default function ReportsPage({ workspace }) {
               </div>
             </div>
 
-            {/* 2. Middle Row: Project Boards Breakdown & Daily Velocity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Project & Board Breakdown */}
-              <div className="p-5 bg-surface border border-border rounded-xl shadow-xs flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+            {/* Navigational Sub-Tabs Switcher (Shows all reports on this single page cleanly) */}
+            <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs overflow-x-auto no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setActiveTab('overview')}
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'overview'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>Executive Overview</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('team')}
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'team'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Team Performance</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    activeTab === 'team' ? 'bg-primary text-white ring-1 ring-white/40' : 'bg-surface-muted text-text-muted'
+                  }`}
+                >
+                  {membersWorkload.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('boards')}
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'boards'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Boards & Projects</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    activeTab === 'boards' ? 'bg-primary text-white ring-1 ring-white/40' : 'bg-surface-muted text-text-muted'
+                  }`}
+                >
+                  {boardsBreakdown.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('pipeline')}
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'pipeline'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+                }`}
+              >
+                <Kanban className="w-3.5 h-3.5" />
+                <span>Task Pipeline</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    activeTab === 'pipeline' ? 'bg-primary text-white ring-1 ring-white/40' : 'bg-surface-muted text-text-muted'
+                  }`}
+                >
+                  {statusBreakdown.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('overdue')}
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'overdue'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Overdue Action Items</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    activeTab === 'overdue' ? 'bg-primary text-white ring-1 ring-white/40' : summary.overdue_tasks > 0 ? 'bg-danger text-white' : 'bg-surface-muted text-text-muted'
+                  }`}
+                >
+                  {overdueTasksList.length}
+                </span>
+              </button>
+            </div>
+
+            {/* TAB CONTENT 1: OVERVIEW DASHBOARD (2x2 Balanced Bounded Grid, Never Stretches) */}
+            {activeTab === 'overview' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* 1. Project & Board Performance Widget (Bounded Normal Height: 420px) */}
+                <div className="p-5 bg-surface border border-border rounded-xl shadow-xs h-[420px] flex flex-col justify-between">
+                  <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
                     <div className="flex items-center gap-2">
                       <Layers className="w-4 h-4 text-primary" />
                       <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
                         Project & Board Performance
                       </h2>
                     </div>
-                    <Badge variant="secondary" size="sm">
-                      {boardsBreakdown.length} Boards
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" size="sm">
+                        {boardsBreakdown.length} Boards
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('boards')}
+                        className="text-xs font-semibold text-primary hover:underline ml-1"
+                      >
+                        View All →
+                      </button>
+                    </div>
                   </div>
 
                   {boardsBreakdown.length === 0 ? (
-                    <div className="py-8 text-center text-text-muted text-xs">
+                    <div className="flex-1 flex flex-col items-center justify-center text-text-muted text-xs">
                       No active boards found in this workspace.
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 py-3 custom-scrollbar">
                       {boardsBreakdown.map((b) => (
                         <div
                           key={b.id}
-                          className="p-3.5 bg-surface-muted border border-border rounded-lg hover:border-border-hover transition-colors"
+                          className="p-3 bg-surface-muted border border-border rounded-lg hover:border-border-hover transition-colors"
                         >
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2.5 min-w-0">
@@ -601,7 +718,7 @@ export default function ReportsPage({ workspace }) {
                               <button
                                 type="button"
                                 onClick={() => navigate(`/b/${b.id}`)}
-                                className="text-sm font-semibold text-text-primary hover:text-primary transition-colors truncate flex items-center gap-1 group"
+                                className="text-xs sm:text-sm font-semibold text-text-primary hover:text-primary transition-colors truncate flex items-center gap-1 group"
                               >
                                 <span>{b.name}</span>
                                 <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -618,7 +735,7 @@ export default function ReportsPage({ workspace }) {
                             </div>
                           </div>
 
-                          <div className="mb-2.5">
+                          <div className="mb-2">
                             <ProgressBar
                               value={b.completion_rate}
                               max={100}
@@ -628,7 +745,7 @@ export default function ReportsPage({ workspace }) {
                           </div>
 
                           <div className="flex items-center justify-between text-xs text-text-secondary">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 text-[11px]">
                               <span>
                                 <strong className="text-text-primary">{b.total_tasks}</strong> tasks
                               </span>
@@ -649,13 +766,17 @@ export default function ReportsPage({ workspace }) {
                       ))}
                     </div>
                   )}
-                </div>
-              </div>
 
-              {/* 7-Day Velocity & Throughput Chart */}
-              <div className="p-5 bg-surface border border-border rounded-xl shadow-xs flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                  <div className="border-t border-border pt-2 text-right shrink-0">
+                    <span className="text-[11px] text-text-muted">
+                      Scroll to view all {boardsBreakdown.length} projects
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Daily Velocity & Throughput Widget (Bounded Normal Height: 420px) */}
+                <div className="p-5 bg-surface border border-border rounded-xl shadow-xs h-[420px] flex flex-col justify-between">
+                  <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-primary" />
                       <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
@@ -674,48 +795,49 @@ export default function ReportsPage({ workspace }) {
                     </div>
                   </div>
 
-                  <p className="text-xs text-text-secondary mb-4">
+                  <p className="text-xs text-text-secondary mt-2 mb-1 shrink-0">
                     Task volume created versus completed over the past 7 days across the workspace.
                   </p>
 
-                  <div className="grid grid-cols-7 gap-2 items-end h-44 pt-4 pb-2 border-b border-border">
-                    {velocity.map((day) => {
-                      const createdHeight = Math.max(8, Math.round((day.created / maxVelocityCount) * 120));
-                      const completedHeight = Math.max(8, Math.round((day.completed / maxVelocityCount) * 120));
+                  <div className="flex-1 flex flex-col justify-end">
+                    <div className="grid grid-cols-7 gap-2 items-end h-48 pt-4 pb-2 border-b border-border">
+                      {velocity.map((day) => {
+                        const createdHeight = Math.max(8, Math.round((day.created / maxVelocityCount) * 130));
+                        const completedHeight = Math.max(8, Math.round((day.completed / maxVelocityCount) * 130));
 
-                      return (
-                        <div key={day.date} className="flex flex-col items-center justify-end h-full gap-1 group">
-                          {/* Tooltip on hover */}
-                          <div className="text-[10px] font-semibold text-text-primary opacity-0 group-hover:opacity-100 transition-opacity mb-1">
-                            +{day.created} / ✓{day.completed}
+                        return (
+                          <div key={day.date} className="flex flex-col items-center justify-end h-full gap-1 group">
+                            <div className="text-[10px] font-semibold text-text-primary opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+                              +{day.created} / ✓{day.completed}
+                            </div>
+                            <div className="flex items-end gap-1 w-full justify-center">
+                              {/* Created Bar */}
+                              <div
+                                style={{ height: `${day.created > 0 ? createdHeight : 4}px` }}
+                                className={`w-3.5 rounded-t-sm transition-all ${
+                                  day.created > 0 ? 'bg-primary' : 'bg-surface-muted'
+                                }`}
+                                title={`${day.label}: ${day.created} created`}
+                              />
+                              {/* Completed Bar */}
+                              <div
+                                style={{ height: `${day.completed > 0 ? completedHeight : 4}px` }}
+                                className={`w-3.5 rounded-t-sm transition-all ${
+                                  day.completed > 0 ? 'bg-success' : 'bg-surface-muted'
+                                }`}
+                                title={`${day.label}: ${day.completed} completed`}
+                              />
+                            </div>
+                            <span className="text-[10px] font-medium text-text-secondary mt-1 truncate max-w-full">
+                              {day.label.split(',')[0]}
+                            </span>
                           </div>
-                          <div className="flex items-end gap-1 w-full justify-center">
-                            {/* Created Bar */}
-                            <div
-                              style={{ height: `${day.created > 0 ? createdHeight : 4}px` }}
-                              className={`w-3 rounded-t-sm transition-all ${
-                                day.created > 0 ? 'bg-primary' : 'bg-surface-muted'
-                              }`}
-                              title={`${day.label}: ${day.created} created`}
-                            />
-                            {/* Completed Bar */}
-                            <div
-                              style={{ height: `${day.completed > 0 ? completedHeight : 4}px` }}
-                              className={`w-3 rounded-t-sm transition-all ${
-                                day.completed > 0 ? 'bg-success' : 'bg-surface-muted'
-                              }`}
-                              title={`${day.label}: ${day.completed} completed`}
-                            />
-                          </div>
-                          <span className="text-[10px] font-medium text-text-secondary mt-1 truncate max-w-full">
-                            {day.label.split(',')[0]}
-                          </span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between text-xs text-text-secondary">
+                  <div className="mt-3 pt-2 flex items-center justify-between text-xs text-text-secondary shrink-0">
                     <span>
                       Total created (7d):{' '}
                       <strong className="text-text-primary font-semibold">
@@ -730,506 +852,822 @@ export default function ReportsPage({ workspace }) {
                     </span>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* 3. Status / Column Distribution */}
-            <div className="p-5 bg-surface border border-border rounded-xl shadow-xs">
-              <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <CheckSquare className="w-4 h-4 text-primary" />
-                  <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
-                    Task Pipeline by Column & List
-                  </h2>
-                </div>
-                <Badge variant="secondary" size="sm">
-                  {statusBreakdown.length} Columns
-                </Badge>
-              </div>
-
-              {statusBreakdown.length === 0 ? (
-                <div className="py-8 text-center text-text-muted text-xs">
-                  No status columns found in the active boards.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {statusBreakdown.map((s) => (
-                    <div
-                      key={`${s.board_id}-${s.list_id}`}
-                      className="p-3.5 bg-surface-muted border border-border rounded-lg space-y-2 hover:border-border-hover transition-colors"
-                    >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-text-primary truncate">{s.list_name}</span>
-                        <span className="font-bold text-text-primary">{s.task_count} cards</span>
-                      </div>
-                      <ProgressBar value={s.percentage} max={100} variant="primary" size="sm" />
-                      <div className="flex items-center justify-between text-[11px] text-text-secondary">
-                        <span className="truncate">{s.board_name}</span>
-                        <span>{s.percentage}% of workspace</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 4. DEDICATED USER-WISE DETAILED REPORT SECTION */}
-            <div className="p-5 bg-surface border border-border rounded-xl shadow-xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-primary-tint border border-primary/20 flex items-center justify-center text-primary">
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h2 className="text-base font-bold text-text-primary tracking-tight">
-                        User-Wise Performance & Detailed Task Reports
+                {/* 3. Task Pipeline by Column Widget (Bounded Normal Height: 420px) */}
+                <div className="p-5 bg-surface border border-border rounded-xl shadow-xs h-[420px] flex flex-col justify-between">
+                  <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <CheckSquare className="w-4 h-4 text-primary" />
+                      <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
+                        Task Pipeline Distribution
                       </h2>
-                      <p className="text-xs text-text-secondary mt-0.5">
-                        Deep-dive into individual workloads, task assignments, completion ratios, and overdue items.
-                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" size="sm">
+                        {statusBreakdown.length} Columns
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('pipeline')}
+                        className="text-xs font-semibold text-primary hover:underline ml-1"
+                      >
+                        View All →
+                      </button>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleToggleAllUsers(expandedUserIds.size < filteredMembers.length)}
-                  >
-                    {expandedUserIds.size < filteredMembers.length ? 'Expand All' : 'Collapse All'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* User Section Filters & Search */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface-muted p-2.5 rounded-lg border border-border">
-                {/* Search by user name / email / role */}
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                  <input
-                    type="text"
-                    value={userSearchQuery}
-                    onChange={(e) => setUserSearchQuery(e.target.value)}
-                    placeholder="Search member by name, email, or role..."
-                    className="w-full h-8 pl-8 pr-3 text-xs bg-surface text-text-primary border border-border rounded-md shadow-xs focus:outline-none focus:border-primary"
-                  />
-                  {userSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setUserSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary text-xs"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-
-                {/* Status filter pills */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                  {[
-                    { id: 'all', label: 'All Members', count: membersWorkload.length },
-                    {
-                      id: 'active',
-                      label: 'Active Tasks',
-                      count: membersWorkload.filter((m) => m.in_progress_tasks > 0).length
-                    },
-                    {
-                      id: 'overdue',
-                      label: 'With Overdue',
-                      count: membersWorkload.filter((m) => m.overdue_tasks > 0).length
-                    },
-                    {
-                      id: 'completed',
-                      label: '100% Done',
-                      count: membersWorkload.filter((m) => m.assigned_tasks > 0 && m.completion_rate === 100).length
-                    }
-                  ].map((filter) => (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      onClick={() => setUserStatusFilter(filter.id)}
-                      className={`px-2.5 py-1 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${
-                        userStatusFilter === filter.id
-                          ? 'bg-primary text-white shadow-xs'
-                          : 'bg-surface text-text-secondary hover:text-text-primary border border-border'
-                      }`}
-                    >
-                      {filter.label} ({filter.count})
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Members List with Expandable Task Breakdowns */}
-              {filteredMembers.length === 0 ? (
-                <div className="py-12 text-center text-text-muted text-xs space-y-2">
-                  <UserCheck className="w-8 h-8 mx-auto text-text-muted opacity-60" />
-                  <p className="font-semibold text-text-primary">No members match your search criteria</p>
-                  <p className="text-text-secondary">Try clearing your search input or switching filters.</p>
-                </div>
-              ) : (
-                <div className="space-y-3.5">
-                  {filteredMembers.map((member) => {
-                    const isExpanded = expandedUserIds.has(member.id);
-                    const currentTab = userTaskTabMap[member.id] || 'all';
-
-                    // Filter member tasks based on active user sub-tab
-                    const userTasks = member.tasks || [];
-                    const inProgressTasks = userTasks.filter((t) => !t.is_complete && !t.is_overdue);
-                    const overdueTasks = userTasks.filter((t) => t.is_overdue);
-                    const completedTasks = userTasks.filter((t) => t.is_complete);
-
-                    let displayedTasks = userTasks;
-                    if (currentTab === 'in_progress') displayedTasks = inProgressTasks;
-                    else if (currentTab === 'overdue') displayedTasks = overdueTasks;
-                    else if (currentTab === 'completed') displayedTasks = completedTasks;
-
-                    return (
-                      <div
-                        key={member.id}
-                        className={`bg-surface border rounded-xl transition-all shadow-xs overflow-hidden ${
-                          isExpanded ? 'border-primary/50 ring-1 ring-primary/20' : 'border-border hover:border-border-hover'
-                        }`}
-                      >
-                        {/* Member Summary Card Header */}
+                  {statusBreakdown.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-text-muted text-xs">
+                      No status columns found in the active boards.
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 py-3 custom-scrollbar">
+                      {statusBreakdown.map((s) => (
                         <div
-                          onClick={() => toggleUserExpanded(member.id)}
-                          className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer hover:bg-surface-hover/50 transition-colors"
-                          role="button"
-                          tabIndex={0}
-                          aria-expanded={isExpanded}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              toggleUserExpanded(member.id);
-                            }
-                          }}
+                          key={`${s.board_id}-${s.list_id}`}
+                          className="p-3 bg-surface-muted border border-border rounded-lg space-y-1.5 hover:border-border-hover transition-colors"
                         >
-                          {/* User Avatar + Identity */}
-                          <div className="flex items-center gap-3.5 min-w-0 lg:w-1/3">
-                            <Avatar name={member.name} size="md" />
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h3 className="text-sm font-bold text-text-primary truncate">{member.name}</h3>
-                                <Badge variant="secondary" size="sm">
-                                  {member.role}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-text-secondary truncate mt-0.5">{member.email}</p>
-                            </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-text-primary truncate">{s.list_name}</span>
+                            <span className="font-bold text-text-primary">{s.task_count} cards</span>
                           </div>
-
-                          {/* Workload Stats Strip */}
-                          <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs lg:w-1/2">
-                            {/* Assigned / Total */}
-                            <div>
-                              <span className="text-[10px] uppercase font-bold text-text-muted block">
-                                Assigned Tasks
-                              </span>
-                              <span className="text-sm font-bold text-text-primary mt-0.5 block">
-                                {member.assigned_tasks}
-                              </span>
-                            </div>
-
-                            {/* Completed Ratio & Progress */}
-                            <div className="min-w-[110px]">
-                              <div className="flex items-center justify-between text-[10px] font-bold text-text-muted uppercase mb-1">
-                                <span>Completed</span>
-                                <span className="text-text-primary font-bold">{member.completion_rate}%</span>
-                              </div>
-                              <ProgressBar
-                                value={member.completion_rate}
-                                max={100}
-                                variant={member.completion_rate === 100 ? 'success' : 'primary'}
-                                size="sm"
-                              />
-                              <span className="text-[10px] text-text-secondary mt-0.5 block">
-                                {member.completed_tasks} of {member.assigned_tasks} done
-                              </span>
-                            </div>
-
-                            {/* In Progress */}
-                            <div>
-                              <span className="text-[10px] uppercase font-bold text-text-muted block">In Progress</span>
-                              <span className="text-sm font-bold text-text-primary mt-0.5 block">
-                                {member.in_progress_tasks}
-                              </span>
-                            </div>
-
-                            {/* Overdue */}
-                            <div>
-                              <span className="text-[10px] uppercase font-bold text-text-muted block">Overdue</span>
-                              <span
-                                className={`text-sm font-bold mt-0.5 block ${
-                                  member.overdue_tasks > 0 ? 'text-danger-text' : 'text-text-secondary'
-                                }`}
-                              >
-                                {member.overdue_tasks}
-                              </span>
-                            </div>
-
-                            {/* Due Soon */}
-                            <div>
-                              <span className="text-[10px] uppercase font-bold text-text-muted block">Due Soon (&lt;7d)</span>
-                              <span className="text-sm font-bold text-text-primary mt-0.5 block">
-                                {member.due_soon_tasks || 0}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Expand Toggle + Action Buttons */}
-                          <div className="flex items-center gap-2 justify-end lg:w-auto">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleExportUserCsv(member);
-                              }}
-                              disabled={member.assigned_tasks === 0}
-                              title="Export user task report"
-                              aria-label={`Export report for ${member.name}`}
-                              leftIcon={<Download className="w-3.5 h-3.5" />}
-                            >
-                              Export
-                            </Button>
-
-                            <button
-                              type="button"
-                              className="w-8 h-8 rounded-lg bg-surface-muted hover:bg-surface-hover flex items-center justify-center text-text-secondary transition-colors"
-                              aria-label={isExpanded ? 'Collapse user details' : 'Expand user details'}
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </button>
+                          <ProgressBar value={s.percentage} max={100} variant="primary" size="sm" />
+                          <div className="flex items-center justify-between text-[11px] text-text-secondary">
+                            <span className="truncate text-text-muted">{s.board_name}</span>
+                            <span className="font-medium">{s.percentage}% of workspace</span>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
 
-                        {/* Expanded Detailed Task Dossier */}
-                        {isExpanded && (
-                          <div className="p-4 sm:p-5 border-t border-border bg-surface-muted/40 space-y-4">
-                            {/* Project Boards breakdown for this user */}
-                            {member.boards && member.boards.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-semibold text-text-secondary">Assigned on Boards:</span>
-                                {member.boards.map((b) => (
-                                  <Badge key={b.id} variant="secondary" size="sm">
-                                    <span className="font-semibold">{b.name}</span>
-                                    <span className="text-text-muted ml-1">
-                                      ({b.completed_count}/{b.task_count} done)
-                                    </span>
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Sub-tabs for filtering user tasks */}
-                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-2.5">
-                              <div className="flex items-center gap-1.5">
-                                {[
-                                  { id: 'all', label: 'All Tasks', count: userTasks.length },
-                                  { id: 'in_progress', label: 'In Progress', count: inProgressTasks.length },
-                                  { id: 'overdue', label: 'Overdue', count: overdueTasks.length },
-                                  { id: 'completed', label: 'Completed', count: completedTasks.length }
-                                ].map((tab) => (
-                                  <button
-                                    key={tab.id}
-                                    type="button"
-                                    onClick={() => setUserTaskTab(member.id, tab.id)}
-                                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                                      currentTab === tab.id
-                                        ? 'bg-surface text-text-primary font-bold shadow-xs border border-border'
-                                        : 'text-text-secondary hover:text-text-primary'
-                                    }`}
-                                  >
-                                    {tab.label} ({tab.count})
-                                  </button>
-                                ))}
-                              </div>
-
-                              <span className="text-xs text-text-muted">
-                                Showing {displayedTasks.length} task{displayedTasks.length === 1 ? '' : 's'}
-                              </span>
-                            </div>
-
-                            {/* Task Breakdown Table / List */}
-                            {displayedTasks.length === 0 ? (
-                              <div className="py-8 text-center text-text-muted text-xs">
-                                No tasks found matching this status filter.
-                              </div>
-                            ) : (
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs bg-surface border border-border rounded-lg overflow-hidden">
-                                  <thead>
-                                    <tr className="bg-surface-muted/60 border-b border-border text-text-secondary uppercase text-[10px] tracking-wider">
-                                      <th className="py-2.5 px-3 font-semibold">Task Title</th>
-                                      <th className="py-2.5 px-3 font-semibold">Board / List</th>
-                                      <th className="py-2.5 px-3 font-semibold">Due Date</th>
-                                      <th className="py-2.5 px-3 font-semibold">Status</th>
-                                      <th className="py-2.5 px-3 font-semibold text-right">Action</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-border">
-                                    {displayedTasks.map((task) => (
-                                      <tr key={task.id} className="hover:bg-surface-hover/70 transition-colors">
-                                        <td className="py-2.5 px-3 font-semibold text-text-primary max-w-sm truncate">
-                                          <div className="flex items-center gap-2">
-                                            {task.is_complete ? (
-                                              <CheckCircle2 className="w-3.5 h-3.5 text-success-text shrink-0" />
-                                            ) : task.is_overdue ? (
-                                              <AlertCircle className="w-3.5 h-3.5 text-danger-text shrink-0" />
-                                            ) : (
-                                              <Clock className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                                            )}
-                                            <span className={task.is_complete ? 'line-through text-text-muted' : ''}>
-                                              {task.title}
-                                            </span>
-                                          </div>
-                                        </td>
-                                        <td className="py-2.5 px-3 text-text-secondary">
-                                          <span className="font-medium text-text-primary">{task.board_name}</span>
-                                          <span className="text-text-muted ml-1">/ {task.list_name}</span>
-                                        </td>
-                                        <td className="py-2.5 px-3 text-text-secondary">
-                                          {task.due_date ? formatShortDate(task.due_date) : 'No due date'}
-                                        </td>
-                                        <td className="py-2.5 px-3">
-                                          {task.is_complete ? (
-                                            <Badge variant="success" size="sm">
-                                              Completed
-                                            </Badge>
-                                          ) : task.is_overdue ? (
-                                            <Badge variant="danger" size="sm">
-                                              Overdue
-                                            </Badge>
-                                          ) : task.is_due_soon ? (
-                                            <Badge variant="warning" size="sm">
-                                              Due Soon
-                                            </Badge>
-                                          ) : (
-                                            <Badge variant="secondary" size="sm">
-                                              In Progress
-                                            </Badge>
-                                          )}
-                                        </td>
-                                        <td className="py-2.5 px-3 text-right">
-                                          <button
-                                            type="button"
-                                            onClick={() => navigate(`/b/${task.board_id}?card=${task.id}`)}
-                                            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
-                                          >
-                                            <span>Open Card</span>
-                                            <ExternalLink className="w-3 h-3" />
-                                          </button>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* 5. Actionable Overdue Tasks Table */}
-            <div className="p-5 bg-surface border border-border rounded-xl shadow-xs">
-              <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle
-                    className={`w-4 h-4 ${summary.overdue_tasks > 0 ? 'text-danger-text' : 'text-success-text'}`}
-                  />
-                  <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
-                    Overdue Tasks & Action Items
-                  </h2>
-                </div>
-                <Badge variant={summary.overdue_tasks > 0 ? 'danger' : 'success'} size="sm">
-                  {summary.overdue_tasks} Overdue
-                </Badge>
-              </div>
-
-              {overdueTasksList.length === 0 ? (
-                <div className="py-10 text-center flex flex-col items-center justify-center">
-                  <div className="w-12 h-12 rounded-full bg-success-tint border border-success/20 flex items-center justify-center text-success-text mb-3">
-                    <CheckCircle2 className="w-6 h-6" />
+                  <div className="border-t border-border pt-2 text-right shrink-0">
+                    <span className="text-[11px] text-text-muted">
+                      Showing column breakdown across all boards
+                    </span>
                   </div>
-                  <h3 className="text-sm font-bold text-text-primary">All Tasks On Schedule!</h3>
-                  <p className="text-xs text-text-secondary mt-1 max-w-sm">
-                    No overdue cards detected across this workspace. Great job keeping the workflow on track!
-                  </p>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-border text-text-secondary uppercase text-[10px] tracking-wider">
-                        <th className="py-2.5 px-3 font-semibold">Task Title</th>
-                        <th className="py-2.5 px-3 font-semibold">Board / List</th>
-                        <th className="py-2.5 px-3 font-semibold">Due Date</th>
-                        <th className="py-2.5 px-3 font-semibold">Delay</th>
-                        <th className="py-2.5 px-3 font-semibold">Assignees</th>
-                        <th className="py-2.5 px-3 font-semibold text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
+
+                {/* 4. Overdue Tasks Quick View Widget (Bounded Normal Height: 420px) */}
+                <div className="p-5 bg-surface border border-border rounded-xl shadow-xs h-[420px] flex flex-col justify-between">
+                  <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle
+                        className={`w-4 h-4 ${summary.overdue_tasks > 0 ? 'text-danger-text' : 'text-success-text'}`}
+                      />
+                      <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
+                        High Priority & Overdue Items
+                      </h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={summary.overdue_tasks > 0 ? 'danger' : 'success'} size="sm">
+                        {summary.overdue_tasks} Overdue
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('overdue')}
+                        className="text-xs font-semibold text-primary hover:underline ml-1"
+                      >
+                        View All →
+                      </button>
+                    </div>
+                  </div>
+
+                  {overdueTasksList.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                      <div className="w-12 h-12 rounded-full bg-success-tint border border-success/20 flex items-center justify-center text-success-text mb-3">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-sm font-bold text-text-primary">All Tasks On Schedule!</h3>
+                      <p className="text-xs text-text-secondary mt-1 max-w-xs">
+                        No overdue cards detected across this workspace. Workflow is clean!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 py-3 custom-scrollbar">
                       {overdueTasksList.map((task) => (
-                        <tr key={task.id} className="hover:bg-surface-hover transition-colors">
-                          <td className="py-3 px-3 font-semibold text-text-primary max-w-xs truncate">
-                            {task.title}
-                          </td>
-                          <td className="py-3 px-3 text-text-secondary">
-                            <span className="font-medium text-text-primary">{task.board_name}</span>
-                            <span className="text-text-muted ml-1">/ {task.list_name}</span>
-                          </td>
-                          <td className="py-3 px-3 text-text-secondary">
-                            {task.due_date ? formatShortDate(task.due_date) : '—'}
-                          </td>
-                          <td className="py-3 px-3">
-                            <Badge variant="danger" size="sm">
-                              {task.days_overdue} day{task.days_overdue === 1 ? '' : 's'} late
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-3">
-                            {task.members && task.members.length > 0 ? (
+                        <div
+                          key={task.id}
+                          className="p-3 bg-danger-tint/10 border border-danger/30 rounded-lg flex items-center justify-between gap-3 hover:border-danger/50 transition-colors"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs font-semibold text-text-primary truncate">{task.title}</h4>
+                            <p className="text-[11px] text-text-secondary truncate mt-0.5">
+                              {task.board_name} / {task.list_name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <Badge variant="danger" size="sm">
+                                {task.days_overdue}d overdue
+                              </Badge>
+                              {task.due_date && (
+                                <span className="text-[10px] text-text-muted">
+                                  Due {formatShortDate(task.due_date)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            {task.members && task.members.length > 0 && (
                               <div className="flex items-center -space-x-1.5">
-                                {task.members.map((m) => (
-                                  <Avatar key={m.id} name={m.name} size="xs" />
+                                {task.members.slice(0, 3).map((m) => (
+                                  <Avatar key={m.id} name={m.name} src={m.avatar_url || m.avatar} user={m} size="xs" />
                                 ))}
                               </div>
-                            ) : (
-                              <span className="text-text-muted italic">Unassigned</span>
                             )}
-                          </td>
-                          <td className="py-3 px-3 text-right">
                             <button
                               type="button"
                               onClick={() => navigate(`/b/${task.board_id}?card=${task.id}`)}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
+                              className="text-xs font-semibold text-primary hover:text-primary-hover flex items-center gap-1 mt-1"
                             >
-                              <span>Open Card</span>
+                              <span>Open</span>
                               <ExternalLink className="w-3 h-3" />
                             </button>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  )}
+
+                  <div className="border-t border-border pt-2 text-right shrink-0">
+                    <span className="text-[11px] text-text-muted">
+                      Immediate action required on overdue deadlines
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT 2: TEAM PERFORMANCE (Clean Table + Details Modal, Never Endless Height) */}
+            {activeTab === 'team' && (
+              <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden flex flex-col">
+                {/* Search & Filter Header */}
+                <div className="p-4 sm:p-5 border-b border-border space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-bold text-text-primary tracking-tight">
+                        Team Performance & Individual Workloads
+                      </h2>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        Inspect individual capacity, assigned cards, completion rates, and overdue flags.
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-text-secondary">
+                      Showing {filteredMembers.length} of {membersWorkload.length} team members
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    {/* Search Bar */}
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                      <input
+                        type="text"
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        placeholder="Search team member by name, email, or role..."
+                        className="w-full h-8 pl-8 pr-3 text-xs bg-surface-muted text-text-primary border border-border rounded-lg shadow-xs focus:outline-none focus:border-primary"
+                      />
+                      {userSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setUserSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary text-xs"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filter Pills */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+                      {[
+                        { id: 'all', label: 'All Members', count: membersWorkload.length },
+                        {
+                          id: 'active',
+                          label: 'Active Tasks',
+                          count: membersWorkload.filter((m) => m.in_progress_tasks > 0).length
+                        },
+                        {
+                          id: 'overdue',
+                          label: 'With Overdue',
+                          count: membersWorkload.filter((m) => m.overdue_tasks > 0).length
+                        },
+                        {
+                          id: 'completed',
+                          label: '100% Done',
+                          count: membersWorkload.filter((m) => m.assigned_tasks > 0 && m.completion_rate === 100).length
+                        }
+                      ].map((filter) => (
+                        <button
+                          key={filter.id}
+                          type="button"
+                          onClick={() => setUserStatusFilter(filter.id)}
+                          className={`px-2.5 py-1 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
+                            userStatusFilter === filter.id
+                              ? 'bg-primary text-white shadow-xs'
+                              : 'bg-surface-muted text-text-secondary hover:text-text-primary border border-border'
+                          }`}
+                        >
+                          {filter.label} ({filter.count})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Content with Bounded Max-Height & Inner Scroll */}
+                <div className="max-h-[520px] overflow-y-auto custom-scrollbar">
+                  {filteredMembers.length === 0 ? (
+                    <div className="py-16 text-center text-text-muted text-xs space-y-2">
+                      <UserCheck className="w-8 h-8 mx-auto text-text-muted opacity-60" />
+                      <p className="font-semibold text-text-primary">No members match your search criteria</p>
+                      <p className="text-text-secondary">Try clearing your search input or switching filters.</p>
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-surface-muted/80 sticky top-0 z-10 border-b border-border text-text-secondary uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="py-3 px-4 font-semibold">Team Member</th>
+                          <th className="py-3 px-3 font-semibold text-center">Assigned</th>
+                          <th className="py-3 px-3 font-semibold text-center">In Progress</th>
+                          <th className="py-3 px-3 font-semibold text-center">Overdue</th>
+                          <th className="py-3 px-3 font-semibold min-w-[140px]">Completion Rate</th>
+                          <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {filteredMembers.map((member) => (
+                          <tr
+                            key={member.id}
+                            className="hover:bg-surface-hover/70 transition-colors cursor-pointer group"
+                            onClick={() => {
+                              setSelectedMemberDossier(member);
+                              setDossierTaskTab('all');
+                            }}
+                          >
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <Avatar name={member.name} src={member.avatar_url || member.avatar} user={member} size="md" />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-text-primary truncate">{member.name}</span>
+                                    <Badge variant="secondary" size="sm">
+                                      {member.role || 'Member'}
+                                    </Badge>
+                                  </div>
+                                  <span className="text-[11px] text-text-secondary truncate block mt-0.5">
+                                    {member.email}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-3 text-center">
+                              <span className="font-bold text-text-primary text-sm">{member.assigned_tasks}</span>
+                            </td>
+
+                            <td className="py-3 px-3 text-center">
+                              <span className="font-semibold text-text-secondary">{member.in_progress_tasks}</span>
+                            </td>
+
+                            <td className="py-3 px-3 text-center">
+                              {member.overdue_tasks > 0 ? (
+                                <Badge variant="danger" size="sm">
+                                  {member.overdue_tasks} late
+                                </Badge>
+                              ) : (
+                                <span className="text-text-muted">—</span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-3">
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="font-bold text-text-primary">{member.completion_rate}%</span>
+                                  <span className="text-text-muted">
+                                    {member.completed_tasks}/{member.assigned_tasks} done
+                                  </span>
+                                </div>
+                                <ProgressBar
+                                  value={member.completion_rate}
+                                  max={100}
+                                  variant={member.completion_rate === 100 ? 'success' : 'primary'}
+                                  size="sm"
+                                />
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedMemberDossier(member);
+                                    setDossierTaskTab('all');
+                                  }}
+                                  leftIcon={<Eye className="w-3.5 h-3.5" />}
+                                  title="View full task dossier"
+                                >
+                                  Details
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleExportUserCsv(member)}
+                                  disabled={member.assigned_tasks === 0}
+                                  title="Export individual CSV"
+                                  leftIcon={<Download className="w-3.5 h-3.5" />}
+                                >
+                                  CSV
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT 3: BOARDS & PROJECTS BREAKDOWN */}
+            {activeTab === 'boards' && (
+              <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden flex flex-col">
+                <div className="p-4 sm:p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-bold text-text-primary tracking-tight">
+                      Projects & Boards Breakdown
+                    </h2>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      Progress, health status, and throughput for all {boardsBreakdown.length} active boards.
+                    </p>
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <input
+                      type="text"
+                      value={boardSearchQuery}
+                      onChange={(e) => setBoardSearchQuery(e.target.value)}
+                      placeholder="Search boards..."
+                      className="w-full h-8 pl-8 pr-3 text-xs bg-surface-muted text-text-primary border border-border rounded-lg shadow-xs focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="max-h-[540px] overflow-y-auto p-4 sm:p-5 custom-scrollbar">
+                  {filteredBoards.length === 0 ? (
+                    <div className="py-12 text-center text-text-muted text-xs">
+                      No boards found matching your search.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredBoards.map((b) => (
+                        <div
+                          key={b.id}
+                          className="p-4 bg-surface-muted border border-border rounded-xl space-y-3 hover:border-primary/40 transition-all shadow-xs flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span
+                                  className={`w-3.5 h-3.5 rounded-full shrink-0 ${b.background_color || 'bg-primary'}`}
+                                />
+                                <h3 className="font-bold text-text-primary text-sm truncate">{b.name}</h3>
+                              </div>
+                              <Badge variant={b.overdue_tasks > 0 ? 'danger' : 'secondary'} size="sm">
+                                {b.overdue_tasks > 0 ? `${b.overdue_tasks} overdue` : 'On track'}
+                              </Badge>
+                            </div>
+
+                            <div className="space-y-1.5 mt-3">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-text-secondary">Completion</span>
+                                <span className="font-bold text-text-primary">{b.completion_rate}%</span>
+                              </div>
+                              <ProgressBar
+                                value={b.completion_rate}
+                                max={100}
+                                variant={b.completion_rate === 100 ? 'success' : 'primary'}
+                                size="sm"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-border text-center text-xs">
+                              <div>
+                                <span className="text-[10px] text-text-muted uppercase block">Total</span>
+                                <span className="font-bold text-text-primary mt-0.5 block">{b.total_tasks}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-text-muted uppercase block">Done</span>
+                                <span className="font-bold text-success-text mt-0.5 block">{b.completed_tasks}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-text-muted uppercase block">Active</span>
+                                <span className="font-bold text-warning-text mt-0.5 block">{b.in_progress_tasks}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
+                            <span className="text-text-muted text-[11px]">
+                              {b.member_count} member{b.member_count === 1 ? '' : 's'} assigned
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/b/${b.id}`)}
+                              className="font-semibold text-primary hover:text-primary-hover flex items-center gap-1"
+                            >
+                              <span>Open Board</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT 4: TASK PIPELINE BY COLUMN */}
+            {activeTab === 'pipeline' && (
+              <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden flex flex-col">
+                <div className="p-4 sm:p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-bold text-text-primary tracking-tight">
+                      Task Pipeline & Column Distribution
+                    </h2>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      Visual distribution of tasks across workflow stages in all projects.
+                    </p>
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <input
+                      type="text"
+                      value={pipelineSearchQuery}
+                      onChange={(e) => setPipelineSearchQuery(e.target.value)}
+                      placeholder="Search list or board name..."
+                      className="w-full h-8 pl-8 pr-3 text-xs bg-surface-muted text-text-primary border border-border rounded-lg shadow-xs focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="max-h-[540px] overflow-y-auto p-4 sm:p-5 custom-scrollbar">
+                  {filteredPipeline.length === 0 ? (
+                    <div className="py-12 text-center text-text-muted text-xs">
+                      No status columns found matching your search.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {filteredPipeline.map((s) => (
+                        <div
+                          key={`${s.board_id}-${s.list_id}`}
+                          className="p-3.5 bg-surface-muted border border-border rounded-xl space-y-2 hover:border-primary/40 transition-colors shadow-xs"
+                        >
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-text-primary truncate">{s.list_name}</span>
+                            <Badge variant="secondary" size="sm">
+                              {s.task_count} cards
+                            </Badge>
+                          </div>
+                          <ProgressBar value={s.percentage} max={100} variant="primary" size="sm" />
+                          <div className="flex items-center justify-between text-[11px] text-text-secondary pt-1">
+                            <span className="truncate text-text-muted">{s.board_name}</span>
+                            <span className="font-semibold text-text-primary">{s.percentage}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT 5: OVERDUE ACTION ITEMS */}
+            {activeTab === 'overdue' && (
+              <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden flex flex-col">
+                <div className="p-4 sm:p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle
+                        className={`w-4 h-4 ${summary.overdue_tasks > 0 ? 'text-danger-text' : 'text-success-text'}`}
+                      />
+                      <h2 className="text-base font-bold text-text-primary tracking-tight">
+                        Overdue Tasks & Action Items
+                      </h2>
+                    </div>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      Identify cards that missed their deadlines and take immediate action.
+                    </p>
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <input
+                      type="text"
+                      value={overdueSearchQuery}
+                      onChange={(e) => setOverdueSearchQuery(e.target.value)}
+                      placeholder="Search overdue task title or board..."
+                      className="w-full h-8 pl-8 pr-3 text-xs bg-surface-muted text-text-primary border border-border rounded-lg shadow-xs focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="max-h-[520px] overflow-y-auto custom-scrollbar">
+                  {filteredOverdue.length === 0 ? (
+                    <div className="py-16 text-center flex flex-col items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-success-tint border border-success/20 flex items-center justify-center text-success-text mb-3">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-sm font-bold text-text-primary">All Tasks On Schedule!</h3>
+                      <p className="text-xs text-text-secondary mt-1 max-w-sm">
+                        No overdue tasks found matching your criteria. Great work keeping tasks on time!
+                      </p>
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-surface-muted/80 sticky top-0 z-10 border-b border-border text-text-secondary uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="py-3 px-4 font-semibold">Task Title</th>
+                          <th className="py-3 px-3 font-semibold">Board / List</th>
+                          <th className="py-3 px-3 font-semibold">Due Date</th>
+                          <th className="py-3 px-3 font-semibold">Delay</th>
+                          <th className="py-3 px-3 font-semibold">Assignees</th>
+                          <th className="py-3 px-4 font-semibold text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {filteredOverdue.map((task) => (
+                          <tr key={task.id} className="hover:bg-surface-hover/70 transition-colors">
+                            <td className="py-3 px-4 font-semibold text-text-primary max-w-xs truncate">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="w-3.5 h-3.5 text-danger-text shrink-0" />
+                                <span>{task.title}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-text-secondary">
+                              <span className="font-semibold text-text-primary">{task.board_name}</span>
+                              <span className="text-text-muted ml-1">/ {task.list_name}</span>
+                            </td>
+                            <td className="py-3 px-3 text-text-secondary">
+                              {task.due_date ? formatShortDate(task.due_date) : '—'}
+                            </td>
+                            <td className="py-3 px-3">
+                              <Badge variant="danger" size="sm">
+                                {task.days_overdue} day{task.days_overdue === 1 ? '' : 's'} late
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-3">
+                              {task.members && task.members.length > 0 ? (
+                                <div className="flex items-center -space-x-1.5">
+                                  {task.members.map((m) => (
+                                    <Avatar key={m.id} name={m.name} src={m.avatar_url || m.avatar} user={m} size="xs" />
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-text-muted italic">Unassigned</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => navigate(`/b/${task.board_id}?card=${task.id}`)}
+                                rightIcon={<ExternalLink className="w-3 h-3" />}
+                              >
+                                Open Card
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
+
+      {/* DEDICATED MEMBER DOSSIER MODAL (Prevents infinite accordion stretching on the main page) */}
+      {selectedMemberDossier && (
+        <Modal
+          isOpen={!!selectedMemberDossier}
+          onClose={() => setSelectedMemberDossier(null)}
+          title={
+            <div className="flex items-center gap-3">
+              <Avatar name={selectedMemberDossier.name} src={selectedMemberDossier.avatar_url || selectedMemberDossier.avatar} user={selectedMemberDossier} size="md" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-text-primary text-base">
+                    {selectedMemberDossier.name}
+                  </span>
+                  <Badge variant="secondary" size="sm">
+                    {selectedMemberDossier.role || 'Member'}
+                  </Badge>
+                </div>
+                <span className="text-xs text-text-secondary block font-normal">
+                  {selectedMemberDossier.email}
+                </span>
+              </div>
+            </div>
+          }
+          size="xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleExportUserCsv(selectedMemberDossier)}
+                leftIcon={<Download className="w-3.5 h-3.5" />}
+              >
+                Export User Report (CSV)
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setSelectedMemberDossier(null)}
+              >
+                Done
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 py-1">
+            {/* KPI Chips Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
+                <span className="text-[10px] uppercase font-bold text-text-muted block">Assigned</span>
+                <span className="text-lg font-bold text-text-primary mt-0.5 block">
+                  {selectedMemberDossier.assigned_tasks}
+                </span>
+              </div>
+              <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
+                <span className="text-[10px] uppercase font-bold text-text-muted block">In Progress</span>
+                <span className="text-lg font-bold text-warning-text mt-0.5 block">
+                  {selectedMemberDossier.in_progress_tasks}
+                </span>
+              </div>
+              <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
+                <span className="text-[10px] uppercase font-bold text-text-muted block">Overdue</span>
+                <span
+                  className={`text-lg font-bold mt-0.5 block ${
+                    selectedMemberDossier.overdue_tasks > 0 ? 'text-danger-text' : 'text-text-secondary'
+                  }`}
+                >
+                  {selectedMemberDossier.overdue_tasks}
+                </span>
+              </div>
+              <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
+                <span className="text-[10px] uppercase font-bold text-text-muted block">Completed</span>
+                <span className="text-lg font-bold text-success-text mt-0.5 block">
+                  {selectedMemberDossier.completion_rate}%
+                </span>
+              </div>
+            </div>
+
+            {/* Boards assigned */}
+            {selectedMemberDossier.boards && selectedMemberDossier.boards.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-xs font-semibold text-text-secondary">Assigned on:</span>
+                {selectedMemberDossier.boards.map((b) => (
+                  <Badge key={b.id} variant="secondary" size="sm">
+                    {b.name} ({b.completed_count}/{b.task_count})
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* Status Filter Tabs */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 pt-2">
+              <div className="flex items-center gap-1.5">
+                {[
+                  { id: 'all', label: 'All Tasks', count: (selectedMemberDossier.tasks || []).length },
+                  {
+                    id: 'in_progress',
+                    label: 'In Progress',
+                    count: (selectedMemberDossier.tasks || []).filter((t) => !t.is_complete && !t.is_overdue).length
+                  },
+                  {
+                    id: 'overdue',
+                    label: 'Overdue',
+                    count: (selectedMemberDossier.tasks || []).filter((t) => t.is_overdue).length
+                  },
+                  {
+                    id: 'completed',
+                    label: 'Completed',
+                    count: (selectedMemberDossier.tasks || []).filter((t) => t.is_complete).length
+                  }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setDossierTaskTab(tab.id)}
+                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                      dossierTaskTab === tab.id
+                        ? 'bg-primary text-white font-bold shadow-xs'
+                        : 'bg-surface-muted text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {tab.label} ({tab.count})
+                  </button>
+                ))}
+              </div>
+
+              <span className="text-xs text-text-muted">
+                Showing {dossierTasks.length} task{dossierTasks.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            {/* Tasks Table (Bounded with smooth scroll) */}
+            <div className="max-h-[340px] overflow-y-auto custom-scrollbar border border-border rounded-lg overflow-hidden">
+              {dossierTasks.length === 0 ? (
+                <div className="py-12 text-center text-text-muted text-xs">
+                  No tasks found under this filter.
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs bg-surface">
+                  <thead className="bg-surface-muted/70 sticky top-0 border-b border-border text-text-secondary uppercase text-[10px] tracking-wider z-10">
+                    <tr>
+                      <th className="py-2.5 px-3 font-semibold">Task Title</th>
+                      <th className="py-2.5 px-3 font-semibold">Board / List</th>
+                      <th className="py-2.5 px-3 font-semibold">Due Date</th>
+                      <th className="py-2.5 px-3 font-semibold">Status</th>
+                      <th className="py-2.5 px-3 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {dossierTasks.map((task) => (
+                      <tr key={task.id} className="hover:bg-surface-hover/70 transition-colors">
+                        <td className="py-2.5 px-3 font-semibold text-text-primary max-w-xs truncate">
+                          <div className="flex items-center gap-2">
+                            {task.is_complete ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-success-text shrink-0" />
+                            ) : task.is_overdue ? (
+                              <AlertCircle className="w-3.5 h-3.5 text-danger-text shrink-0" />
+                            ) : (
+                              <Clock className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                            )}
+                            <span className={task.is_complete ? 'line-through text-text-muted' : ''}>
+                              {task.title}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-text-secondary">
+                          <span className="font-semibold text-text-primary">{task.board_name}</span>
+                          <span className="text-text-muted ml-1">/ {task.list_name}</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-text-secondary">
+                          {task.due_date ? formatShortDate(task.due_date) : 'No due date'}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {task.is_complete ? (
+                            <Badge variant="success" size="sm">
+                              Completed
+                            </Badge>
+                          ) : task.is_overdue ? (
+                            <Badge variant="danger" size="sm">
+                              Overdue
+                            </Badge>
+                          ) : task.is_due_soon ? (
+                            <Badge variant="warning" size="sm">
+                              Due Soon
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" size="sm">
+                              In Progress
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedMemberDossier(null);
+                              navigate(`/b/${task.board_id}?card=${task.id}`);
+                            }}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
+                          >
+                            <span>Open</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

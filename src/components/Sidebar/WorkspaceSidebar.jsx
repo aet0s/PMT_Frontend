@@ -133,9 +133,16 @@ export default function WorkspaceSidebar({
   const isSprintActive = location.pathname.endsWith('/board') || location.pathname.endsWith('/sprint');
   const isIssuesActive = location.pathname.endsWith('/list') || location.pathname.endsWith('/issues');
   const isReportActive = location.pathname.endsWith('/reports');
-  const isReleasesActive = location.pathname.endsWith('/activity');
-  const isWorkspaceMembersActive = location.pathname.endsWith('/members') || location.pathname.endsWith('/workspace-members');
-  const isCompanyMembersActive = location.pathname.endsWith('/company-members');
+  const isReleasesActive =
+    !location.pathname.includes('/settings') &&
+    !location.pathname.includes('/profile') &&
+    !location.pathname.includes('/account') &&
+    (location.pathname === `/w/${activeWorkspace?.id}/activity` || location.pathname.endsWith('/activity'));
+  const isWorkspaceMembersActive =
+    !location.pathname.includes('/settings') &&
+    (location.pathname.endsWith('/members') || location.pathname.endsWith('/workspace-members'));
+  const isCompanyMembersActive =
+    !location.pathname.includes('/settings') && location.pathname.endsWith('/company-members');
   const isSettingsActive = location.pathname.includes('/settings');
 
   // Determine current active project board ID fallback (priority: active board -> pinned board -> last visited board -> first board)
@@ -672,7 +679,7 @@ export default function WorkspaceSidebar({
               className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity"
               title="My Profile"
             >
-              <Avatar name={user?.name} size="md" />
+              <Avatar name={user?.name} src={user?.avatar_url || user?.avatar} user={user} size="md" />
               <div className="min-w-0">
                 <p className="text-sm font-bold text-text-primary truncate">{user?.name || 'User'}</p>
                 <p className="text-xs text-text-muted truncate">Profile & Settings</p>

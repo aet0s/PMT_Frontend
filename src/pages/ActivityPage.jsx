@@ -1,5 +1,5 @@
 // client/src/pages/ActivityPage.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -35,6 +35,7 @@ import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import Spinner from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
+import { usePermissions } from '../context/PermissionContext';
 
 const ACTION_CATEGORIES = [
   { id: 'all', label: 'All Activity' },
@@ -173,13 +174,19 @@ function getActionMeta(actionType) {
 
 export default function ActivityPage({ workspace }) {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const navigate = useNavigate();
+
+  const { hasPermission, loading: permsLoading } = usePermissions();
+  const canView = hasPermission('activity.view');
 
   const [activities, setActivities] = useState([]);
   const [boards, setBoards] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, total_pages: 1, has_more: false });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isForbidden, setIsForbidden] = useState(false);
 
   // Filters
   const [page, setPage] = useState(1);
@@ -203,7 +210,7 @@ export default function ActivityPage({ workspace }) {
 
   const loadActivities = useCallback(
     async (targetPage = page, showRefresh = false) => {
-      if (!workspace?.id) return;
+      if (!workspace?.id || !canView) return;
       if (showRefresh) setIsRefreshing(true);
       else setIsLoading(true);
 
@@ -230,20 +237,27 @@ export default function ActivityPage({ workspace }) {
         if (res.boards && res.boards.length > 0) {
           setBoards(res.boards);
         }
+        setIsForbidden(false);
       } catch (err) {
         console.error('Failed to load activity feed:', err);
-        toast.show(err.message || 'Failed to load activity feed', 'error');
+        if (err?.status === 403 || err?.message?.includes('permission') || err?.message?.includes('Forbidden')) {
+          setIsForbidden(true);
+        } else {
+          toastRef.current?.show(err.message || 'Failed to load activity feed', 'error');
+        }
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
       }
     },
-    [workspace?.id, page, selectedBoardId, selectedCategory, debouncedSearch, toast]
+    [workspace?.id, page, selectedBoardId, selectedCategory, debouncedSearch, canView]
   );
 
   useEffect(() => {
-    loadActivities(page);
-  }, [loadActivities, page]);
+    if (canView) {
+      loadActivities(page);
+    }
+  }, [loadActivities, page, canView]);
 
   const handleExportCsv = () => {
     if (activities.length === 0) {
@@ -292,6 +306,27 @@ export default function ActivityPage({ workspace }) {
     setDebouncedSearch('');
     setPage(1);
   };
+
+  if (!permsLoading && (!canView || isForbidden)) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-app select-none">
+        <div className="w-16 h-16 rounded-2xl bg-danger-tint text-danger border border-danger/20 flex items-center justify-center mb-6 shadow-xs">
+          <Activity className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-bold text-text-primary mb-2">Access Denied</h2>
+        <p className="text-text-secondary max-w-sm mb-6 text-sm leading-relaxed">
+          You do not have permission to view the workspace activity feed.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate(`/w/${workspace?.id}/home`)}
+          className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition cursor-pointer"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-4 sm:p-6 md:p-8">

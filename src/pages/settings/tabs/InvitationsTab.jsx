@@ -129,17 +129,6 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
             Manage pending team invite links and invitations sent for this workspace.
           </p>
         </div>
-
-        {canInvite && onOpenInvite && (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onOpenInvite}
-            leftIcon={<Mail className="w-4 h-4" />}
-          >
-            Send New Invite
-          </Button>
-        )}
       </div>
 
       <div className="bg-surface border border-border rounded-xl divide-y divide-border overflow-hidden shadow-xs">

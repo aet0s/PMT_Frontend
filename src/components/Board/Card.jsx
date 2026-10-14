@@ -16,9 +16,11 @@ import {
   Archive,
   Trash2
 } from 'lucide-react';
+import { usePermissions } from '../../context/PermissionContext';
 
 export default function Card({
   card,
+  taskNumber,
   onClick,
   onUpdateCard,
   onDeleteCard,
@@ -27,6 +29,11 @@ export default function Card({
   isHighlighted = false,
   isRemoteDragging = false
 }) {
+  const { hasPermission } = usePermissions();
+  const canDeleteCard = hasPermission('task.delete') || hasPermission('card.delete');
+  const canCopyCard = hasPermission('task.duplicate') || hasPermission('task.create') || hasPermission('card.create');
+  const canArchiveCard = hasPermission('task.archive') || hasPermission('task.edit') || hasPermission('card.edit');
+  const hasAnyCardActions = (onCopyCard && canCopyCard) || (onUpdateCard && canArchiveCard) || (onDeleteCard && canDeleteCard);
   const {
     attributes,
     listeners,
@@ -117,75 +124,75 @@ export default function Card({
       {/* Top Header: Label Pill & Action Menu */}
       <div className="flex items-center justify-between gap-2 min-h-[24px]">
         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-          {card.labels && card.labels.length > 0 ? (
+          <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
+            Task #{taskNumber ?? card.task_number ?? 1}
+          </span>
+          {card.labels && card.labels.length > 0 &&
             card.labels.map((l) => (
               <LabelPill key={l.id} name={l.name} color={l.color} size="sm" />
-            ))
-          ) : (
-            <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
-              Task #{card.id}
-            </span>
-          )}
+            ))}
         </div>
 
         {/* 3-Dots Action Dropdown Menu */}
-        <div
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="shrink-0"
-        >
-          <Menu
-            placement="bottom-end"
-            trigger={
-              <button
-                type="button"
-                aria-label="Card actions"
-                title="Card actions"
-                className="text-text-muted hover:text-text-primary p-1 rounded-lg hover:bg-surface-muted transition-colors opacity-70 group-hover:opacity-100 cursor-pointer"
-              >
-                <MoreHorizontal className="w-4.5 h-4.5" />
-              </button>
-            }
+        {hasAnyCardActions && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="shrink-0"
           >
-            {onCopyCard && (
-              <MenuItem
-                icon={<Copy className="w-4 h-4 text-primary" />}
-                onClick={(e) => {
-                  e?.stopPropagation?.();
-                  onCopyCard(card);
-                }}
-              >
-                Copy Card
-              </MenuItem>
-            )}
-            {onUpdateCard && (
-              <MenuItem
-                icon={<Archive className="w-4 h-4 text-warning" />}
-                onClick={(e) => {
-                  e?.stopPropagation?.();
-                  onUpdateCard(card.id, { is_archived: true });
-                }}
-              >
-                Archive Card
-              </MenuItem>
-            )}
-            {onDeleteCard && (
-              <>
-                <MenuDivider />
+            <Menu
+              placement="bottom-end"
+              trigger={
+                <button
+                  type="button"
+                  aria-label="Card actions"
+                  title="Card actions"
+                  className="text-text-muted hover:text-text-primary p-1 rounded-lg hover:bg-surface-muted transition-colors opacity-70 group-hover:opacity-100 cursor-pointer"
+                >
+                  <MoreHorizontal className="w-4.5 h-4.5" />
+                </button>
+              }
+            >
+              {onCopyCard && canCopyCard && (
                 <MenuItem
-                  icon={<Trash2 className="w-4 h-4 text-danger" />}
-                  danger
+                  icon={<Copy className="w-4 h-4 text-primary" />}
                   onClick={(e) => {
                     e?.stopPropagation?.();
-                    onDeleteCard(card.id);
+                    onCopyCard(card);
                   }}
                 >
-                  Delete Card
+                  Copy Card
                 </MenuItem>
-              </>
-            )}
-          </Menu>
-        </div>
+              )}
+              {onUpdateCard && canArchiveCard && (
+                <MenuItem
+                  icon={<Archive className="w-4 h-4 text-warning" />}
+                  onClick={(e) => {
+                    e?.stopPropagation?.();
+                    onUpdateCard(card.id, { is_archived: true });
+                  }}
+                >
+                  Archive Card
+                </MenuItem>
+              )}
+              {onDeleteCard && canDeleteCard && (
+                <>
+                  {(canCopyCard || canArchiveCard) && <MenuDivider />}
+                  <MenuItem
+                    icon={<Trash2 className="w-4 h-4 text-danger" />}
+                    danger
+                    onClick={(e) => {
+                      e?.stopPropagation?.();
+                      onDeleteCard(card.id);
+                    }}
+                  >
+                    Delete Card
+                  </MenuItem>
+                </>
+              )}
+            </Menu>
+          </div>
+        )}
       </div>
 
       {/* Card Title & Complete Status */}
@@ -243,6 +250,8 @@ export default function Card({
                     <Avatar
                       key={a.id}
                       name={a.name}
+                      src={a.avatar_url || a.avatar}
+                      user={a}
                       size="xs"
                       className="rounded-full ring-2 ring-surface shadow-2xs"
                     />
@@ -258,6 +267,8 @@ export default function Card({
                     <Avatar
                       key={m.id}
                       name={m.name}
+                      src={m.avatar_url || m.avatar}
+                      user={m}
                       size="xs"
                       className="rounded-full ring-2 ring-surface shadow-2xs"
                     />

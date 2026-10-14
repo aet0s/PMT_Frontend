@@ -3,8 +3,17 @@ import Popover from '../shared/Popover';
 import LabelPill from '../shared/LabelPill';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import { Check, Plus } from 'lucide-react';
+import { Check, Plus, Sparkles, Loader2 } from 'lucide-react';
 import { LABEL_PALETTES } from '../../lib/labelColors';
+
+export const PRESET_LABELS = [
+  { name: 'Feature', color: 'blue' },
+  { name: 'Bug', color: 'rose' },
+  { name: 'Design', color: 'purple' },
+  { name: 'Backend', color: 'green' },
+  { name: 'Frontend', color: 'teal' },
+  { name: 'Urgent', color: 'amber' }
+];
 
 export default function LabelsPopover({
   isOpen,
@@ -18,12 +27,16 @@ export default function LabelsPopover({
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState('blue');
+  const [isSeedingPresets, setIsSeedingPresets] = useState(false);
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
     try {
-      await onCreateBoardLabel(name.trim(), selectedColor);
+      const created = await onCreateBoardLabel(name.trim(), selectedColor);
+      if (created?.id) {
+        onToggleLabel(created.id);
+      }
       setName('');
       setIsCreating(false);
     } catch (err) {
@@ -31,31 +44,135 @@ export default function LabelsPopover({
     }
   };
 
-  return (
-    <Popover isOpen={isOpen} onClose={onClose} anchorRef={anchorRef} title="Labels" className="w-72">
-      <div className="space-y-3 text-xs">
-        <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
-          Board Labels
-        </span>
+  const handlePresetClick = async (preset) => {
+    // Check if this preset label already exists on the board
+    const existing = boardLabels.find(
+      (l) => l.name.toLowerCase() === preset.name.toLowerCase()
+    );
 
-        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-          {boardLabels.length === 0 ? (
-            <p className="text-xs text-text-muted italic py-1">No labels created yet.</p>
-          ) : (
-            boardLabels.map((l) => {
-              const isChecked = cardLabels.some((cl) => cl.id === l.id);
-              return (
-                <div
-                  key={l.id}
-                  onClick={() => onToggleLabel(l.id)}
-                  className="flex items-center justify-between p-2 rounded-lg bg-surface hover:bg-surface-muted border border-border cursor-pointer transition-colors"
+    if (existing) {
+      onToggleLabel(existing.id);
+    } else {
+      try {
+        const created = await onCreateBoardLabel(preset.name, preset.color);
+        if (created?.id) {
+          onToggleLabel(created.id);
+        }
+      } catch (err) {
+        console.error('Failed to create preset label:', err);
+      }
+    }
+  };
+
+  const handleAddAllPresets = async () => {
+    setIsSeedingPresets(true);
+    try {
+      for (const preset of PRESET_LABELS) {
+        const exists = boardLabels.some(
+          (l) => l.name.toLowerCase() === preset.name.toLowerCase()
+        );
+        if (!exists) {
+          await onCreateBoardLabel(preset.name, preset.color);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to seed preset labels:', err);
+    } finally {
+      setIsSeedingPresets(false);
+    }
+  };
+
+  return (
+    <Popover isOpen={isOpen} onClose={onClose} anchorRef={anchorRef} title="Labels" className="w-80">
+      <div className="space-y-4 text-xs">
+        {/* Board Labels Section */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+              Board Labels
+            </span>
+            {boardLabels.length === 0 && (
+              <button
+                type="button"
+                onClick={handleAddAllPresets}
+                disabled={isSeedingPresets}
+                className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                {isSeedingPresets ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3" />
+                )}
+                Add presets
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {boardLabels.length === 0 ? (
+              <div className="p-3 bg-surface-muted/60 rounded-xl border border-dashed border-border text-center">
+                <p className="text-xs text-text-muted mb-2">No labels configured on this board yet.</p>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="primary"
+                  onClick={handleAddAllPresets}
+                  disabled={isSeedingPresets}
+                  leftIcon={isSeedingPresets ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  className="mx-auto"
                 >
-                  <LabelPill name={l.name} color={l.color} size="sm" />
-                  {isChecked && <Check className="w-4 h-4 text-success" />}
-                </div>
+                  Load 6 Preset Labels
+                </Button>
+              </div>
+            ) : (
+              boardLabels.map((l) => {
+                const isChecked = cardLabels.some((cl) => cl.id === l.id);
+                return (
+                  <div
+                    key={l.id}
+                    onClick={() => onToggleLabel(l.id)}
+                    className={`flex items-center justify-between p-2 rounded-lg bg-surface hover:bg-surface-muted border transition-all cursor-pointer ${
+                      isChecked ? 'border-primary/50 bg-primary/5 shadow-xs' : 'border-border'
+                    }`}
+                  >
+                    <LabelPill name={l.name} color={l.color} size="sm" />
+                    {isChecked && <Check className="w-4 h-4 text-primary shrink-0 ml-2" />}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Quick Preset Badges */}
+        <div className="pt-2 border-t border-border">
+          <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block mb-2">
+            Preset Suggestions
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {PRESET_LABELS.map((preset) => {
+              const boardMatch = boardLabels.find(
+                (l) => l.name.toLowerCase() === preset.name.toLowerCase()
               );
-            })
-          )}
+              const isChecked = boardMatch && cardLabels.some((cl) => cl.id === boardMatch.id);
+
+              return (
+                <button
+                  key={preset.name}
+                  type="button"
+                  onClick={() => handlePresetClick(preset)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition-all cursor-pointer ${
+                    isChecked
+                      ? 'ring-2 ring-primary border-primary shadow-xs'
+                      : 'hover:scale-[1.02] active:scale-[0.98]'
+                  }`}
+                >
+                  <LabelPill name={preset.name} color={preset.color} size="xs" />
+                  {isChecked && <Check className="w-3 h-3 text-primary shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Create new label section */}
@@ -109,7 +226,7 @@ export default function LabelsPopover({
               leftIcon={<Plus className="w-3.5 h-3.5 text-primary" />}
               className="w-full"
             >
-              Create a new label
+              Create a custom label
             </Button>
           )}
         </div>

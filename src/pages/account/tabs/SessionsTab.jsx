@@ -160,7 +160,7 @@ export default function SessionsTab() {
               Automatic Inactivity Logout
             </h3>
             <p className="text-[11px] text-text-secondary leading-relaxed">
-              Sessions that remain inactive for more than 30 days are automatically retired to safeguard sensitive project data.
+              Sessions that remain inactive for more than 5 days are automatically retired to safeguard sensitive project data.
             </p>
           </div>
         </div>

@@ -60,7 +60,7 @@ export default function MembersPopover({
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <Avatar name={member.name} email={member.email} size="sm" />
+                      <Avatar name={member.name} email={member.email} src={member.avatar_url || member.avatar} user={member} size="sm" />
                       <div>
                         <span className="block font-medium text-xs text-text-primary">{member.name}</span>
                         <span className="block text-[10px] text-text-muted">{member.email}</span>

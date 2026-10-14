@@ -53,11 +53,30 @@ export default function Popover({
           }),
           shift({ padding: 12 }),
           size({
+            padding: 12,
             apply({ availableHeight, availableWidth, elements }) {
+              const maxH = Math.max(
+                160,
+                Math.min(
+                  Math.floor(availableHeight - 16),
+                  typeof window !== 'undefined' ? window.innerHeight - 24 : 800
+                )
+              );
+              const maxW = Math.min(
+                450,
+                Math.max(260, Math.floor(availableWidth - 16))
+              );
               Object.assign(elements.floating.style, {
-                maxHeight: `${Math.max(220, Math.floor(availableHeight - 16))}px`,
-                maxWidth: `${Math.min(450, Math.max(260, Math.floor(availableWidth - 16)))}px`
+                maxHeight: `${maxH}px`,
+                maxWidth: `${maxW}px`,
+                display: 'flex',
+                flexDirection: 'column'
               });
+              const inner = elements.floating.firstElementChild;
+              if (inner) {
+                inner.style.maxHeight = `${maxH}px`;
+                inner.style.height = '100%';
+              }
             }
           })
         ]
@@ -93,11 +112,11 @@ export default function Popover({
           onClick={onClose}
         >
           <div
-            className="w-full bg-surface border-t border-border rounded-t-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-slide-up text-left"
+            className="w-full bg-surface border-t border-border rounded-t-2xl shadow-2xl flex flex-col max-h-[85dvh] sm:max-h-[85vh] overflow-hidden animate-slide-up text-left"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag Handle */}
-            <div className="flex justify-center pt-3 pb-1 select-none">
+            <div className="flex justify-center pt-3 pb-1 select-none shrink-0">
               <div className="w-12 h-1.5 bg-border-strong rounded-full" />
             </div>
 
@@ -117,7 +136,7 @@ export default function Popover({
               </div>
             )}
 
-            <div className="p-4 overflow-y-auto flex-1 text-text-primary min-h-0">
+            <div className="p-4 overflow-y-auto flex-1 text-text-primary min-h-0 overscroll-contain">
               {children}
             </div>
 
@@ -135,14 +154,16 @@ export default function Popover({
             ref={refs.setFloating}
             style={{
               ...floatingStyles,
+              maxHeight: 'calc(100dvh - 24px)',
               visibility: ((typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || isPositioned) ? 'visible' : 'hidden',
               opacity: ((typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || isPositioned) ? 1 : 0
             }}
-            className="z-[900]"
+            className="z-[900] flex flex-col max-h-[calc(100dvh-24px)] overflow-hidden"
           >
             <div
               {...getFloatingProps()}
-              className={`w-80 bg-surface border border-border rounded-xl shadow-xl overflow-hidden flex flex-col animate-sassy-dropdown text-left outline-none ${className}`}
+              style={{ maxHeight: 'inherit' }}
+              className={`${className.includes('w-') ? '' : 'w-80'} max-h-full h-full bg-surface border border-border rounded-xl shadow-xl overflow-hidden flex flex-col animate-sassy-dropdown text-left outline-none ${className}`}
             >
               {title && (
                 <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border bg-surface-muted select-none shrink-0">
@@ -160,7 +181,7 @@ export default function Popover({
                 </div>
               )}
 
-              <div className="p-3 overflow-y-auto flex-1 text-text-primary min-h-0">
+              <div className="p-3 overflow-y-auto flex-1 text-text-primary min-h-0 overscroll-contain">
                 {children}
               </div>
 

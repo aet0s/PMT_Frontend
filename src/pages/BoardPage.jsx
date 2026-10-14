@@ -16,6 +16,7 @@ const BoardShareModal = React.lazy(() => import('../components/Board/BoardShareM
 const InviteModal = React.lazy(() => import('../components/Board/InviteModal'));
 const WorkspaceHomePage = React.lazy(() => import('../pages/WorkspaceHomePage'));
 const MembersPage = React.lazy(() => import('../pages/MembersPage'));
+const CompanyMembersPage = React.lazy(() => import('../pages/CompanyMembersPage'));
 const ActivityPage = React.lazy(() => import('../pages/ActivityPage'));
 const ReportsPage = React.lazy(() => import('../pages/ReportsPage'));
 const SettingsPage = React.lazy(() => import('../pages/SettingsPage'));
@@ -24,7 +25,7 @@ const ListView = React.lazy(() => import('../components/Board/ListView'));
 const CalendarView = React.lazy(() => import('../components/Board/CalendarView'));
 const NotFoundPage = React.lazy(() => import('../pages/NotFoundPage'));
 
-import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from '../api/workspaces';
+import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, autoArchiveWorkspaceCards } from '../api/workspaces';
 import { getBoards, createBoard, getBoard, updateBoard, deleteBoard, addBoardMember, createBoardLabel } from '../api/boards';
 import { createList, updateList, deleteList } from '../api/lists';
 import {
@@ -48,7 +49,7 @@ import {
   copyCard
 } from '../api/cards';
 import { getArchive } from '../api/archive';
-import { LayoutGrid, Sparkles, FolderKanban, Plus, Archive } from 'lucide-react';
+import { LayoutGrid, Sparkles, FolderKanban, Plus, Archive, Calendar, Layers, CheckSquare } from 'lucide-react';
 import { PermissionProvider } from '../context/PermissionContext';
 import { useSocket } from '../context/SocketProvider';
 import { useToast } from '../components/ui/Toast';
@@ -57,6 +58,7 @@ import { recordLocalUpdate } from '../lib/mutationTracker';
 export default function BoardPage() {
   const toast = useToast();
   const { user } = useAuth();
+  const { socket } = useSocket();
   const { workspaceId, '*': subPath = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -86,7 +88,17 @@ export default function BoardPage() {
   const activeBoardIdRef = useRef(urlBoardId);
   useEffect(() => {
     activeBoardIdRef.current = urlBoardId;
-  }, [urlBoardId]);
+    if (urlBoardId && activeWorkspace?.id) {
+      try {
+        localStorage.setItem(`taskflow_last_board_${activeWorkspace.id}`, String(urlBoardId));
+      } catch {}
+    }
+  }, [urlBoardId, activeWorkspace?.id]);
+
+  const boardsRef = useRef(boards);
+  useEffect(() => {
+    boardsRef.current = boards;
+  }, [boards]);
 
   // Sidebar Collapse State (tenant namespaced)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -175,6 +187,20 @@ export default function BoardPage() {
     loadWorkspaces();
   }, [loadWorkspaces]);
 
+  // Real-time synchronization: reload workspaces when a new workspace is created in the company
+  useEffect(() => {
+    if (!socket) return;
+    const handleWorkspaceUpdate = () => {
+      loadWorkspaces();
+    };
+    socket.on('workspace:created', handleWorkspaceUpdate);
+    socket.on('user:workspaces_updated', handleWorkspaceUpdate);
+    return () => {
+      socket.off('workspace:created', handleWorkspaceUpdate);
+      socket.off('user:workspaces_updated', handleWorkspaceUpdate);
+    };
+  }, [socket, loadWorkspaces]);
+
   const loadArchive = useCallback(async () => {
     setArchiveLoading(true);
     try {
@@ -211,9 +237,17 @@ export default function BoardPage() {
 
   useEffect(() => {
     if (activeWorkspace?.id) {
+      // Clear boards immediately when switching workspace to prevent stale workspace boards from leaking
+      setBoards([]);
       loadBoards(activeWorkspace.id);
     }
-  }, [activeWorkspace?.id, subPath, loadBoards]);
+  }, [activeWorkspace?.id, loadBoards]);
+
+
+  // Reset not found flag on route changes
+  useEffect(() => {
+    setIsNotFound(false);
+  }, [workspaceId, subPath]);
 
   // Load Active Board Details
   const loadActiveBoard = useCallback(async (id, isSilent = false) => {
@@ -224,17 +258,71 @@ export default function BoardPage() {
     }
     try {
       const data = await getBoard(targetId);
+      // Guard: if user navigated away to another board/page while request was in flight, discard response
+      if (activeBoardIdRef.current !== Number(targetId)) {
+        return;
+      }
+
+      // Guard: if the loaded board belongs to a different workspace, redirect cleanly
+      if (activeWorkspace?.id && data.board && Number(data.board.workspace_id) !== Number(activeWorkspace.id)) {
+        console.warn(`Board ${targetId} belongs to workspace ${data.board.workspace_id}, not current workspace ${activeWorkspace.id}`);
+        let availableBoards = boardsRef.current || [];
+        if (availableBoards.length === 0) {
+          try {
+            const fetched = await getBoards(activeWorkspace.id);
+            availableBoards = fetched.boards || [];
+          } catch (_) {}
+        }
+        if (availableBoards.length > 0) {
+          navigate(`/w/${activeWorkspace.id}/p/${availableBoards[0].id}/${currentView || 'board'}`, { replace: true });
+        } else {
+          navigate(`/w/${activeWorkspace.id}/home`, { replace: true });
+        }
+        return;
+      }
+
       setBoardData(data.board);
-      setTenantItem(user?.tenant_id, 'last_board_id', targetId);
+      setIsNotFound(false);
+      setTenantItem(user?.tenant_id, `last_board_id_${activeWorkspace?.id || data.board?.workspace_id}`, targetId);
     } catch (err) {
+      // Guard: if user navigated away while request was in flight, ignore the error and do not 404
+      if (activeBoardIdRef.current !== Number(targetId)) {
+        return;
+      }
       console.error('Failed to load board details:', err);
+      // Auto-fallback: if the requested board ID does not exist in this workspace,
+      // check if other valid boards exist in this workspace to gracefully auto-recover
+      let availableBoards = boardsRef.current || [];
+      if (availableBoards.length === 0 && activeWorkspace?.id) {
+        try {
+          const fetched = await getBoards(activeWorkspace.id);
+          availableBoards = fetched.boards || [];
+        } catch (_) {}
+      }
+
+      if (availableBoards.length > 0) {
+        const fallbackBoard = availableBoards.find((b) => b.id !== Number(targetId)) || availableBoards[0];
+        if (fallbackBoard && fallbackBoard.id !== Number(targetId)) {
+          console.warn(`Board ${targetId} not found. Gracefully redirecting to board ${fallbackBoard.id}`);
+          navigate(`/w/${activeWorkspace?.id}/p/${fallbackBoard.id}/${currentView || 'board'}`, { replace: true });
+          return;
+        }
+      } else if (activeWorkspace?.id) {
+        // Workspace exists but has no boards; redirect to roadmap or home instead of showing 404
+        if (currentView === 'calendar' || location.pathname.includes('/calendar')) {
+          navigate(`/w/${activeWorkspace.id}/roadmap`, { replace: true });
+        } else {
+          navigate(`/w/${activeWorkspace.id}/home`, { replace: true });
+        }
+        return;
+      }
       setIsNotFound(true);
     } finally {
-      if (!isSilent) {
+      if (!isSilent && activeBoardIdRef.current === Number(targetId)) {
         setLoading(false);
       }
     }
-  }, [user?.tenant_id]);
+  }, [user?.tenant_id, activeWorkspace?.id, currentView, navigate, location.pathname]);
 
   useEffect(() => {
     if (urlBoardId) {
@@ -244,6 +332,67 @@ export default function BoardPage() {
       setLoading(false);
     }
   }, [urlBoardId, loadActiveBoard]);
+
+  // Auto-archive completed tasks if policy is configured
+  useEffect(() => {
+    if (!activeWorkspace?.id) return;
+    const defaults =
+      activeWorkspace?.settings?.project_defaults ||
+      getTenantItem(activeWorkspace?.company_id || activeWorkspace?.id, 'project_defaults', null);
+    if (defaults?.autoArchiveDays && defaults.autoArchiveDays !== 'never') {
+      const days = Number(defaults.autoArchiveDays);
+      autoArchiveWorkspaceCards(activeWorkspace.id, days)
+        .then((res) => {
+          if (res?.archived_count > 0 && urlBoardId) {
+            loadActiveBoard(urlBoardId, true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeWorkspace?.id, activeWorkspace?.settings?.project_defaults, urlBoardId, loadActiveBoard]);
+
+  // Handle /roadmap and /calendar routes at workspace level:
+  // If boards exist, seamlessly navigate to the project's calendar roadmap view.
+  // Otherwise, clear loading so the empty roadmap state displays gracefully.
+  useEffect(() => {
+    if ((subPath === 'roadmap' || subPath === 'calendar') && activeWorkspace?.id) {
+      if (boards.length > 0) {
+        const rememberedBoardId = getTenantItem(user?.tenant_id, `last_board_id_${activeWorkspace.id}`, null);
+        const targetBoard = boards.find((b) => b.id === Number(rememberedBoardId)) || boards[0];
+        if (targetBoard) {
+          navigate(`/w/${activeWorkspace.id}/p/${targetBoard.id}/calendar`, { replace: true });
+        }
+      } else if (!loadingWorkspaces) {
+        setLoading(false);
+      }
+    }
+  }, [subPath, activeWorkspace?.id, boards, loadingWorkspaces, navigate, user?.tenant_id]);
+
+  // Handle /sprint and /board aliases at workspace level
+  useEffect(() => {
+    if ((subPath === 'sprint' || subPath === 'board') && activeWorkspace?.id) {
+      if (boards.length > 0) {
+        const rememberedBoardId = getTenantItem(user?.tenant_id, `last_board_id_${activeWorkspace.id}`, null);
+        const targetBoard = boards.find((b) => b.id === Number(rememberedBoardId)) || boards[0];
+        navigate(`/w/${activeWorkspace.id}/p/${targetBoard.id}/board`, { replace: true });
+      } else if (!loadingWorkspaces) {
+        setLoading(false);
+      }
+    }
+  }, [subPath, activeWorkspace?.id, boards, loadingWorkspaces, navigate, user?.tenant_id]);
+
+  // Handle /issues and /list aliases at workspace level
+  useEffect(() => {
+    if ((subPath === 'issues' || subPath === 'list') && activeWorkspace?.id) {
+      if (boards.length > 0) {
+        const rememberedBoardId = getTenantItem(user?.tenant_id, `last_board_id_${activeWorkspace.id}`, null);
+        const targetBoard = boards.find((b) => b.id === Number(rememberedBoardId)) || boards[0];
+        navigate(`/w/${activeWorkspace.id}/p/${targetBoard.id}/list`, { replace: true });
+      } else if (!loadingWorkspaces) {
+        setLoading(false);
+      }
+    }
+  }, [subPath, activeWorkspace?.id, boards, loadingWorkspaces, navigate, user?.tenant_id]);
 
   // If viewing project without subview, redirect to /board
   useEffect(() => {
@@ -255,7 +404,7 @@ export default function BoardPage() {
   // Root of workspace redirect to home or remembered board
   useEffect(() => {
     if (!subPath && activeWorkspace?.id) {
-      const rememberedBoardId = getTenantItem(user?.tenant_id, 'last_board_id', null);
+      const rememberedBoardId = getTenantItem(user?.tenant_id, `last_board_id_${activeWorkspace.id}`, null);
       if (rememberedBoardId && boards.some((b) => b.id === Number(rememberedBoardId))) {
         navigate(`/w/${activeWorkspace.id}/p/${rememberedBoardId}/board`, { replace: true });
       } else if (boards.length > 0) {
@@ -300,12 +449,16 @@ export default function BoardPage() {
   useEffect(() => {
     if (subPath === 'home') {
       document.title = `${activeWorkspace?.name || 'Workspace'} - Home | TaskFlow`;
+    } else if (subPath === 'roadmap' || subPath === 'calendar') {
+      document.title = `${activeWorkspace?.name || 'Workspace'} - Roadmap | TaskFlow`;
     } else if (subPath === 'notifications') {
       document.title = 'Notifications - TaskFlow';
     } else if (subPath === 'archive') {
       document.title = 'Archive - TaskFlow';
     } else if (subPath === 'members') {
-      document.title = `${activeWorkspace?.name || 'Workspace'} - Members | TaskFlow`;
+      document.title = `${activeWorkspace?.name || 'Workspace'} - Workspace Members | TaskFlow`;
+    } else if (subPath === 'company-members') {
+      document.title = 'Members Directory | TaskFlow';
     } else if (subPath === 'activity') {
       document.title = `${activeWorkspace?.name || 'Workspace'} - Activity | TaskFlow`;
     } else if (subPath === 'reports') {
@@ -1019,9 +1172,14 @@ export default function BoardPage() {
       if (newCard) {
         setBoardData((prev) => {
           if (!prev) return prev;
+          const totalCards = (prev.lists || []).reduce((acc, l) => acc + (l.cards || []).length, 0);
+          const cardWithNumber = {
+            ...newCard,
+            task_number: newCard.task_number ?? (totalCards + 1)
+          };
           const updatedLists = (prev.lists || []).map((l) => {
             if (l.id === listId) {
-              return { ...l, cards: [...(l.cards || []), newCard] };
+              return { ...l, cards: [...(l.cards || []), cardWithNumber] };
             }
             return l;
           });
@@ -1382,7 +1540,7 @@ export default function BoardPage() {
   };
 
   const handleCreateBoardLabel = async (name, color) => {
-    if (!activeBoardIdRef.current) return;
+    if (!activeBoardIdRef.current) return null;
     try {
       const res = await createBoardLabel(activeBoardIdRef.current, name, color);
       if (res?.label) {
@@ -1392,8 +1550,10 @@ export default function BoardPage() {
         });
       }
       loadActiveBoard(activeBoardIdRef.current);
+      return res?.label;
     } catch (err) {
       toast.error(err?.message || 'Failed to create label');
+      return null;
     }
   };
 
@@ -1538,13 +1698,6 @@ export default function BoardPage() {
                     return next;
                   });
                 }}
-                onOpenInvite={() => {
-                  setSearchParams((prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set('modal', 'invite');
-                    return next;
-                  });
-                }}
               />
             </Suspense>
           ) : subPath === 'notifications' ? (
@@ -1584,13 +1737,14 @@ export default function BoardPage() {
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
               <MembersPage
                 workspace={activeWorkspace}
-                onOpenInvite={() => {
-                  setSearchParams((prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set('modal', 'invite');
-                    return next;
-                  });
-                }}
+              />
+            </Suspense>
+          ) : subPath === 'company-members' ? (
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
+              <CompanyMembersPage
+                workspace={activeWorkspace}
+                workspaces={workspaces}
+                boards={boards}
               />
             </Suspense>
           ) : subPath === 'activity' ? (
@@ -1617,15 +1771,102 @@ export default function BoardPage() {
                 onWorkspaceUpdated={loadWorkspaces}
                 onArchiveWorkspace={handleArchiveCurrentWorkspace}
                 onDeleteWorkspace={handleDeleteCurrentWorkspace}
-                onOpenInvite={() => {
+              />
+            </Suspense>
+          ) : subPath === 'roadmap' || subPath === 'calendar' ? (
+            loading || loadingWorkspaces ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
+                <Spinner size="lg" />
+                <p className="text-xs font-semibold text-text-secondary">Loading Roadmap...</p>
+              </div>
+            ) : boards.length > 0 && boardData ? (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
+                <CalendarView
+                  board={boardData}
+                  onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+                  onCardClick={(c) => {
+                    setSelectedCard(c);
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.set('card', String(c.id));
+                      return next;
+                    });
+                  }}
+                />
+              </Suspense>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-app select-none">
+                <div className="w-16 h-16 rounded-2xl bg-primary-tint text-primary border border-primary/20 flex items-center justify-center mb-6 shadow-xs">
+                  <Calendar className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-bold text-text-primary mb-2">Roadmap & Timeline</h2>
+                <p className="text-text-secondary max-w-sm mb-6 text-sm leading-relaxed">
+                  No projects found in this workspace. Create a project to start planning your roadmap and schedule.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.set('modal', 'create-project');
+                      return next;
+                    });
+                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-sm rounded-lg shadow-xs transition-all cursor-pointer min-h-[44px]"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Create Project
+                </button>
+              </div>
+            )
+          ) : (subPath === 'board' || subPath === 'sprint') && boards.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-app select-none">
+              <div className="w-16 h-16 rounded-2xl bg-primary-tint text-primary border border-primary/20 flex items-center justify-center mb-6 shadow-xs">
+                <Layers className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-bold text-text-primary mb-2">Active Sprint</h2>
+              <p className="text-text-secondary max-w-sm mb-6 text-sm leading-relaxed">
+                No projects found in this workspace. Create a project to start planning your sprint.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
                   setSearchParams((prev) => {
                     const next = new URLSearchParams(prev);
-                    next.set('modal', 'invite');
+                    next.set('modal', 'create-project');
                     return next;
                   });
                 }}
-              />
-            </Suspense>
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-sm rounded-lg shadow-xs transition-all cursor-pointer min-h-[44px]"
+              >
+                <Sparkles className="w-4 h-4" />
+                Create Project
+              </button>
+            </div>
+          ) : (subPath === 'list' || subPath === 'issues') && boards.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-app select-none">
+              <div className="w-16 h-16 rounded-2xl bg-primary-tint text-primary border border-primary/20 flex items-center justify-center mb-6 shadow-xs">
+                <CheckSquare className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-bold text-text-primary mb-2">Issues & Tasks</h2>
+              <p className="text-text-secondary max-w-sm mb-6 text-sm leading-relaxed">
+                No projects found in this workspace. Create a project to track issues.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set('modal', 'create-project');
+                    return next;
+                  });
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-sm rounded-lg shadow-xs transition-all cursor-pointer min-h-[44px]"
+              >
+                <Sparkles className="w-4 h-4" />
+                Create Project
+              </button>
+            </div>
           ) : isProjectRoute ? (
             loading && !boardData ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
@@ -1636,6 +1877,8 @@ export default function BoardPage() {
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
                 <ListView
                   board={boardData}
+                  boards={boards}
+                  workspace={activeWorkspace}
                   onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
                   onCardClick={(c) => {
                     setSelectedCard(c);
@@ -1665,6 +1908,12 @@ export default function BoardPage() {
             ) : boardData ? (
               <Board
                 board={boardData}
+                boards={boards}
+                workspace={activeWorkspace}
+                projectDefaults={
+                  activeWorkspace?.settings?.project_defaults ||
+                  getTenantItem(activeWorkspace?.company_id || activeWorkspace?.id, 'project_defaults', null)
+                }
                 onUpdateBoard={handleUpdateBoard}
                 onArchiveBoard={handleArchiveCurrentBoard}
                 onDeleteBoard={handleDeleteCurrentBoard}

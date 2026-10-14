@@ -43,7 +43,7 @@ export default function DataTab({ workspace }) {
       for (const b of boards) {
         rows.push([
           b.id,
-          `"${(b.title || '').replace(/"/g, '""')}"`,
+          `"${(b.name || b.title || '').replace(/"/g, '""')}"`,
           b.card_count || 0,
           b.created_at || ''
         ]);

@@ -10,6 +10,7 @@
   --color-surface-muted: #F8FAFC;
   --color-surface-hover: #F1F5F9;
   --color-surface-active: #E2E8F0;
+  --color-auth-bg: #EAEFF8;
 
   /* Borders (Light) */
   --color-border: #E2E8F0;
@@ -122,6 +123,7 @@
   --color-surface-muted: #21262D;
   --color-surface-hover: #262C36;
   --color-surface-active: #30363D;
+  --color-auth-bg: #0B0F17;
 
   /* Borders (Dark) */
   --color-border: #30363D;
@@ -234,6 +236,7 @@
   --color-surface-muted: var(--color-surface-muted);
   --color-surface-hover: var(--color-surface-hover);
   --color-surface-active: var(--color-surface-active);
+  --color-auth-bg: var(--color-auth-bg);
 
   /* Borders */
   --color-border: var(--color-border);
@@ -341,6 +344,7 @@
 }
 
 @layer base {
+  html,
   body {
     background-color: var(--color-app);
     color: var(--color-text-primary);
@@ -349,6 +353,8 @@
     -moz-osx-font-smoothing: grayscale;
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   ::selection {
@@ -521,4 +527,21 @@
 .animate-sassy-dropdown-left {
   animation: sassy-dropdown 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   transform-origin: top left;
+}
+
+/* Smooth Calendar Date Selection Ring Keyframes */
+@keyframes calendar-date-select {
+  0% {
+    transform: scale(0.84);
+  }
+  55% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-calendar-date-select {
+  animation: calendar-date-select 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

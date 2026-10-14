@@ -158,6 +158,14 @@ export async function apiFetch(url, options = {}, isRetry = false) {
     defaultHeaders['x-client-mutation-id'] = mutationId;
   }
 
+  // Attach token from sessionStorage (isolated per tab) or localStorage
+  if (typeof window !== 'undefined') {
+    const token = sessionStorage.getItem('pm_token') || localStorage.getItem('pm_token');
+    if (token) {
+      defaultHeaders['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
   const config = {
     ...options,
     headers: {
@@ -175,6 +183,11 @@ export async function apiFetch(url, options = {}, isRetry = false) {
     data = await response.json();
   } catch (err) {
     data = null;
+  }
+
+  if (response.ok && data?.token && typeof window !== 'undefined') {
+    sessionStorage.setItem('pm_token', data.token);
+    localStorage.setItem('pm_token', data.token);
   }
 
   if (!response.ok) {

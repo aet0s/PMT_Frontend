@@ -179,7 +179,8 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
           method: 'PATCH',
           body: JSON.stringify({
             name: roleName.trim(),
-            permission_keys: selectedPermissions
+            permission_keys: selectedPermissions,
+            workspace_id: workspaceId
           })
         });
         onToast?.('Custom role updated successfully', 'success');
@@ -719,7 +720,10 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
 
           try {
             setDeletingId(targetId);
-            await apiFetch(`/api/roles/${targetId}`, { method: 'DELETE' });
+            await apiFetch(`/api/roles/${targetId}`, {
+              method: 'DELETE',
+              body: JSON.stringify({ workspace_id: workspaceId })
+            });
             onToast?.('Custom role deleted successfully', 'success');
           } catch (err) {
             // Rollback on failure

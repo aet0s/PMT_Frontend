@@ -292,7 +292,7 @@ export default function GeneralTab({
               Governance & Policies
             </h3>
             <p className="text-[11px] text-text-secondary leading-relaxed">
-              Workspace settings apply to all boards and lists. Role permissions can be configured in the Roles & Permissions tab to control member capabilities.
+              Workspace settings apply to all boards and lists. Role permissions can be configured in the Profile & Settings menu to control member capabilities.
             </p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getFileUrl } from '../../api/config';
 
 const SIZES = {
@@ -38,6 +38,8 @@ export function Avatar({
   src,
   avatarUrl,
   avatar_url,
+  avatar,
+  user,
   name,
   email,
   size = 'md',
@@ -47,27 +49,36 @@ export function Avatar({
 }) {
   const [imgError, setImgError] = useState(false);
   const sizeClass = SIZES[size] || SIZES.md;
-  const displayName = name || email || '';
+  const displayName = name || user?.name || email || user?.email || '';
   const initials = getInitials(displayName);
   const pastelClass = PASTEL_PALETTE[getPaletteIndex(displayName)];
   
-  const rawUrl = src || avatarUrl || avatar_url;
-  const finalSrc = rawUrl ? (rawUrl.startsWith('http') || rawUrl.startsWith('data:') ? rawUrl : getFileUrl(rawUrl)) : null;
-  const showImage = finalSrc && !imgError;
+  const rawUrl = src || avatarUrl || avatar_url || avatar || user?.avatar_url || user?.avatar;
+  const finalSrc = rawUrl
+    ? (rawUrl.startsWith('http') || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')
+        ? rawUrl
+        : getFileUrl(rawUrl))
+    : null;
+
+  useEffect(() => {
+    setImgError(false);
+  }, [finalSrc]);
+
+  const showImage = Boolean(finalSrc && !imgError);
 
   return (
     <div className={`relative inline-flex items-center justify-center shrink-0 rounded-full ${sizeClass} ${className}`} {...props}>
       {showImage ? (
         <img
-          src={src}
-          alt={name || 'Avatar'}
+          src={finalSrc}
+          alt={displayName || 'Avatar'}
           onError={() => setImgError(true)}
-          className="w-full h-full rounded-full object-cover border border-border"
+          className="w-full h-full rounded-full object-cover border border-border/80 shadow-2xs"
         />
       ) : (
         <div
           className={`w-full h-full rounded-full flex items-center justify-center font-semibold select-none ${pastelClass}`}
-          title={name}
+          title={displayName}
         >
           {initials}
         </div>

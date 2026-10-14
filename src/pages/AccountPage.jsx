@@ -4,6 +4,7 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   User,
   ShieldCheck,
+  Shield,
   Laptop,
   Activity,
   SlidersHorizontal,
@@ -12,8 +13,10 @@ import {
 } from 'lucide-react';
 import Spinner from '../components/ui/Spinner';
 import { useUnsavedChanges } from '../lib/useUnsavedChanges';
+import { usePermissions } from '../context/PermissionContext';
 
 const ProfileTab = lazy(() => import('./account/tabs/ProfileTab'));
+const RolesTab = lazy(() => import('./settings/tabs/RolesTab'));
 const SecurityTab = lazy(() => import('./account/tabs/SecurityTab'));
 const SessionsTab = lazy(() => import('./account/tabs/SessionsTab'));
 const ActivityTab = lazy(() => import('./account/tabs/ActivityTab'));
@@ -35,15 +38,22 @@ export default function AccountPage({ tab: propTab, workspace }) {
     return () => setDirty('accountForm', false);
   }, [formDirty, setDirty]);
 
+  const { hasPermission, loading: permissionsLoading } = usePermissions();
+  const canViewRoles = isWorkspaceContext && (permissionsLoading || hasPermission('role.view'));
+  const effectiveWorkspace = workspace || (activeWsId ? { id: Number(activeWsId) } : null);
+
   const tabs = useMemo(
     () => [
       { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" /> },
-      { id: 'security', label: 'Security & 2FA', icon: <ShieldCheck className="w-4 h-4" /> },
+      ...(canViewRoles
+        ? [{ id: 'roles', label: 'Roles & Permissions', icon: <Shield className="w-4 h-4" /> }]
+        : []),
+      { id: 'security', label: 'Security', icon: <ShieldCheck className="w-4 h-4" /> },
       { id: 'sessions', label: 'Active Sessions', icon: <Laptop className="w-4 h-4" /> },
       { id: 'activity', label: 'Activity Log', icon: <Activity className="w-4 h-4" /> },
       { id: 'preferences', label: 'Preferences', icon: <SlidersHorizontal className="w-4 h-4" /> }
     ],
-    []
+    [canViewRoles]
   );
 
   // Tab persistence: URL path > propTab > routeTab > stored localStorage tab > 'profile'
@@ -79,7 +89,7 @@ export default function AccountPage({ tab: propTab, workspace }) {
   const currentTab = tabs.find((t) => t.id === currentTabId) || tabs[0];
 
   useEffect(() => {
-    document.title = `${currentTab.label} - Account Settings | TaskFlow`;
+    document.title = `${currentTab.label} - Profile & Settings | TaskFlow`;
   }, [currentTab]);
 
   const handleTabChange = (newTabId) => {
@@ -112,7 +122,7 @@ export default function AccountPage({ tab: propTab, workspace }) {
             </>
           )}
           <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-          <span className="font-semibold text-text-primary">Profile</span>
+          <span className="font-semibold text-text-primary">Profile & Settings</span>
           <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
           <span className="font-bold text-primary">{currentTab.label}</span>
         </div>
@@ -163,6 +173,9 @@ export default function AccountPage({ tab: propTab, workspace }) {
           >
             {currentTab.id === 'profile' && (
               <ProfileTab setFormDirty={setFormDirty} />
+            )}
+            {currentTab.id === 'roles' && (
+              <RolesTab workspace={effectiveWorkspace} />
             )}
             {currentTab.id === 'security' && (
               <SecurityTab setFormDirty={setFormDirty} />

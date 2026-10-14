@@ -9,6 +9,11 @@ export async function inviteMembers(email, workspaceId, boardIds = [], roleId = 
   });
 }
 
+export async function createInvitation({ email, workspace_id, board_ids = [], role_id = null }) {
+  return inviteMembers(email, workspace_id, board_ids, role_id);
+}
+
+
 export async function verifyInvitationToken(token) {
   return apiFetch(`/api/invitations/verify?token=${encodeURIComponent(token)}`);
 }

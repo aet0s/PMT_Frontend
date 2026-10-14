@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckSquare, Trash2, X } from 'lucide-react';
 import CustomCheckbox from '../shared/CustomCheckbox';
+import { usePermissions } from '../../context/PermissionContext';
 
 export default function ChecklistSection({
   checklists = [],
@@ -9,11 +10,15 @@ export default function ChecklistSection({
   onUpdateChecklistItem,
   onDeleteChecklistItem
 }) {
+  const { hasPermission } = usePermissions();
+  const canEditChecklist = hasPermission('checklist.edit');
+  const canDeleteChecklist = hasPermission('checklist.delete');
   const [newItemTexts, setNewItemTexts] = useState({});
 
   if (!checklists || checklists.length === 0) return null;
 
   const handleAddItemSubmit = async (checklistId) => {
+    if (!canEditChecklist) return;
     const text = newItemTexts[checklistId];
     if (!text || !text.trim()) return;
     try {
@@ -39,14 +44,16 @@ export default function ChecklistSection({
                 <CheckSquare className="w-4 h-4 text-primary" />
                 {ch.title}
               </h4>
-              <button
-                type="button"
-                onClick={() => onDeleteChecklist(ch.id)}
-                className="p-1 text-text-muted hover:text-danger rounded-md hover:bg-danger-tint transition-colors cursor-pointer"
-                title="Delete Checklist"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {canDeleteChecklist && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteChecklist(ch.id)}
+                  className="p-1 text-text-muted hover:text-danger rounded-md hover:bg-danger-tint transition-colors cursor-pointer"
+                  title="Delete Checklist"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Progress Bar (Only render when checklist has items) */}
@@ -77,13 +84,14 @@ export default function ChecklistSection({
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <CustomCheckbox
                       checked={Boolean(item.is_checked)}
-                      onChange={(checked) => onUpdateChecklistItem(item.id, { is_checked: checked })}
+                      onChange={(checked) => canEditChecklist && onUpdateChecklistItem(item.id, { is_checked: checked })}
+                      disabled={!canEditChecklist}
                       size="sm"
                     />
 
                     <span
-                      onClick={() => onUpdateChecklistItem(item.id, { is_checked: !item.is_checked })}
-                      className={`text-xs select-none truncate transition-colors flex-1 cursor-pointer ${
+                      onClick={() => canEditChecklist && onUpdateChecklistItem(item.id, { is_checked: !item.is_checked })}
+                      className={`text-xs select-none truncate transition-colors flex-1 ${canEditChecklist ? 'cursor-pointer' : 'cursor-default'} ${
                         item.is_checked ? 'line-through text-text-muted' : 'text-text-primary'
                       }`}
                     >
@@ -91,41 +99,45 @@ export default function ChecklistSection({
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => onDeleteChecklistItem(item.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger transition-opacity cursor-pointer"
-                    title="Delete item"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  {canEditChecklist && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteChecklistItem(item.id)}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger transition-opacity cursor-pointer"
+                      title="Delete item"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
 
             {/* Add Item Input */}
-            <div className="flex items-center gap-2 pt-2 border-t border-border">
-              <input
-                type="text"
-                placeholder="Add an item..."
-                value={newItemTexts[ch.id] || ''}
-                onChange={(e) => setNewItemTexts({ ...newItemTexts, [ch.id]: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddItemSubmit(ch.id);
-                  }
-                }}
-                className="flex-1 px-3 py-1.5 bg-surface border border-border rounded-md text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => handleAddItemSubmit(ch.id)}
-                className="px-3 py-1.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-xs rounded-md shadow-xs transition-colors cursor-pointer"
-              >
-                Add
-              </button>
-            </div>
+            {canEditChecklist && (
+              <div className="flex items-center gap-2 pt-2 border-t border-border">
+                <input
+                  type="text"
+                  placeholder="Add an item..."
+                  value={newItemTexts[ch.id] || ''}
+                  onChange={(e) => setNewItemTexts({ ...newItemTexts, [ch.id]: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddItemSubmit(ch.id);
+                    }
+                  }}
+                  className="flex-1 px-3 py-1.5 bg-surface border border-border rounded-md text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAddItemSubmit(ch.id)}
+                  className="px-3 py-1.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-xs rounded-md shadow-xs transition-colors cursor-pointer"
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </div>
         );
       })}

@@ -160,7 +160,12 @@ export function SocketProvider({ children }) {
 
     const serverUrl = SOCKET_URL;
 
+    const token = typeof window !== 'undefined'
+      ? (sessionStorage.getItem('pm_token') || localStorage.getItem('pm_token'))
+      : null;
+
     const socketInstance = io(serverUrl, {
+      auth: { token },
       withCredentials: true,
       autoConnect: true,
       reconnection: true,

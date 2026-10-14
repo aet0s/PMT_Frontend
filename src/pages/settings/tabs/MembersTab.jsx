@@ -15,7 +15,8 @@ import {
   LayoutGrid,
   Briefcase,
   Lock,
-  Sparkles
+  Sparkles,
+  Activity
 } from 'lucide-react';
 import Avatar from '../../../components/ui/Avatar';
 import Button from '../../../components/ui/Button';
@@ -23,6 +24,7 @@ import Select from '../../../components/ui/Select';
 import Badge from '../../../components/ui/Badge';
 import { useToast } from '../../../components/ui/Toast';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
+import MemberAuditModal from '../../../components/Members/MemberAuditModal';
 import {
   getWorkspaceMembers,
   getWorkspaceRoles,
@@ -53,6 +55,7 @@ export default function MembersTab({ workspace, onOpenInvite }) {
   const [isLoadingInvitations, setIsLoadingInvitations] = useState(true);
   const [regeneratingId, setRegeneratingId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [auditMember, setAuditMember] = useState(null);
 
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -311,17 +314,6 @@ export default function MembersTab({ workspace, onOpenInvite }) {
             Manage who has access to {workspace?.name || 'this workspace'}, their granted roles, permissions, and board scoping.
           </p>
         </div>
-
-        {canInvite && onOpenInvite && (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onOpenInvite}
-            leftIcon={<UserPlus className="w-4 h-4" />}
-          >
-            Invite Member
-          </Button>
-        )}
       </div>
 
       {/* Tabs */}
@@ -403,7 +395,7 @@ export default function MembersTab({ workspace, onOpenInvite }) {
                 >
                   {/* Left: User Identity + Access details */}
                   <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <Avatar name={member.name} size="md" className="shrink-0 mt-0.5" />
+                    <Avatar name={member.name} src={member.avatar_url || member.avatar} user={member} size="md" className="shrink-0 mt-0.5" />
                     <div className="min-w-0 space-y-1.5 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-bold text-text-primary truncate">{member.name}</span>
@@ -469,6 +461,17 @@ export default function MembersTab({ workspace, onOpenInvite }) {
 
                   {/* Right: Role selection & removal */}
                   <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                    <button
+                      type="button"
+                      onClick={() => setAuditMember(member)}
+                      title="View member audit logs"
+                      aria-label={`View audit logs for ${member.name}`}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:text-primary hover:bg-surface-muted border border-border rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Activity className="w-3.5 h-3.5 text-primary" />
+                      <span className="hidden sm:inline">Audit</span>
+                    </button>
+
                     {isOwner ? (
                       <div className="flex items-center gap-1 px-3 py-1.5 bg-surface-muted border border-border rounded-lg text-xs font-medium text-text-muted cursor-not-allowed">
                         <Lock className="w-3.5 h-3.5 text-amber-500" />
@@ -625,6 +628,14 @@ export default function MembersTab({ workspace, onOpenInvite }) {
         variant={confirmDialog.variant}
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Member-Wise Audit Modal (20 items/page, server-side pagination, search, category filters) */}
+      <MemberAuditModal
+        isOpen={!!auditMember}
+        onClose={() => setAuditMember(null)}
+        member={auditMember}
+        workspaceId={workspace?.id}
       />
     </div>
   );

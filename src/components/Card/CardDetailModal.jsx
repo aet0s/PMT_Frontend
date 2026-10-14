@@ -191,7 +191,7 @@ export default function CardDetailModal({
                     </span>
                     <div className="flex items-center gap-1.5">
                       {card.assigners.map((a) => (
-                        <Avatar key={a.id} name={a.name} email={a.email} size="sm" />
+                        <Avatar key={a.id} name={a.name} email={a.email} src={a.avatar_url || a.avatar} user={a} size="sm" />
                       ))}
                     </div>
                   </div>
@@ -204,7 +204,7 @@ export default function CardDetailModal({
                     </span>
                     <div className="flex items-center gap-1.5">
                       {card.members.map((m) => (
-                        <Avatar key={m.id} name={m.name} email={m.email} size="sm" />
+                        <Avatar key={m.id} name={m.name} email={m.email} src={m.avatar_url || m.avatar} user={m} size="sm" />
                       ))}
                     </div>
                   </div>

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import Lightbox from '../shared/Lightbox';
 import { formatDate, formatRelativeTime } from '../../lib/dateFormat';
 import { getFileUrl } from '../../api/config';
+import { usePermissions } from '../../context/PermissionContext';
+import { useAuth } from '../../hooks/useAuth';
 import {
   Paperclip,
   Trash2,
@@ -15,6 +17,10 @@ import {
 } from 'lucide-react';
 
 export default function AttachmentsSection({ attachments = [], onDeleteAttachment }) {
+  const { hasPermission } = usePermissions();
+  const { user } = useAuth();
+  const canDeleteOwn = hasPermission('attachment.delete_own');
+  const canDeleteAny = hasPermission('attachment.delete_any') || hasPermission('file.delete');
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [lightboxTitle, setLightboxTitle] = useState('');
   const [lightboxType, setLightboxType] = useState('image');
@@ -135,14 +141,16 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteAttachment(att.id)}
-                    title="Delete attachment"
-                    className="p-1.5 text-text-muted hover:text-danger hover:bg-danger-tint rounded-md transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {(canDeleteAny || (canDeleteOwn && Number(att.uploaded_by_user_id) === Number(user?.id))) && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteAttachment(att.id)}
+                      title="Delete attachment"
+                      className="p-1.5 text-text-muted hover:text-danger hover:bg-danger-tint rounded-md transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams, NavLink, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useSearchParams, NavLink, useParams, useNavigate } from 'react-router-dom';
 import {
   DndContext,
   DragOverlay,
@@ -30,7 +30,9 @@ import { useSocket } from '../../context/SocketProvider';
 import { usePermissions } from '../../context/PermissionContext';
 import { useAuth } from '../../hooks/useAuth';
 import { matchesCardFilter } from '../../lib/filterCards';
+import { getTenantItem } from '../../lib/storage';
 import RightContextPanel from './RightContextPanel';
+import { getBoardWorkspaceMembers } from '../../api/boards';
 
 import {
   Plus,
@@ -50,11 +52,20 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Calendar,
-  Sparkles
+  Sparkles,
+  SlidersHorizontal,
+  ChevronDown,
+  RotateCcw,
+  Filter,
+  Tag,
+  Users
 } from 'lucide-react';
 
 export default function Board({
   board,
+  boards = [],
+  workspace,
+  projectDefaults,
   onUpdateBoard,
   onArchiveBoard,
   onDeleteBoard,
@@ -76,6 +87,7 @@ export default function Board({
   onOpenAllNotifications,
   onBoardSocketEvent
 }) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeId, setActiveId] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
@@ -86,9 +98,14 @@ export default function Board({
 
   // Search & Filters state (synchronized with URL query params)
   const searchQuery = searchParams.get('search') || '';
-  const filterMemberId = searchParams.get('member') ? Number(searchParams.get('member')) : null;
-  const filterLabelId = searchParams.get('label') ? Number(searchParams.get('label')) : null;
+  const filterMemberId = searchParams.get('member') || 'all';
+  const filterLabelId = searchParams.get('label') || 'all';
   const filterDueDate = searchParams.get('due') || 'all';
+  const filterListId = searchParams.get('list') || 'all';
+  const filterAssignerId = searchParams.get('assigner') || 'all';
+  const filterStatus = searchParams.get('status') || 'all';
+
+  const [isDetailedFilterOpen, setIsDetailedFilterOpen] = useState(false);
 
   const setSearchQuery = (val) => {
     setSearchParams((prev) => {
@@ -102,7 +119,7 @@ export default function Board({
   const setFilterMemberId = (val) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (val) next.set('member', String(val));
+      if (val && val !== 'all') next.set('member', String(val));
       else next.delete('member');
       return next;
     });
@@ -111,7 +128,7 @@ export default function Board({
   const setFilterLabelId = (val) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (val) next.set('label', String(val));
+      if (val && val !== 'all') next.set('label', String(val));
       else next.delete('label');
       return next;
     });
@@ -122,6 +139,47 @@ export default function Board({
       const next = new URLSearchParams(prev);
       if (val && val !== 'all') next.set('due', val);
       else next.delete('due');
+      return next;
+    });
+  };
+
+  const setFilterListId = (val) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (val && val !== 'all') next.set('list', String(val));
+      else next.delete('list');
+      return next;
+    });
+  };
+
+  const setFilterAssignerId = (val) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (val && val !== 'all') next.set('assigner', String(val));
+      else next.delete('assigner');
+      return next;
+    });
+  };
+
+  const setFilterStatus = (val) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (val && val !== 'all') next.set('status', val);
+      else next.delete('status');
+      return next;
+    });
+  };
+
+  const handleClearAllFilters = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('search');
+      next.delete('member');
+      next.delete('label');
+      next.delete('due');
+      next.delete('list');
+      next.delete('assigner');
+      next.delete('status');
       return next;
     });
   };
@@ -239,12 +297,55 @@ export default function Board({
   const [memberEmailInput, setMemberEmailInput] = useState('');
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
+  const [isBoardSwitcherOpen, setIsBoardSwitcherOpen] = useState(false);
   const [isEditingBoardTitle, setIsEditingBoardTitle] = useState(false);
   const [boardTitleInput, setBoardTitleInput] = useState('');
   const [newListTitle, setNewListTitle] = useState('');
   const [isAddingList, setIsAddingList] = useState(false);
 
+  // Board permissions member dropdown state
+  const [isBoardMembersDropdownOpen, setIsBoardMembersDropdownOpen] = useState(false);
+  const [boardWorkspaceMembers, setBoardWorkspaceMembers] = useState([]);
+  const [memberFilterQuery, setMemberFilterQuery] = useState('');
+  const boardMembersDropdownRef = useRef(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (!board?.id) return;
+    const fetchPermMembers = async () => {
+      try {
+        const data = await getBoardWorkspaceMembers(board.id);
+        if (!isCancelled && data?.members) {
+          setBoardWorkspaceMembers(data.members);
+        }
+      } catch (err) {
+        // Fallback gracefully
+      }
+    };
+    fetchPermMembers();
+    return () => { isCancelled = true; };
+  }, [board?.id]);
+
+  const permittedMembers = useMemo(() => {
+    if (boardWorkspaceMembers.length > 0) {
+      const accessMembers = boardWorkspaceMembers.filter((m) => m.has_access);
+      if (accessMembers.length > 0) return accessMembers;
+    }
+    return (board?.members && board.members.length > 0) ? board.members : onlineMembers;
+  }, [boardWorkspaceMembers, board?.members, onlineMembers]);
+
+  const filteredDropdownMembers = useMemo(() => {
+    if (!memberFilterQuery.trim()) return permittedMembers;
+    const q = memberFilterQuery.trim().toLowerCase();
+    return permittedMembers.filter(
+      (m) =>
+        (m.name && m.name.toLowerCase().includes(q)) ||
+        (m.email && m.email.toLowerCase().includes(q))
+    );
+  }, [permittedMembers, memberFilterQuery]);
+
   const boardMenuRef = useRef(null);
+  const boardSwitcherRef = useRef(null);
   const paletteRef = useRef(null);
   const paletteButtonRef = useRef(null);
 
@@ -252,6 +353,12 @@ export default function Board({
     const handleOutsideClick = (event) => {
       if (boardMenuRef.current && !boardMenuRef.current.contains(event.target)) {
         setIsBoardMenuOpen(false);
+      }
+      if (boardSwitcherRef.current && !boardSwitcherRef.current.contains(event.target)) {
+        setIsBoardSwitcherOpen(false);
+      }
+      if (boardMembersDropdownRef.current && !boardMembersDropdownRef.current.contains(event.target)) {
+        setIsBoardMembersDropdownOpen(false);
       }
       if (
         paletteRef.current &&
@@ -341,6 +448,7 @@ export default function Board({
   const canArchiveBoard = hasPermission('board.archive') || hasPermission('project.archive') || canEditBoard;
   const canManageBoardMembers = hasPermission('board.manage_members') || hasPermission('project.manage_members');
   const canCreateList = hasPermission('list.create');
+  const canViewActivity = hasPermission('activity.view');
 
   const handleStartRename = () => {
     if (!canEditBoard) return;
@@ -375,14 +483,47 @@ export default function Board({
   const filterCard = (card) =>
     matchesCardFilter(card, {
       searchQuery,
-      filterMemberId,
-      filterLabelId,
-      filterDueDate
+      filterMemberId: filterMemberId === 'all' ? null : filterMemberId,
+      filterLabelId: filterLabelId === 'all' ? null : filterLabelId,
+      filterDueDate,
+      filterListId: filterListId === 'all' ? null : filterListId,
+      filterAssignerId: filterAssignerId === 'all' ? null : filterAssignerId,
+      filterStatus,
+      currentUserId: user?.id
     });
+
+  const effectiveDefaults =
+    projectDefaults ||
+    workspace?.settings?.project_defaults ||
+    getTenantItem(workspace?.company_id || workspace?.id || board?.workspace_id, 'project_defaults', null) ||
+    {};
+  const wipLimitEnabled = effectiveDefaults.wipLimitEnabled ?? true;
+  const wipLimitMax = Number(effectiveDefaults.wipLimitMax || 5);
+  const defaultCardSort = effectiveDefaults.defaultCardSort || 'position';
+
+  const sortCardsFn = useCallback(
+    (cards) => {
+      if (!cards || cards.length <= 1) return cards || [];
+      const copy = [...cards];
+      if (defaultCardSort === 'due_date') {
+        return copy.sort((a, b) => {
+          if (a.due_date && b.due_date) return new Date(a.due_date) - new Date(b.due_date);
+          if (a.due_date && !b.due_date) return -1;
+          if (!a.due_date && b.due_date) return 1;
+          return (a.position || 0) - (b.position || 0);
+        });
+      }
+      if (defaultCardSort === 'title') {
+        return copy.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      }
+      return copy.sort((a, b) => (a.position || 0) - (b.position || 0));
+    },
+    [defaultCardSort]
+  );
 
   const listsWithFilteredCards = (board.lists || []).map((l) => ({
     ...l,
-    cards: (l.cards || []).filter(filterCard)
+    cards: sortCardsFn((l.cards || []).filter(filterCard))
   }));
 
   const visibleLists =
@@ -392,10 +533,126 @@ export default function Board({
 
   const listIds = visibleLists.map((l) => `list-${l.id}`);
 
+  // Map each card ID to its sequential 1-based task number on this board
+  const taskNumberMap = useMemo(() => {
+    const map = new Map();
+    if (!board?.lists) return map;
+
+    const allCards = [];
+    board.lists.forEach((list) => {
+      (list.cards || []).forEach((c) => {
+        allCards.push(c);
+      });
+    });
+
+    // Deterministic order: created_at asc, id asc
+    allCards.sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (timeA !== timeB) return timeA - timeB;
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
+    });
+
+    allCards.forEach((c, index) => {
+      map.set(c.id, c.task_number ?? (index + 1));
+    });
+
+    return map;
+  }, [board?.lists]);
+
+  // Unique labels across board and cards
+  const boardLabels = useMemo(() => {
+    const map = new Map();
+    (board?.labels || []).forEach((l) => {
+      map.set(Number(l.id), l);
+    });
+    (board?.lists || []).forEach((l) => {
+      (l.cards || []).forEach((c) => {
+        (c.labels || []).forEach((l) => {
+          const id = Number(l.id || l.label_id);
+          if (id && !map.has(id)) {
+            map.set(id, l);
+          }
+        });
+      });
+    });
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [board?.labels, board?.lists]);
+
+  // Unique assignees across board members and cards
+  const boardAssignees = useMemo(() => {
+    const map = new Map();
+    (board?.members || []).forEach((m) => {
+      map.set(Number(m.id), { id: Number(m.id), name: m.name, email: m.email });
+    });
+    (board?.lists || []).forEach((l) => {
+      (l.cards || []).forEach((c) => {
+        (c.members || []).forEach((m) => {
+          const id = Number(m.id || m.user_id);
+          if (id && !map.has(id)) {
+            map.set(id, { id, name: m.name, email: m.email });
+          }
+        });
+      });
+    });
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [board?.members, board?.lists]);
+
+  // Unique assigners across cards and board members
+  const boardAssigners = useMemo(() => {
+    const map = new Map();
+    (board?.lists || []).forEach((l) => {
+      (l.cards || []).forEach((c) => {
+        (c.assigners || []).forEach((a) => {
+          const id = Number(a.id || a.user_id);
+          if (id && !map.has(id)) {
+            map.set(id, { id, name: a.name, email: a.email });
+          }
+        });
+        if (c.creator_id && c.creator_name && !map.has(Number(c.creator_id))) {
+          map.set(Number(c.creator_id), { id: Number(c.creator_id), name: c.creator_name, email: c.creator_email });
+        }
+      });
+    });
+    if (map.size === 0) {
+      (board?.members || []).forEach((m) => {
+        map.set(Number(m.id), { id: Number(m.id), name: m.name, email: m.email });
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [board?.lists, board?.members]);
+
+  // Total board cards count & visible filtered cards count
+  const totalCardsCount = useMemo(() => {
+    return (board?.lists || []).reduce((acc, l) => acc + (l.cards || []).length, 0);
+  }, [board?.lists]);
+
+  const visibleCardsCount = useMemo(() => {
+    return visibleLists.reduce((acc, l) => acc + (l.cards || []).length, 0);
+  }, [visibleLists]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (searchQuery.trim()) count++;
+    if (filterLabelId && filterLabelId !== 'all') count++;
+    if (filterDueDate && filterDueDate !== 'all') count++;
+    if (filterListId && filterListId !== 'all') count++;
+    if (filterMemberId && filterMemberId !== 'all') count++;
+    if (filterAssignerId && filterAssignerId !== 'all') count++;
+    if (filterStatus && filterStatus !== 'all') count++;
+    return count;
+  }, [
+    searchQuery,
+    filterLabelId,
+    filterDueDate,
+    filterListId,
+    filterMemberId,
+    filterAssignerId,
+    filterStatus
+  ]);
+
   // Unique labels on this board
-  const uniqueLabels = (board.labels || []).filter(
-    (label, index, self) => index === self.findIndex((l) => l.id === label.id)
-  );
+  const uniqueLabels = boardLabels;
 
   const handleDragStart = (event) => {
     const { active } = event;
@@ -633,19 +890,72 @@ export default function Board({
               </button>
             </div>
           ) : (
-            <div
-              className={`flex items-center gap-2 group min-w-0 ${canEditBoard ? 'cursor-pointer' : 'cursor-default'}`}
-              onClick={canEditBoard ? handleStartRename : undefined}
-              title={canEditBoard ? 'Click to rename board' : undefined}
-            >
-              <h2 className="text-lg sm:text-xl font-black text-text-primary tracking-tight truncate group-hover:text-primary transition-colors flex items-center gap-2">
-                <span>{board.name}</span>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-tint text-primary">
-                  Active Sprint
-                </span>
-              </h2>
-              {canEditBoard && (
-                <Pencil className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100 shrink-0" />
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div
+                className={`flex items-center gap-2 group min-w-0 ${canEditBoard ? 'cursor-pointer' : 'cursor-default'}`}
+                onClick={canEditBoard ? handleStartRename : undefined}
+                title={canEditBoard ? 'Click to rename board' : undefined}
+              >
+                <h2 className="text-lg sm:text-xl font-black text-text-primary tracking-tight truncate group-hover:text-primary transition-colors flex items-center gap-2">
+                  <span>{board.name}</span>
+                  <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-tint text-primary">
+                    Active Sprint
+                  </span>
+                </h2>
+                {canEditBoard && (
+                  <Pencil className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100 shrink-0" />
+                )}
+              </div>
+
+              {/* Quick Board Switcher Dropdown */}
+              {boards && boards.length > 1 && (
+                <div className="relative" ref={boardSwitcherRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsBoardSwitcherOpen((prev) => !prev)}
+                    className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-center ${
+                      isBoardSwitcherOpen
+                        ? 'bg-primary-tint text-primary border-primary/40'
+                        : 'bg-surface text-text-muted hover:text-text-primary hover:bg-surface-muted border-border shadow-2xs'
+                    }`}
+                    title="Switch Board"
+                    aria-label="Switch Board"
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isBoardSwitcherOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isBoardSwitcherOpen && (
+                    <div className="absolute left-0 top-full mt-2 w-64 max-h-80 overflow-y-auto bg-surface border border-border/80 rounded-2xl shadow-xl z-50 p-1.5 space-y-1 animate-sassy-dropdown-left">
+                      <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-text-muted border-b border-border/60 mb-1 flex items-center justify-between">
+                        <span>Projects & Boards</span>
+                        <span>{boards.length}</span>
+                      </div>
+                      {boards.map((b) => {
+                        const isCurrent = Number(b.id) === Number(board.id);
+                        return (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => {
+                              setIsBoardSwitcherOpen(false);
+                              if (!isCurrent) {
+                                navigate(`/w/${workspaceId || workspace?.id}/p/${b.id}/board`);
+                              }
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-all cursor-pointer ${
+                              isCurrent
+                                ? 'bg-primary-tint text-primary font-bold'
+                                : 'text-text-primary hover:bg-surface-muted'
+                            }`}
+                          >
+                            <span className="truncate flex-1">{b.name}</span>
+                            {isCurrent && <Check className="w-3.5 h-3.5 text-primary shrink-0 ml-1.5" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -690,15 +1000,17 @@ export default function Board({
           />
 
           {/* Activity Drawer Button */}
-          <button
-            type="button"
-            onClick={() => setIsActivityOpen(!isActivityOpen)}
-            aria-label="Activity log"
-            title="Activity log"
-            className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs"
-          >
-            <Activity className="w-4 h-4" />
-          </button>
+          {canViewActivity && (
+            <button
+              type="button"
+              onClick={() => setIsActivityOpen(!isActivityOpen)}
+              aria-label="Activity log"
+              title="Activity log"
+              className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs"
+            >
+              <Activity className="w-4 h-4" />
+            </button>
+          )}
 
           {/* Board Overflow Menu (Board actions) */}
           {(canEditBoard || canDeleteBoard || canArchiveBoard) && (
@@ -794,72 +1106,398 @@ export default function Board({
         >
           {/* Top of Board Surface: Teammates, Invite Pill, and "Create Task +" CTA (Matching Reference Image) */}
           <div className="flex items-center justify-between gap-3 text-xs shrink-0 select-none pb-4">
-            {/* Left: Teammates Avatars Group & "Invite People" Pill */}
+            {/* Left: Clickable Member Count Button & Board Permissions Dropdown */}
             <div className="flex items-center gap-3">
-              {(() => {
-                const membersList = (board.members && board.members.length > 0)
-                  ? board.members
-                  : onlineMembers;
-                const visibleMembers = membersList.slice(0, 3);
-                const extraCount = membersList.length - 3;
-
-                return (
-                  membersList.length > 0 && (
-                    <div className="flex items-center -space-x-2">
-                      {visibleMembers.map((m) => {
-                        const isOnline = onlineMembers.some((om) => om.id === m.id);
-                        return (
-                          <div
-                            key={m.id}
-                            className="relative rounded-full ring-2 ring-surface shadow-2xs"
-                            title={`${m.name}${isOnline ? ' (Online)' : ''}`}
-                          >
-                            <Avatar name={m.name} size="sm" status={isOnline ? 'online' : undefined} />
-                          </div>
-                        );
-                      })}
-                      {extraCount > 0 && (
-                        <div
-                          className="w-8 h-8 rounded-full bg-surface border border-border/80 text-text-secondary font-bold text-xs flex items-center justify-center shadow-2xs ring-2 ring-surface z-10"
-                          title={`${extraCount} more members`}
-                        >
-                          +{extraCount}
-                        </div>
-                      )}
-                    </div>
-                  )
-                );
-              })()}
-
-              {/* Invite People Button */}
-              {canManageBoardMembers && (
+              <div className="relative" ref={boardMembersDropdownRef}>
                 <button
                   type="button"
-                  onClick={onInviteClick || (() => setIsAddMemberOpen(true))}
-                  className="flex items-center gap-2 px-4 py-2 bg-surface hover:bg-surface-hover border border-border/80 text-text-primary text-xs sm:text-sm font-bold rounded-full shadow-2xs transition-all cursor-pointer min-h-[36px]"
+                  onClick={() => setIsBoardMembersDropdownOpen((prev) => !prev)}
+                  className={`flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-surface hover:bg-surface-hover border border-border/80 rounded-full shadow-2xs transition-all cursor-pointer min-h-[36px] text-xs sm:text-sm font-bold ${
+                    isBoardMembersDropdownOpen ? 'ring-2 ring-primary/20 border-primary/40 bg-surface-muted/60' : ''
+                  }`}
+                  title="Click to view all users with permission to access this board"
+                  aria-label="Click to view all users with permission to access this board"
+                  aria-expanded={isBoardMembersDropdownOpen}
                 >
-                  <UserPlus className="w-4 h-4 text-primary" />
-                  <span>Invite People</span>
+                  <Users className="w-4 h-4 text-primary" />
+                  <span className="text-text-primary">
+                    {permittedMembers.length === 1 ? '1 Member' : `${permittedMembers.length} Members`}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform duration-200 ${isBoardMembersDropdownOpen ? 'rotate-180 text-primary' : ''}`} />
+                </button>
+
+                {isBoardMembersDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-2 w-80 sm:w-88 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 p-3 space-y-2.5 animate-sassy-dropdown-left text-left">
+                    {/* Header */}
+                    <div className="pb-2 border-b border-border/60">
+                      <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-primary" />
+                        Board Access
+                      </h4>
+                      <p className="text-[11px] text-text-secondary mt-0.5">
+                        Users with permission to view this board
+                      </p>
+                    </div>
+
+                    {/* Filter query if list has more than 4 members */}
+                    {permittedMembers.length > 4 && (
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Search members..."
+                          value={memberFilterQuery}
+                          onChange={(e) => setMemberFilterQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-muted/60 border border-border/80 rounded-xl focus:outline-none focus:border-primary text-text-primary placeholder:text-text-muted"
+                        />
+                      </div>
+                    )}
+
+                    {/* Member List */}
+                    <div className="max-h-64 overflow-y-auto space-y-1 pr-0.5">
+                      {filteredDropdownMembers.length === 0 ? (
+                        <div className="py-4 text-center text-xs text-text-muted">
+                          No matching users found
+                        </div>
+                      ) : (
+                        filteredDropdownMembers.map((m) => {
+                          const isOnline = onlineMembers.some((om) => om.id === m.id);
+                          const roleLabel = m.is_workspace_admin
+                            ? 'Admin'
+                            : m.board_role || m.workspace_role || m.role || 'Member';
+                          return (
+                            <div
+                              key={m.id}
+                              className="flex items-center justify-between gap-2.5 p-2 rounded-xl hover:bg-surface-muted/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <Avatar
+                                  name={m.name}
+                                  src={m.avatar_url || m.avatar}
+                                  user={m}
+                                  size="sm"
+                                  status={isOnline ? 'online' : undefined}
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-xs text-text-primary truncate">{m.name}</span>
+                                    {isOnline && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" title="Online" />
+                                    )}
+                                  </div>
+                                  <span className="text-[11px] text-text-muted truncate block">{m.email}</span>
+                                </div>
+                              </div>
+                              <div className="shrink-0">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                  m.is_workspace_admin || String(roleLabel).toLowerCase().includes('admin') || String(roleLabel).toLowerCase().includes('owner')
+                                    ? 'bg-primary-tint text-primary border-primary/20'
+                                    : 'bg-surface-muted text-text-secondary border-border/60'
+                                }`}>
+                                  {roleLabel}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Board Filter Controls replacing Create Task button */}
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {/* Quick Label Filter */}
+              <div className="w-28 sm:w-32 hidden md:block">
+                <Select
+                  value={filterLabelId || 'all'}
+                  onChange={(val) => setFilterLabelId(val)}
+                  size="sm"
+                  aria-label="Filter by label"
+                  options={[
+                    { value: 'all', label: 'All Labels' },
+                    { value: 'no-label', label: 'No Label' },
+                    ...boardLabels.map((l) => ({ value: String(l.id), label: l.name }))
+                  ]}
+                  className="w-full text-xs font-semibold"
+                />
+              </div>
+
+              {/* Quick Due Date Filter */}
+              <div className="w-28 sm:w-32 hidden lg:block">
+                <Select
+                  value={filterDueDate}
+                  onChange={(val) => setFilterDueDate(val)}
+                  size="sm"
+                  aria-label="Filter by date"
+                  options={[
+                    { value: 'all', label: 'All Dates' },
+                    { value: 'today', label: 'Due Today' },
+                    { value: 'tomorrow', label: 'Due Tomorrow' },
+                    { value: 'this-week', label: 'This Week' },
+                    { value: 'overdue', label: 'Overdue' },
+                    { value: 'no-date', label: 'No Date' }
+                  ]}
+                  className="w-full text-xs font-semibold"
+                />
+              </div>
+
+              {/* Quick Assignee Filter */}
+              <div className="w-28 sm:w-32 hidden xl:block">
+                <Select
+                  value={filterMemberId || 'all'}
+                  onChange={(val) => setFilterMemberId(val)}
+                  size="sm"
+                  aria-label="Filter by assignee"
+                  options={[
+                    { value: 'all', label: 'All Assignees' },
+                    { value: 'unassigned', label: 'Unassigned' },
+                    ...boardAssignees.map((m) => ({ value: String(m.id), label: m.name }))
+                  ]}
+                  className="w-full text-xs font-semibold"
+                />
+              </div>
+
+              {/* Detailed Filters Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setIsDetailedFilterOpen(!isDetailedFilterOpen)}
+                aria-expanded={isDetailedFilterOpen}
+                aria-label="Toggle detailed filters"
+                title="Detailed Filters (Label, Date, List, Assignee, Assigner)"
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${
+                  isDetailedFilterOpen || activeFiltersCount > 0
+                    ? 'bg-primary text-white border-primary shadow-xs'
+                    : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>Filters</span>
+                {activeFiltersCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-white text-primary text-[10px] font-black flex items-center justify-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                    isDetailedFilterOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Clear All Filters Button */}
+              {activeFiltersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  className="px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-danger-tint rounded-full transition-colors cursor-pointer border border-danger/30"
+                  title="Clear all filters"
+                  aria-label="Clear all filters"
+                >
+                  Reset
                 </button>
               )}
             </div>
+          </div>
 
-            {/* Right: "Create Task +" Primary CTA */}
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  if (board.lists && board.lists.length > 0) {
-                    onCreateCard(board.lists[0].id, 'New Task');
-                  } else if (canCreateList) {
-                    setIsAddingList(true);
-                  }
-                }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white text-xs sm:text-sm font-bold rounded-full shadow-sm hover:shadow transition-all cursor-pointer min-h-[38px]"
-              >
-                <span>Create Task</span>
-                <Plus className="w-4 h-4 stroke-[3]" />
-              </button>
+          {/* Detailed Filter Section (Collapsible Full-Width Panel with Smooth Height & Fade Transition) */}
+          <div
+            className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
+              isDetailedFilterOpen
+                ? 'grid-rows-[1fr] opacity-100 mb-4'
+                : 'grid-rows-[0fr] opacity-0 mb-0 pointer-events-none'
+            }`}
+          >
+            <div className="overflow-hidden">
+              <div className="bg-surface border border-border/90 rounded-2xl p-4 shadow-sm space-y-3.5">
+                {/* Header of Detailed Filters */}
+                <div className="flex items-center justify-between pb-2 border-b border-border/70 text-xs">
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal className="w-4 h-4 text-primary" />
+                    <span className="font-bold text-text-primary text-sm">
+                      Detailed Board Filters
+                    </span>
+                    <span className="text-text-muted">
+                      ({visibleCardsCount} of {totalCardsCount} tasks visible)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {activeFiltersCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearAllFilters}
+                        className="text-xs font-semibold text-danger hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Reset all</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsDetailedFilterOpen(false)}
+                      className="p-1 text-text-muted hover:text-text-primary rounded-lg cursor-pointer"
+                      title="Close filter section"
+                      aria-label="Close filter section"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 5-Column Grid of Dedicated Filters */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {/* 1. Filter by Label */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                      Label
+                    </label>
+                    <Select
+                      value={filterLabelId || 'all'}
+                      onChange={(val) => setFilterLabelId(val)}
+                      size="sm"
+                      aria-label="Detailed filter by label"
+                      options={[
+                        { value: 'all', label: 'All Labels' },
+                        { value: 'no-label', label: 'No Label' },
+                        ...boardLabels.map((l) => ({ value: String(l.id), label: l.name }))
+                      ]}
+                      className="w-full text-xs font-medium"
+                    />
+                  </div>
+
+                  {/* 2. Filter by Due Date */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                      Due Date
+                    </label>
+                    <Select
+                      value={filterDueDate}
+                      onChange={(val) => setFilterDueDate(val)}
+                      size="sm"
+                      aria-label="Detailed filter by date"
+                      options={[
+                        { value: 'all', label: 'All Dates' },
+                        { value: 'today', label: 'Due Today' },
+                        { value: 'tomorrow', label: 'Due Tomorrow' },
+                        { value: 'this-week', label: 'This Week' },
+                        { value: 'overdue', label: 'Overdue' },
+                        { value: 'has-date', label: 'Has Due Date' },
+                        { value: 'no-date', label: 'No Due Date' }
+                      ]}
+                      className="w-full text-xs font-medium"
+                    />
+                  </div>
+
+                  {/* 3. Filter by List */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                      List / Column
+                    </label>
+                    <Select
+                      value={filterListId || 'all'}
+                      onChange={(val) => setFilterListId(val)}
+                      size="sm"
+                      aria-label="Detailed filter by list"
+                      options={[
+                        { value: 'all', label: 'All Lists' },
+                        ...(board?.lists || []).map((l) => ({ value: String(l.id), label: l.name }))
+                      ]}
+                      className="w-full text-xs font-medium"
+                    />
+                  </div>
+
+                  {/* 4. Filter by Assignee */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                      Assignee
+                    </label>
+                    <Select
+                      value={filterMemberId || 'all'}
+                      onChange={(val) => setFilterMemberId(val)}
+                      size="sm"
+                      aria-label="Detailed filter by assignee"
+                      options={[
+                        { value: 'all', label: 'All Assignees' },
+                        { value: 'unassigned', label: 'Unassigned' },
+                        ...boardAssignees.map((m) => ({ value: String(m.id), label: m.name }))
+                      ]}
+                      className="w-full text-xs font-medium"
+                    />
+                  </div>
+
+                  {/* 5. Filter by Assigner */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                      Assigner / Creator
+                    </label>
+                    <Select
+                      value={filterAssignerId || 'all'}
+                      onChange={(val) => setFilterAssignerId(val)}
+                      size="sm"
+                      aria-label="Detailed filter by assigner"
+                      options={[
+                        { value: 'all', label: 'All Assigners' },
+                        ...boardAssigners.map((a) => ({ value: String(a.id), label: a.name }))
+                      ]}
+                      className="w-full text-xs font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Active Filter Chips Bar */}
+                {activeFiltersCount > 0 && (
+                  <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] font-bold text-text-muted mr-1">Active:</span>
+
+                    {filterLabelId && filterLabelId !== 'all' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                        <span>Label: {boardLabels.find((l) => String(l.id) === String(filterLabelId))?.name || filterLabelId}</span>
+                        <button type="button" onClick={() => setFilterLabelId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove label filter">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+
+                    {filterDueDate && filterDueDate !== 'all' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                        <span>Date: {filterDueDate}</span>
+                        <button type="button" onClick={() => setFilterDueDate('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove date filter">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+
+                    {filterListId && filterListId !== 'all' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                        <span>List: {(board?.lists || []).find((l) => String(l.id) === String(filterListId))?.name || filterListId}</span>
+                        <button type="button" onClick={() => setFilterListId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove list filter">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+
+                    {filterMemberId && filterMemberId !== 'all' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                        <span>Assignee: {boardAssignees.find((m) => String(m.id) === String(filterMemberId))?.name || filterMemberId}</span>
+                        <button type="button" onClick={() => setFilterMemberId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove assignee filter">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+
+                    {filterAssignerId && filterAssignerId !== 'all' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                        <span>Assigner: {boardAssigners.find((a) => String(a.id) === String(filterAssignerId))?.name || filterAssignerId}</span>
+                        <button type="button" onClick={() => setFilterAssignerId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove assigner filter">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -900,6 +1538,9 @@ export default function Board({
                       key={list.id}
                       list={list}
                       cards={list.cards}
+                      wipLimitEnabled={wipLimitEnabled}
+                      wipLimitMax={wipLimitMax}
+                      taskNumberMap={taskNumberMap}
                       onUpdateList={onUpdateList}
                       onDeleteList={onDeleteList}
                       onCardClick={onCardClick}
@@ -970,12 +1611,17 @@ export default function Board({
                 <List
                   list={activeItem.list}
                   cards={listsWithFilteredCards.find((l) => l.id === activeItem.list.id)?.cards || activeItem.list.cards || []}
+                  taskNumberMap={taskNumberMap}
                   isOverlay={true}
                 />
               )}
               {activeItem?.type === 'card' && (
                 <div className="w-72">
-                  <Card card={activeItem.card} isOverlay={true} />
+                  <Card
+                    card={activeItem.card}
+                    taskNumber={taskNumberMap.get(activeItem.card.id) ?? activeItem.card.task_number}
+                    isOverlay={true}
+                  />
                 </div>
               )}
             </DragOverlay>
@@ -998,6 +1644,8 @@ export default function Board({
             board={board}
             cards={allBoardCards}
             onCardClick={onCardClick}
+            onSelectNotificationCard={onSelectNotificationCard}
+            onOpenAllNotifications={onOpenAllNotifications}
             className="w-full h-full"
           />
         </div>
@@ -1104,10 +1752,14 @@ export default function Board({
 
           <div className="mt-1 ml-2 pointer-events-none transform rotate-1 scale-102 shadow-md">
             {remote.list ? (
-              <List list={remote.list} cards={remote.list.cards || []} isOverlay={true} />
+              <List list={remote.list} cards={remote.list.cards || []} taskNumberMap={taskNumberMap} isOverlay={true} />
             ) : remote.card ? (
               <div className="w-72">
-                <Card card={remote.card} isOverlay={true} />
+                <Card
+                  card={remote.card}
+                  taskNumber={taskNumberMap.get(remote.card.id) ?? remote.card.task_number}
+                  isOverlay={true}
+                />
               </div>
             ) : (
               <div className="w-72 bg-surface border border-border text-text-primary rounded-xl p-3 shadow-md flex items-center justify-between">

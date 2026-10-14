@@ -14,7 +14,25 @@ export async function verifyLogin2Fa(temp_token, code) {
   });
 }
 
-export async function register(name, email, password, inviteToken, companyName) {
+export async function checkEmailRegistered(email) {
+  return apiFetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
+}
+
+export async function sendRegistrationOtp(email) {
+  return apiFetch('/api/auth/register/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+}
+
+export async function verifyRegistrationOtp(email, otp) {
+  return apiFetch('/api/auth/register/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp })
+  });
+}
+
+export async function register(name, email, password, inviteToken, companyName, verificationToken) {
   return apiFetch('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify({
@@ -22,7 +40,40 @@ export async function register(name, email, password, inviteToken, companyName) 
       email,
       password,
       invite_token: inviteToken,
-      company_name: companyName || undefined
+      company_name: companyName || undefined,
+      verification_token: verificationToken || undefined
+    })
+  });
+}
+
+export async function sendForgotPasswordOtp(email) {
+  return apiFetch('/api/auth/forgot-password/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+}
+
+export async function verifyForgotPasswordOtp(email, otp) {
+  return apiFetch('/api/auth/forgot-password/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp })
+  });
+}
+
+export async function verifyResetToken(token, email) {
+  return apiFetch('/api/auth/forgot-password/verify-token', {
+    method: 'POST',
+    body: JSON.stringify({ token, email })
+  });
+}
+
+export async function resetForgotPassword(email, resetToken, newPassword) {
+  return apiFetch('/api/auth/forgot-password/reset', {
+    method: 'POST',
+    body: JSON.stringify({
+      email,
+      reset_token: resetToken,
+      new_password: newPassword
     })
   });
 }

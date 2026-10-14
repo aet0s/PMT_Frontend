@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getMe, login, register, logout, updateProfile, changePassword } from '../api/auth';
+import { getMe, login, register, logout, updateProfile, changePassword, verifyLogin2Fa } from '../api/auth';
 
 import { clearTenantStorage } from '../lib/storage';
 
@@ -55,22 +55,38 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const loginUser = async (email, password) => {
+  const loginUser = async (email, password, tenant_slug) => {
     setError(null);
     try {
-      const data = await login(email, password);
-      setUser(data.user);
-      return data.user;
+      const data = await login(email, password, tenant_slug);
+      if (data.user) {
+        setUser(data.user);
+      }
+      return data;
     } catch (err) {
       setError(err.message || 'Login failed');
       throw err;
     }
   };
 
-  const registerUser = async (name, email, password, inviteToken, companyName) => {
+  const verify2FaLogin = async (tempToken, code) => {
     setError(null);
     try {
-      const data = await register(name, email, password, inviteToken, companyName);
+      const data = await verifyLogin2Fa(tempToken, code);
+      if (data.user) {
+        setUser(data.user);
+      }
+      return data;
+    } catch (err) {
+      setError(err.message || '2FA verification failed');
+      throw err;
+    }
+  };
+
+  const registerUser = async (name, email, password, inviteToken, companyName, verificationToken) => {
+    setError(null);
+    try {
+      const data = await register(name, email, password, inviteToken, companyName, verificationToken);
       if (data.initial_workspace_id) {
         localStorage.setItem('activeWorkspaceId', data.initial_workspace_id);
       }
@@ -91,6 +107,10 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('pm_token');
+        localStorage.removeItem('pm_token');
+      }
       if (user?.tenant_id) {
         clearTenantStorage(user.tenant_id);
       }
@@ -148,6 +168,7 @@ export function AuthProvider({ children }) {
         loading,
         error,
         loginUser,
+        verify2FaLogin,
         registerUser,
         logoutUser,
         updateUserProfile,

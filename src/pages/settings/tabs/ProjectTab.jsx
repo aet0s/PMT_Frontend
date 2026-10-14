@@ -1,13 +1,14 @@
 // client/src/pages/settings/tabs/ProjectTab.jsx
 import React, { useState, useEffect } from 'react';
-import { SlidersHorizontal, Check, Kanban, Clock, Hash, Shield, Info } from 'lucide-react';
+import { SlidersHorizontal, Check, Kanban, Clock, Hash, Shield, Info, Archive } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import Switch from '../../../components/ui/Switch';
 import { useToast } from '../../../components/ui/Toast';
 import { getTenantItem, setTenantItem } from '../../../lib/storage';
+import { updateWorkspace, autoArchiveWorkspaceCards } from '../../../api/workspaces';
 
-export default function ProjectTab({ workspace, setFormDirty }) {
+export default function ProjectTab({ workspace, onWorkspaceUpdated, setFormDirty }) {
   const toast = useToast();
   const tenantId = workspace?.company_id || workspace?.id;
 
@@ -17,9 +18,10 @@ export default function ProjectTab({ workspace, setFormDirty }) {
   const [autoArchiveDays, setAutoArchiveDays] = useState('never');
   const [taskEstimatesEnabled, setTaskEstimatesEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   useEffect(() => {
-    const saved = getTenantItem(tenantId, 'project_defaults', null);
+    const saved = workspace?.settings?.project_defaults || getTenantItem(tenantId, 'project_defaults', null);
     if (saved) {
       setWipLimitEnabled(saved.wipLimitEnabled ?? true);
       setWipLimitMax(saved.wipLimitMax ?? 5);
@@ -28,21 +30,59 @@ export default function ProjectTab({ workspace, setFormDirty }) {
       setTaskEstimatesEnabled(saved.taskEstimatesEnabled ?? true);
     }
     setFormDirty?.(false);
-  }, [tenantId, setFormDirty]);
+  }, [tenantId, workspace?.settings, setFormDirty]);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    setTenantItem(tenantId, 'project_defaults', {
+    const newDefaults = {
       wipLimitEnabled,
       wipLimitMax: Number(wipLimitMax),
       defaultCardSort,
       autoArchiveDays,
       taskEstimatesEnabled
-    });
-    setIsSaving(false);
-    setFormDirty?.(false);
-    toast.show('Project defaults saved successfully', 'success');
+    };
+    setTenantItem(tenantId, 'project_defaults', newDefaults);
+
+    try {
+      if (workspace?.id) {
+        const nextSettings = {
+          ...(workspace.settings || {}),
+          project_defaults: newDefaults
+        };
+        const res = await updateWorkspace(workspace.id, { settings: nextSettings });
+        if (res?.workspace) {
+          onWorkspaceUpdated?.(res.workspace);
+        }
+      }
+      toast.show('Project defaults saved and synced successfully', 'success');
+    } catch (err) {
+      console.warn('Failed to sync project defaults to workspace:', err);
+      toast.show('Project defaults saved locally', 'info');
+    } finally {
+      setIsSaving(false);
+      setFormDirty?.(false);
+    }
+  };
+
+  const handleRunAutoArchiveNow = async () => {
+    if (!workspace?.id) return;
+    setIsArchiving(true);
+    try {
+      const days = autoArchiveDays === 'never' ? 0 : Number(autoArchiveDays);
+      const res = await autoArchiveWorkspaceCards(workspace.id, days);
+      const count = res?.archived_count ?? res?.archivedCount ?? 0;
+      if (count > 0) {
+        toast.show(`Auto-archived ${count} completed task(s)`, 'success');
+        onWorkspaceUpdated?.({ ...workspace });
+      } else {
+        toast.show('No completed tasks matching archive criteria found', 'info');
+      }
+    } catch (err) {
+      toast.show(err.message || 'Auto-archive failed', 'error');
+    } finally {
+      setIsArchiving(false);
+    }
   };
 
   return (
@@ -119,7 +159,7 @@ export default function ProjectTab({ workspace, setFormDirty }) {
               />
             </div>
 
-            <div className="space-y-1.5 pb-4 border-b border-border">
+            <div className="space-y-2.5 pb-4 border-b border-border">
               <Select
                 label="Auto-Archive Completed Cards"
                 value={autoArchiveDays}
@@ -134,6 +174,21 @@ export default function ProjectTab({ workspace, setFormDirty }) {
                   { value: '30', label: 'After 30 days of completion' }
                 ]}
               />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                <span className="text-[11px] text-text-secondary">
+                  Instantly archive finished tasks matching this threshold.
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRunAutoArchiveNow}
+                  isLoading={isArchiving}
+                  leftIcon={<Archive className="w-3.5 h-3.5" />}
+                >
+                  Run Auto-Archive Now
+                </Button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between pb-2">

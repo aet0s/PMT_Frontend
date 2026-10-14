@@ -24,6 +24,13 @@ export async function deleteWorkspace(id) {
   });
 }
 
+export async function autoArchiveWorkspaceCards(workspaceId, days = 7) {
+  return apiFetch(`/api/workspaces/${workspaceId}/auto-archive`, {
+    method: 'POST',
+    body: JSON.stringify({ days })
+  });
+}
+
 export async function getWorkspaceMembers(workspaceId) {
   return apiFetch(`/api/workspaces/${workspaceId}/members`);
 }
@@ -68,4 +75,73 @@ export async function getWorkspaceReports(workspaceId, { boardId = null, timefra
   const query = params.toString() ? `?${params.toString()}` : '';
   return apiFetch(`/api/workspaces/${workspaceId}/reports${query}`);
 }
+
+export async function getCompanyMembers(workspaceId, { page = 1, limit = 20, search = '', filterWorkspaceId = 'all' } = {}) {
+  const params = new URLSearchParams();
+  if (page) params.set('page', String(page));
+  if (limit) params.set('limit', String(limit));
+  if (search) params.set('search', search);
+  if (filterWorkspaceId && filterWorkspaceId !== 'all') params.set('workspace_id', String(filterWorkspaceId));
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiFetch(`/api/workspaces/${workspaceId}/company-members${query}`);
+}
+
+export async function updateCompanyMemberRole(workspaceId, userId, payload) {
+  const body = typeof payload === 'object' && payload !== null && 'role_id' in payload
+    ? payload
+    : { role_id: payload };
+  return apiFetch(`/api/workspaces/${workspaceId}/company-members/${userId}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify(body)
+  });
+}
+
+export async function assignCompanyMemberWorkspaces(workspaceId, userId, workspaceIds, roleId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/company-members/${userId}/workspaces`, {
+    method: 'POST',
+    body: JSON.stringify({ workspace_ids: workspaceIds, role_id: roleId })
+  });
+}
+
+export async function assignCompanyMemberBoards(workspaceId, userId, boardIds) {
+  return apiFetch(`/api/workspaces/${workspaceId}/company-members/${userId}/boards`, {
+    method: 'POST',
+    body: JSON.stringify({ board_ids: boardIds })
+  });
+}
+
+export async function removeCompanyMember(workspaceId, userId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/company-members/${userId}`, {
+    method: 'DELETE'
+  });
+}
+
+export async function getWorkspaceIssues(workspaceId, {
+  page = 1,
+  limit = 20,
+  boardId = null,
+  search = '',
+  listId = null,
+  stage = 'all',
+  assigneeId = null,
+  assignerId = null,
+  dueDate = 'all',
+  sort = 'newest'
+} = {}) {
+  const params = new URLSearchParams();
+  if (page) params.set('page', String(page));
+  if (limit) params.set('limit', String(limit));
+  if (boardId) params.set('board_id', String(boardId));
+  if (search) params.set('search', search);
+  if (listId) params.set('list_id', String(listId));
+  if (stage && stage !== 'all') params.set('stage', stage);
+  if (assigneeId && assigneeId !== 'all') params.set('assignee_id', String(assigneeId));
+  if (assignerId && assignerId !== 'all') params.set('assigner_id', String(assignerId));
+  if (dueDate && dueDate !== 'all') params.set('due_date', dueDate);
+  if (sort) params.set('sort', sort);
+
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiFetch(`/api/workspaces/${workspaceId}/issues${query}`);
+}
+
 

@@ -4,11 +4,13 @@ import { CSS } from '@dnd-kit/utilities';
 import { usePermissions } from '../../context/PermissionContext';
 import Card from './Card';
 import Button from '../ui/Button';
-import { Plus, MoreHorizontal, Trash2, Edit3, X } from 'lucide-react';
+import { Plus, MoreHorizontal, Trash2, Edit3, X, AlertTriangle } from 'lucide-react';
 
 export default function List({
   list,
   cards = [],
+  wipLimitEnabled = true,
+  wipLimitMax = 5,
   onCardClick,
   onCreateCard,
   onUpdateCard,
@@ -19,7 +21,8 @@ export default function List({
   isOverlay = false,
   highlightedCardId = null,
   remoteDraggedCardIds = new Set(),
-  isRemoteDragging = false
+  isRemoteDragging = false,
+  taskNumberMap
 }) {
   const {
     attributes,
@@ -95,6 +98,7 @@ export default function List({
   };
 
   const cardIds = cards.map((c) => `card-${c.id}`);
+  const isWipExceeded = wipLimitEnabled && wipLimitMax > 0 && cards.length > wipLimitMax;
 
   return (
     <div
@@ -138,8 +142,15 @@ export default function List({
             >
               {list.name}
             </h3>
-            <span className="text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full bg-surface-muted text-text-secondary border border-border-strong/50 shadow-2xs">
-              {cards.length}
+            <span
+              className={`text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs transition-colors ${
+                isWipExceeded
+                  ? 'bg-danger text-white border-danger font-black animate-pulse'
+                  : 'bg-surface-muted text-text-secondary border-border-strong/50'
+              }`}
+              title={isWipExceeded ? `WIP Limit Exceeded: ${cards.length} cards (Limit: ${wipLimitMax})` : undefined}
+            >
+              {wipLimitEnabled && wipLimitMax > 0 ? `${cards.length}/${wipLimitMax}` : cards.length}
             </span>
           </div>
         )}
@@ -206,6 +217,18 @@ export default function List({
         </div>
       </div>
 
+      {/* WIP Limit Alert Banner */}
+      {isWipExceeded && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="mx-1 mb-2.5 px-3 py-2 rounded-xl bg-danger-tint text-danger-text border border-danger/40 text-xs font-bold flex items-center gap-2 shadow-2xs animate-in fade-in slide-in-from-top-1"
+        >
+          <AlertTriangle className="w-4 h-4 text-danger shrink-0 animate-bounce" />
+          <span className="truncate">WIP limit exceeded ({cards.length} &gt; {wipLimitMax} max)</span>
+        </div>
+      )}
+
       {/* Cards List Container */}
       <div
         className="flex-1 overflow-y-auto overscroll-y-contain px-1 py-1 space-y-3 no-scrollbar"
@@ -216,6 +239,7 @@ export default function List({
             <Card
               key={card.id}
               card={card}
+              taskNumber={taskNumberMap?.get(card.id) ?? card.task_number}
               onClick={() => onCardClick(card)}
               onUpdateCard={onUpdateCard}
               onDeleteCard={onDeleteCard}

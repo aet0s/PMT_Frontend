@@ -9,7 +9,9 @@ const SIZES = {
   md: 'sm:max-w-lg',
   lg: 'sm:max-w-2xl',
   xl: 'sm:max-w-4xl',
-  full: 'sm:max-w-6xl'
+  '2xl': 'sm:max-w-5xl',
+  '3xl': 'sm:max-w-6xl',
+  full: 'sm:max-w-7xl'
 };
 
 export function Modal({
@@ -26,6 +28,8 @@ export function Modal({
 }) {
   const modalRef = useRef(null);
   const previousActiveElement = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // Esc key & body scroll lock
   useEffect(() => {
@@ -38,7 +42,7 @@ export function Modal({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        if (onCloseRef.current) onCloseRef.current();
       }
 
       // Focus trap
@@ -67,13 +71,21 @@ export function Modal({
 
     window.addEventListener('keydown', handleKeyDown);
 
-    // Initial focus into modal
+    // Initial focus into modal only on open if not already focused inside
     const timer = setTimeout(() => {
       if (modalRef.current) {
+        if (modalRef.current.contains(document.activeElement)) {
+          return;
+        }
+        const autoFocusEl = modalRef.current.querySelector('[autofocus]');
+        if (autoFocusEl && autoFocusEl.focus) {
+          autoFocusEl.focus();
+          return;
+        }
         const focusable = modalRef.current.querySelector(
           'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
         );
-        if (focusable) focusable.focus();
+        if (focusable && focusable.focus) focusable.focus();
       }
     }, 50);
 
@@ -85,7 +97,7 @@ export function Modal({
         previousActiveElement.current.focus();
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

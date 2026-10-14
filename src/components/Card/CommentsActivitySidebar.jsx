@@ -80,6 +80,8 @@ export default function CommentsActivitySidebar({
 
   const commentsFeed = (card.comments || []).map((c) => ({
     id: `comment-${c.id}`,
+    comment_id: c.id,
+    user_id: c.user_id,
     type: 'comment',
     user_name: c.author_name,
     body: c.body,

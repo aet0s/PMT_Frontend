@@ -207,7 +207,7 @@ export default function CalendarView({ board, onCardClick, onOpenMobileSidebar }
 
                     <div className="flex items-center -space-x-1.5">
                       {(card.members || card.assigned_users || []).map((u) => (
-                        <Avatar key={u.id} name={u.name} size="xs" />
+                        <Avatar key={u.id} name={u.name} src={u.avatar_url || u.avatar} user={u} size="xs" />
                       ))}
                     </div>
                   </div>

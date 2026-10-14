@@ -21,6 +21,8 @@ import { safeLazy } from './lib/safeLazy';
 
 const LoginPage = safeLazy(() => import('./pages/LoginPage'), 'LoginPage');
 const RegisterPage = safeLazy(() => import('./pages/RegisterPage'), 'RegisterPage');
+const ForgotPasswordPage = safeLazy(() => import('./pages/ForgotPasswordPage'), 'ForgotPasswordPage');
+const ResetPasswordPage = safeLazy(() => import('./pages/ResetPasswordPage'), 'ResetPasswordPage');
 const BoardPage = safeLazy(() => import('./pages/BoardPage'), 'BoardPage');
 const AccountPage = safeLazy(() => import('./pages/AccountPage'), 'AccountPage');
 const NotFoundPage = safeLazy(() => import('./pages/NotFoundPage'), 'NotFoundPage');
@@ -204,6 +206,22 @@ const router = createBrowserRouter([
         element: (
           <PublicAuthRoute>
             <RegisterPage />
+          </PublicAuthRoute>
+        )
+      },
+      {
+        path: '/forgot-password',
+        element: (
+          <PublicAuthRoute>
+            <ForgotPasswordPage />
+          </PublicAuthRoute>
+        )
+      },
+      {
+        path: '/reset-password',
+        element: (
+          <PublicAuthRoute>
+            <ResetPasswordPage />
           </PublicAuthRoute>
         )
       },

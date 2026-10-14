@@ -13,17 +13,20 @@ export default function CardHeader({
   onClose
 }) {
   const { hasPermission } = usePermissions();
-  const canMoveCard = hasPermission('card.move');
-  const canEditCard = hasPermission('card.edit');
-  const canCreateCard = hasPermission('card.create');
-  const canDeleteCard = hasPermission('card.delete');
+  const canMoveCard = hasPermission('task.move') || hasPermission('card.move');
+  const canEditCard = hasPermission('task.edit') || hasPermission('card.edit');
+  const canCreateCard = hasPermission('task.create') || hasPermission('card.create');
+  const canDeleteCard = hasPermission('task.delete') || hasPermission('card.delete');
 
   const currentList = boardLists.find((l) => l.id === card.list_id);
 
   return (
     <div className="flex items-center justify-between pb-3.5 border-b border-border select-none">
       {/* Left: Move to List Menu */}
-      <div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-text-muted uppercase tracking-wider px-2 py-1 rounded-lg bg-surface-muted border border-border">
+          Task #{card.task_number || 1}
+        </span>
         {canMoveCard ? (
           <Menu
             placement="bottom-start"

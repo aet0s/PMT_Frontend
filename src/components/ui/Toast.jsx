@@ -1,5 +1,5 @@
 // client/src/components/ui/Toast.jsx
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useMemo } from 'react';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
 
 const ToastContext = createContext(null);
@@ -63,8 +63,13 @@ export function ToastProvider({ children }) {
     return showToast({ message, type });
   }, [showToast]);
 
+  const contextValue = useMemo(
+    () => ({ showToast, addToast: showToast, removeToast, success, error, warning, info, show }),
+    [showToast, removeToast, success, error, warning, info, show]
+  );
+
   return (
-    <ToastContext.Provider value={{ showToast, addToast: showToast, removeToast, success, error, warning, info, show }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       {/* Toast Render Container */}
       <div

@@ -200,6 +200,7 @@ export default function DatePicker({
       <button
         type="button"
         onClick={handleSave}
+        data-testid="datepicker-save-button"
         className="flex-1 py-2 px-3 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
       >
         Save
@@ -207,6 +208,7 @@ export default function DatePicker({
       <button
         type="button"
         onClick={handleRemove}
+        data-testid="datepicker-remove-button"
         className="py-2 px-3 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border font-medium text-xs rounded-lg transition-colors cursor-pointer"
       >
         Remove
@@ -221,7 +223,7 @@ export default function DatePicker({
       anchorRef={anchorRef}
       title="Dates"
       footer={footer}
-      className="w-[310px]"
+      className="w-[310px] max-w-[calc(100vw-24px)]"
     >
       <div className="space-y-3 text-text-primary text-xs">
         {/* Quick Presets */}

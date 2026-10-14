@@ -3,9 +3,6 @@ import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Briefcase,
-  Users,
-  Mail,
-  Shield,
   SlidersHorizontal,
   Bell,
   Database,
@@ -21,9 +18,6 @@ import { getTenantItem, setTenantItem } from '../lib/storage';
 
 // Lazy-loaded tab components
 const GeneralTab = lazy(() => import('./settings/tabs/GeneralTab'));
-const MembersTab = lazy(() => import('./settings/tabs/MembersTab'));
-const InvitationsTab = lazy(() => import('./settings/tabs/InvitationsTab'));
-const RolesTab = lazy(() => import('./settings/tabs/RolesTab'));
 const ProjectTab = lazy(() => import('./settings/tabs/ProjectTab'));
 const NotificationsTab = lazy(() => import('./settings/tabs/NotificationsTab'));
 const DataTab = lazy(() => import('./settings/tabs/DataTab'));
@@ -35,10 +29,10 @@ export default function SettingsPage({
   activeWorkspace,
   onWorkspaceUpdated,
   onArchiveWorkspace,
-  onDeleteWorkspace,
-  onOpenInvite
+  onDeleteWorkspace
 }) {
   const { workspaceId, tab: routeTab } = useParams();
+  const effectiveWsId = workspaceId || activeWorkspace?.id;
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
@@ -58,13 +52,10 @@ export default function SettingsPage({
   const allTabs = useMemo(
     () => [
       { id: 'general', label: 'General', icon: <Briefcase className="w-4 h-4" />, perm: null },
-      { id: 'members', label: 'Members', icon: <Users className="w-4 h-4" />, perm: null },
-      { id: 'invitations', label: 'Invitations', icon: <Mail className="w-4 h-4" />, perm: 'member.invite' },
-      { id: 'roles', label: 'Roles & Permissions', icon: <Shield className="w-4 h-4" />, perm: 'role.view' },
       { id: 'project', label: 'Project Defaults', icon: <SlidersHorizontal className="w-4 h-4" />, perm: null },
       { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, perm: null },
       { id: 'data', label: 'Data & Export', icon: <Database className="w-4 h-4" />, perm: null },
-      { id: 'security-log', label: 'Security Log', icon: <ShieldAlert className="w-4 h-4" />, perms: ['audit.view', 'company.manage_security'] }
+      { id: 'security-log', label: 'Activity & Security Log', icon: <ShieldAlert className="w-4 h-4" />, perms: ['audit.view', 'company.manage_security'] }
     ],
     []
   );
@@ -81,7 +72,8 @@ export default function SettingsPage({
 
   // Determine active tab: URL path > propTab > routeTab > stored tab > 'general'
   const pathMatch = location.pathname.match(/\/settings\/([^/?#]+)/);
-  const pathTab = pathMatch ? pathMatch[1] : null;
+  let pathTab = pathMatch ? pathMatch[1] : null;
+  if (pathTab === 'activity-log' || pathTab === 'activity') pathTab = 'security-log';
 
   const currentTabId = useMemo(() => {
     if (pathTab && allTabs.some((t) => t.id === pathTab)) return pathTab;
@@ -101,10 +93,16 @@ export default function SettingsPage({
 
   // If path is just /settings without a tab suffix, redirect to persisted or default tab
   useEffect(() => {
-    if (workspaceId && !pathTab) {
-      navigate(`/w/${workspaceId}/settings/${currentTabId}`, { replace: true });
+    if (effectiveWsId && !pathTab) {
+      navigate(`/w/${effectiveWsId}/settings/${currentTabId}`, { replace: true });
+    } else if (pathTab === 'roles' && effectiveWsId) {
+      navigate(`/w/${effectiveWsId}/profile/roles`, { replace: true });
+    } else if (pathTab === 'members' && effectiveWsId) {
+      navigate(`/w/${effectiveWsId}/members`, { replace: true });
+    } else if (pathTab === 'invitations' && effectiveWsId) {
+      navigate(`/w/${effectiveWsId}/company-members`, { replace: true });
     }
-  }, [workspaceId, pathTab, currentTabId, navigate]);
+  }, [effectiveWsId, pathTab, currentTabId, navigate]);
 
   // Redirect to first allowed tab if user lacks permission for requested tab
   // (Guard: only run when permissions and role have loaded to prevent premature refresh redirection)
@@ -118,9 +116,9 @@ export default function SettingsPage({
     if (!hasAccess) {
       const fallbackTab = allowedTabs[0]?.id || 'general';
       toast.show('You do not have permission to view that settings tab', 'error');
-      navigate(`/w/${workspaceId}/settings/${fallbackTab}`, { replace: true });
+      navigate(`/w/${effectiveWsId}/settings/${fallbackTab}`, { replace: true });
     }
-  }, [currentTabId, allTabs, allowedTabs, hasPermission, permissionsLoading, userRole, workspaceId, navigate, toast]);
+  }, [currentTabId, allTabs, allowedTabs, hasPermission, permissionsLoading, userRole, effectiveWsId, navigate, toast]);
 
   const currentTab = allowedTabs.find((t) => t.id === currentTabId) || allowedTabs[0] || allTabs[0];
 
@@ -130,10 +128,10 @@ export default function SettingsPage({
 
   const handleTabChange = (newTabId) => {
     setTenantItem(tenantId, 'last_settings_tab', newTabId);
-    navigate(`/w/${workspaceId}/settings/${newTabId}`);
+    navigate(`/w/${effectiveWsId}/settings/${newTabId}`);
   };
 
-  const backUrl = location.state?.from || `/w/${workspaceId}/home`;
+  const backUrl = location.state?.from || `/w/${effectiveWsId}/home`;
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-app select-none">
@@ -210,24 +208,10 @@ export default function SettingsPage({
                 setFormDirty={setFormDirty}
               />
             )}
-            {currentTab.id === 'members' && (
-              <MembersTab
-                workspace={activeWorkspace}
-                onOpenInvite={onOpenInvite}
-              />
-            )}
-            {currentTab.id === 'invitations' && (
-              <InvitationsTab
-                workspace={activeWorkspace}
-                onOpenInvite={onOpenInvite}
-              />
-            )}
-            {currentTab.id === 'roles' && (
-              <RolesTab workspace={activeWorkspace} />
-            )}
             {currentTab.id === 'project' && (
               <ProjectTab
                 workspace={activeWorkspace}
+                onWorkspaceUpdated={onWorkspaceUpdated}
                 setFormDirty={setFormDirty}
               />
             )}
