@@ -1083,7 +1083,13 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
               </label>
               <Select
                 value={inviteWorkspaceId}
-                onChange={setInviteWorkspaceId}
+                onChange={(val) => {
+                  setInviteWorkspaceId(val);
+                  setInviteBoardIds((prev) => {
+                    const validIds = allBoards.filter((b) => b.workspace_id === Number(val)).map((b) => b.id);
+                    return prev.filter((id) => validIds.includes(id));
+                  });
+                }}
                 disabled={Boolean(generatedInviteUrl)}
                 options={allWorkspaces.map((w) => ({ value: String(w.id), label: w.name }))}
                 className="w-full text-sm font-medium"
@@ -1104,6 +1110,75 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                 ]}
                 className="w-full text-sm font-medium"
               />
+            </div>
+
+            {/* Board Selection */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-text-secondary">
+                  Assign Boards <span className="text-text-muted font-normal">(Optional)</span>
+                </label>
+                {allBoards.filter((b) => b.workspace_id === Number(inviteWorkspaceId || workspace?.id)).length > 0 && !generatedInviteUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const wsBoards = allBoards.filter((b) => b.workspace_id === Number(inviteWorkspaceId || workspace?.id));
+                      const allIds = wsBoards.map((b) => b.id);
+                      const allSelected = allIds.every((id) => inviteBoardIds.includes(id));
+                      if (allSelected) {
+                        setInviteBoardIds((prev) => prev.filter((id) => !allIds.includes(id)));
+                      } else {
+                        setInviteBoardIds((prev) => Array.from(new Set([...prev, ...allIds])));
+                      }
+                    }}
+                    className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                  >
+                    {allBoards
+                      .filter((b) => b.workspace_id === Number(inviteWorkspaceId || workspace?.id))
+                      .every((b) => inviteBoardIds.includes(b.id))
+                      ? 'Deselect All'
+                      : 'Select All'}
+                  </button>
+                )}
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-1 p-2 bg-surface border border-border/80 rounded-xl">
+                {allBoards
+                  .filter((b) => b.workspace_id === Number(inviteWorkspaceId || workspace?.id))
+                  .map((board) => {
+                    const isChecked = inviteBoardIds.includes(board.id);
+                    return (
+                      <div
+                        key={board.id}
+                        onClick={() => {
+                          if (generatedInviteUrl) return;
+                          setInviteBoardIds((prev) =>
+                            prev.includes(board.id)
+                              ? prev.filter((id) => id !== board.id)
+                              : [...prev, board.id]
+                          );
+                        }}
+                        className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer ${
+                          isChecked
+                            ? 'bg-info/10 border-info text-text-primary'
+                            : 'bg-surface hover:bg-surface-muted/60 border-border/60 text-text-secondary'
+                        } ${generatedInviteUrl ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      >
+                        {isChecked ? (
+                          <CheckSquare className="w-4 h-4 text-info shrink-0" />
+                        ) : (
+                          <Square className="w-4 h-4 text-text-muted shrink-0" />
+                        )}
+                        <Layers className="w-3.5 h-3.5 text-info shrink-0" />
+                        <span className="text-xs font-semibold truncate flex-1">
+                          {board.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                {allBoards.filter((b) => b.workspace_id === Number(inviteWorkspaceId || workspace?.id)).length === 0 && (
+                  <p className="text-xs text-text-muted text-center py-2">No active boards in this workspace.</p>
+                )}
+              </div>
             </div>
 
             {/* Generated Invite Result */}
