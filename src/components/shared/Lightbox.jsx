@@ -54,9 +54,100 @@ export async function downloadAttachment(fileUrl, fileName) {
 }
 
 /**
+ * Parses Google Workspace (Docs, Sheets, Slides, Forms, Drive) URLs into embedded edit/preview URLs.
+ */
+export function parseGoogleDriveOrDocsUrl(url = '') {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+
+  // Google Docs
+  const docMatch = trimmed.match(/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)/i);
+  if (docMatch) {
+    const id = docMatch[1];
+    return {
+      type: 'gdoc',
+      id,
+      label: 'Google Doc',
+      originalUrl: trimmed,
+      editUrl: `https://docs.google.com/document/d/${id}/edit?embedded=true`,
+      previewUrl: `https://docs.google.com/document/d/${id}/preview`,
+      directUrl: `https://docs.google.com/document/d/${id}/edit`
+    };
+  }
+
+  // Google Sheets
+  const sheetMatch = trimmed.match(/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/i);
+  if (sheetMatch) {
+    const id = sheetMatch[1];
+    return {
+      type: 'gsheet',
+      id,
+      label: 'Google Sheet',
+      originalUrl: trimmed,
+      editUrl: `https://docs.google.com/spreadsheets/d/${id}/edit?widget=true&headers=false`,
+      previewUrl: `https://docs.google.com/spreadsheets/d/${id}/preview`,
+      directUrl: `https://docs.google.com/spreadsheets/d/${id}/edit`
+    };
+  }
+
+  // Google Slides
+  const slideMatch = trimmed.match(/docs\.google\.com\/presentation\/d\/([a-zA-Z0-9_-]+)/i);
+  if (slideMatch) {
+    const id = slideMatch[1];
+    return {
+      type: 'gslides',
+      id,
+      label: 'Google Slides',
+      originalUrl: trimmed,
+      editUrl: `https://docs.google.com/presentation/d/${id}/edit?embedded=true`,
+      previewUrl: `https://docs.google.com/presentation/d/${id}/preview`,
+      directUrl: `https://docs.google.com/presentation/d/${id}/edit`
+    };
+  }
+
+  // Google Forms
+  const formMatch = trimmed.match(/docs\.google\.com\/forms\/d\/(?:e\/)?([a-zA-Z0-9_-]+)/i);
+  if (formMatch) {
+    const id = formMatch[1];
+    return {
+      type: 'gform',
+      id,
+      label: 'Google Form',
+      originalUrl: trimmed,
+      editUrl: `https://docs.google.com/forms/d/${id}/viewform?embedded=true`,
+      previewUrl: `https://docs.google.com/forms/d/${id}/viewform?embedded=true`,
+      directUrl: `https://docs.google.com/forms/d/${id}/viewform`
+    };
+  }
+
+  // Google Drive File
+  const driveMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+))/i);
+  if (driveMatch) {
+    const id = driveMatch[1] || driveMatch[2];
+    return {
+      type: 'gdrive',
+      id,
+      label: 'Google Drive File',
+      originalUrl: trimmed,
+      editUrl: `https://drive.google.com/file/d/${id}/preview`,
+      previewUrl: `https://drive.google.com/file/d/${id}/preview`,
+      directUrl: `https://drive.google.com/file/d/${id}/view`
+    };
+  }
+
+  return null;
+}
+
+/**
  * Robust file format detector by extension and MIME type
  */
 export function detectAttachmentType(url = '', mimeType = '', fileName = '') {
+  // Check for Google Docs / Sheets / Drive URLs first
+  const gInfo = parseGoogleDriveOrDocsUrl(url) || parseGoogleDriveOrDocsUrl(fileName);
+  if (gInfo) {
+    return gInfo.type;
+  }
+
   const name = (fileName || url || '').toLowerCase();
   const ext = name.split('?')[0].split('.').pop() || '';
   const mime = (mimeType || '').toLowerCase();
@@ -138,6 +229,9 @@ export function detectAttachmentType(url = '', mimeType = '', fileName = '') {
     mime.includes('tar')
   ) {
     return 'archive';
+  }
+  if (mime === 'link' || /^https?:\/\//i.test(url)) {
+    return 'link';
   }
   return 'generic';
 }
@@ -238,6 +332,24 @@ export default function Lightbox({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  const googleDocInfo = useMemo(() => {
+    return parseGoogleDriveOrDocsUrl(resolvedUrl || attachment?.file_url || src);
+  }, [resolvedUrl, attachment, src]);
+
+  const isLinkCategory = useMemo(() => {
+    return ['gdoc', 'gsheet', 'gslides', 'gform', 'gdrive', 'link'].includes(detectedCategory);
+  }, [detectedCategory]);
+
+  const extensionLabel = useMemo(() => {
+    if (detectedCategory === 'gdoc') return 'GOOGLE DOC';
+    if (detectedCategory === 'gsheet') return 'GOOGLE SHEET';
+    if (detectedCategory === 'gslides') return 'GOOGLE SLIDES';
+    if (detectedCategory === 'gform') return 'GOOGLE FORM';
+    if (detectedCategory === 'gdrive') return 'GOOGLE DRIVE';
+    if (detectedCategory === 'link') return 'WEB LINK';
+    return (resolvedTitle.split('.').pop() || detectedCategory).toUpperCase();
+  }, [detectedCategory, resolvedTitle]);
+
   if (!isOpen || !resolvedUrl) return null;
 
   const handleDownload = () => {
@@ -246,6 +358,18 @@ export default function Lightbox({
 
   const getHeaderIcon = () => {
     switch (detectedCategory) {
+      case 'gdoc':
+        return <FileText className="w-5 h-5 text-blue-600" />;
+      case 'gsheet':
+        return <FileSpreadsheet className="w-5 h-5 text-emerald-600" />;
+      case 'gslides':
+        return <FileText className="w-5 h-5 text-amber-500" />;
+      case 'gform':
+        return <FileText className="w-5 h-5 text-purple-600" />;
+      case 'gdrive':
+        return <FileArchive className="w-5 h-5 text-indigo-600" />;
+      case 'link':
+        return <ExternalLink className="w-5 h-5 text-primary" />;
       case 'excel':
         return <FileSpreadsheet className="w-5 h-5 text-emerald-500" />;
       case 'csv':
@@ -269,14 +393,12 @@ export default function Lightbox({
     }
   };
 
-  const extensionLabel = (resolvedTitle.split('.').pop() || detectedCategory).toUpperCase();
-
   return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label={resolvedTitle}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-2 sm:p-6 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/70 p-2 sm:p-6 animate-fade-in"
     >
       {/* Backdrop */}
       <div className="fixed inset-0" onClick={onClose} />
@@ -309,17 +431,30 @@ export default function Lightbox({
             </div>
           </div>
 
-          {/* Action buttons — Note: 'Open in new window' button is explicitly removed as requested */}
+          {/* Action buttons */}
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={handleDownload}
-              title="Download this file to your device"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary-hover active:scale-98 transition-all shadow-xs cursor-pointer"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download</span>
-            </button>
+            {isLinkCategory ? (
+              <a
+                href={resolvedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open ${googleDocInfo?.label || 'link'} in new browser tab`}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary-hover active:scale-98 transition-all shadow-xs cursor-pointer"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Open in {googleDocInfo?.label || 'Google Docs'}</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={handleDownload}
+                title="Download this file to your device"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary-hover active:scale-98 transition-all shadow-xs cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -333,6 +468,27 @@ export default function Lightbox({
 
         {/* Content Viewer Body */}
         <div className="w-full flex-1 min-h-[350px] max-h-[calc(95vh-64px)] overflow-hidden bg-surface-muted flex flex-col items-center justify-center relative p-2 sm:p-4">
+          {/* Google Workspace Documents (Docs, Sheets, Slides, Forms, Drive): Open in interactive preview & edit mode */}
+          {(detectedCategory === 'gdoc' ||
+            detectedCategory === 'gsheet' ||
+            detectedCategory === 'gslides' ||
+            detectedCategory === 'gform' ||
+            detectedCategory === 'gdrive') && (
+            <GoogleDocViewer
+              info={googleDocInfo}
+              url={resolvedUrl}
+              title={resolvedTitle}
+            />
+          )}
+
+          {/* Web Links (External URLs) */}
+          {detectedCategory === 'link' && (
+            <WebLinkViewer
+              url={resolvedUrl}
+              title={resolvedTitle}
+            />
+          )}
+
           {/* Office Documents (Excel, Word): Open directly in Microsoft Office Online Viewer */}
           {(detectedCategory === 'excel' || detectedCategory === 'docx') && (
             <OfficeOnlineIframe
@@ -374,7 +530,7 @@ export default function Lightbox({
                 src={resolvedUrl}
                 controls
                 autoPlay
-                className="max-h-[78vh] max-w-full rounded-lg shadow-md bg-black"
+                className="max-h-[78vh] max-w-full rounded-lg shadow-md bg-surface-muted"
               />
             </div>
           )}
@@ -404,6 +560,181 @@ export default function Lightbox({
       </div>
     </div>,
     document.body
+  );
+}
+
+// ==============================================================
+// Google Workspace Interactive Viewer & Editor Component
+// ==============================================================
+function GoogleDocViewer({ info, url, title }) {
+  const [mode, setMode] = useState('edit'); // 'edit' | 'preview'
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  const activeUrl = useMemo(() => {
+    if (!info) return url;
+    if (mode === 'preview') {
+      return info.previewUrl || info.directUrl;
+    }
+    return info.editUrl || info.directUrl;
+  }, [info, mode, url]);
+
+  const directExternalUrl = info?.directUrl || url;
+
+  const handleCopy = () => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(directExternalUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="w-full h-[82vh] flex flex-col bg-surface border border-border rounded-xl shadow-inner overflow-hidden relative">
+      {/* Top Interactive Google Docs Toolbar */}
+      <div className="px-4 py-2 bg-surface border-b border-border flex items-center justify-between gap-3 text-xs shrink-0 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-text-primary flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            {info?.label || 'Google Document'} (Interactive Mode)
+          </span>
+          <span className="text-[11px] text-text-muted hidden sm:inline">
+            • View & live edit directly within your project workspace
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Mode switch for editable docs */}
+          {info && info.type !== 'gdrive' && info.type !== 'gform' && (
+            <div className="flex items-center bg-surface-muted rounded-lg p-0.5 border border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('edit');
+                  setLoading(true);
+                }}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+                  mode === 'edit'
+                    ? 'bg-surface text-primary shadow-2xs border border-border/80'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+                title="Edit Google Document directly inside this modal"
+              >
+                Edit Mode
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('preview');
+                  setLoading(true);
+                }}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+                  mode === 'preview'
+                    ? 'bg-surface text-primary shadow-2xs border border-border/80'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+                title="Clean read-only preview mode"
+              >
+                Preview Mode
+              </button>
+            </div>
+          )}
+
+          {/* Copy Link */}
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-muted hover:bg-surface border border-border text-text-secondary hover:text-text-primary text-[11px] font-medium transition-colors cursor-pointer"
+            title="Copy document URL to clipboard"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'Copied' : 'Copy Link'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Embedded Iframe Area */}
+      <div className="w-full flex-1 relative bg-surface-muted overflow-hidden flex flex-col">
+        {loading && (
+          <div className="absolute inset-0 bg-surface/90 flex flex-col items-center justify-center gap-2 z-10">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <span className="text-xs font-semibold text-text-secondary">
+              Connecting to {info?.label || 'Google Workspace'}...
+            </span>
+          </div>
+        )}
+
+        <iframe
+          key={`${activeUrl}-${mode}`}
+          src={activeUrl}
+          title={title || info?.label || 'Google Document'}
+          className="w-full flex-1 border-0 bg-surface"
+          allow="clipboard-read; clipboard-write; fullscreen"
+          onLoad={() => setLoading(false)}
+        />
+      </div>
+
+      {/* Helpful footnote */}
+      <div className="px-4 py-1.5 bg-surface border-t border-border flex items-center justify-between text-[11px] text-text-muted shrink-0">
+        <span>
+          💡 <strong>Tip:</strong> Ensure you are logged into your Google account in this browser with edit access to this document.
+        </span>
+        <a
+          href={directExternalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline font-medium ml-2"
+        >
+          Open in native Google tab →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ==============================================================
+// External Web Link Viewer Card
+// ==============================================================
+function WebLinkViewer({ url, title }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-lg p-6 bg-surface border border-border rounded-xl shadow-lg flex flex-col items-center gap-4 text-center my-auto">
+      <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+        <ExternalLink className="w-8 h-8" />
+      </div>
+      <div>
+        <h4 className="text-sm font-bold text-text-primary break-all">{title || 'Attached Link'}</h4>
+        <p className="text-xs text-text-secondary mt-1 break-all max-w-md">{url}</p>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface border border-border text-xs font-semibold text-text-primary transition-colors cursor-pointer"
+        >
+          {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+          <span>{copied ? 'Copied' : 'Copy Link'}</span>
+        </button>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          <span>Open Link</span>
+        </a>
+      </div>
+    </div>
   );
 }
 

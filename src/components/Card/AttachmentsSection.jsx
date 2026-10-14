@@ -16,7 +16,8 @@ import {
   FileArchive,
   Music as AudioIcon,
   Video as VideoIcon,
-  File as GenericFileIcon
+  File as GenericFileIcon,
+  ExternalLink
 } from 'lucide-react';
 
 export default function AttachmentsSection({ attachments = [], onDeleteAttachment }) {
@@ -49,6 +50,48 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
               <Eye className="w-4 h-4 text-primary" />
             </div>
           </>
+        );
+      case 'gdoc':
+        return (
+          <div className="flex flex-col items-center justify-center text-blue-600">
+            <FileText className="w-6 h-6" />
+            <span className="text-[9px] font-extrabold mt-0.5 tracking-wider">DOCS</span>
+          </div>
+        );
+      case 'gsheet':
+        return (
+          <div className="flex flex-col items-center justify-center text-emerald-600">
+            <FileSpreadsheet className="w-6 h-6" />
+            <span className="text-[9px] font-extrabold mt-0.5 tracking-wider">SHEETS</span>
+          </div>
+        );
+      case 'gslides':
+        return (
+          <div className="flex flex-col items-center justify-center text-amber-500">
+            <FileText className="w-6 h-6" />
+            <span className="text-[9px] font-extrabold mt-0.5 tracking-wider">SLIDES</span>
+          </div>
+        );
+      case 'gform':
+        return (
+          <div className="flex flex-col items-center justify-center text-purple-600">
+            <FileText className="w-6 h-6" />
+            <span className="text-[9px] font-extrabold mt-0.5 tracking-wider">FORMS</span>
+          </div>
+        );
+      case 'gdrive':
+        return (
+          <div className="flex flex-col items-center justify-center text-indigo-600">
+            <FileArchive className="w-6 h-6" />
+            <span className="text-[9px] font-extrabold mt-0.5 tracking-wider">DRIVE</span>
+          </div>
+        );
+      case 'link':
+        return (
+          <div className="flex flex-col items-center justify-center text-primary">
+            <ExternalLink className="w-6 h-6" />
+            <span className="text-[9px] font-extrabold mt-0.5 tracking-wider">LINK</span>
+          </div>
         );
       case 'excel':
         return (
@@ -135,6 +178,7 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
           const resolvedFileUrl = getFileUrl(att.file_url);
           const category = detectAttachmentType(att.file_url, att.file_type, att.file_name);
           const isAudio = category === 'audio';
+          const isLinkCategory = ['gdoc', 'gsheet', 'gslides', 'gform', 'gdrive', 'link'].includes(category);
 
           return (
             <div
@@ -172,16 +216,28 @@ export default function AttachmentsSection({ attachments = [], onDeleteAttachmen
                   </span>
                 </div>
 
-                {/* Action Buttons — Note: 'Open in new window' removed; direct Download & Delete provided */}
+                {/* Action Buttons — Direct Download / Open Link & Delete provided */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    onClick={() => downloadAttachment(resolvedFileUrl, att.file_name)}
-                    title="Download file"
-                    className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-md transition-colors cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
+                  {isLinkCategory ? (
+                    <a
+                      href={resolvedFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open link in new browser tab"
+                      className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-md transition-colors cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => downloadAttachment(resolvedFileUrl, att.file_name)}
+                      title="Download file"
+                      className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-md transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {(canDeleteAny ||
                     (canDeleteOwn && Number(att.uploaded_by_user_id) === Number(user?.id))) && (
                     <button

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Popover from '../shared/Popover';
 import { Upload, Link as LinkIcon, FileText, Check } from 'lucide-react';
+import { parseGoogleDriveOrDocsUrl } from '../shared/Lightbox';
 
 export default function AttachmentPopover({ isOpen, onClose, anchorRef, onUploadFile, onAddLink }) {
   const [activeTab, setActiveTab] = useState('computer');
@@ -34,12 +35,15 @@ export default function AttachmentPopover({ isOpen, onClose, anchorRef, onUpload
 
   const handleLinkSubmit = async (e) => {
     e.preventDefault();
-    if (!linkUrl.trim()) return;
+    const rawUrl = linkUrl.trim();
+    if (!rawUrl) return;
 
     setIsUploading(true);
     setErrorMsg('');
     try {
-      await onAddLink(linkUrl.trim(), displayText.trim() || linkUrl.trim());
+      const gInfo = parseGoogleDriveOrDocsUrl(rawUrl);
+      const label = displayText.trim() || gInfo?.label || rawUrl;
+      await onAddLink(rawUrl, label);
       setLinkUrl('');
       setDisplayText('');
       onClose();
