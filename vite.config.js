@@ -30,7 +30,9 @@ function cspPlugin(apiUrl, isProd) {
         imgSrc += ' http: https:';
       }
 
-      const csp = `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src ${imgSrc}; connect-src ${connectSrc}; object-src 'none'; base-uri 'self';`;
+      const frameSrc = `'self' blob: data: https://view.officeapps.live.com https://*.officeapps.live.com https://docs.google.com`;
+      const objectSrc = `'self' blob:`;
+      const csp = `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src ${imgSrc} data: blob:; connect-src ${connectSrc} blob:; frame-src ${frameSrc}; object-src ${objectSrc}; base-uri 'self';`;
       const metaTag = `<meta http-equiv="Content-Security-Policy" content="${csp}" />`;
 
       return html.replace('<!-- CSP_META -->', metaTag);

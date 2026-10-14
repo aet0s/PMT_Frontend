@@ -285,22 +285,34 @@ export default function Card({
 
         {/* Metadata Icons: Comments, Attachments, Checklists, Due Date */}
         <div className="flex items-center gap-2.5 text-xs text-text-muted font-medium">
-          {/* Due date badge */}
-          {dueDateStatus && (
+          {/* Date badge (Start date & Due date) */}
+          {(dueDateStatus || startDateText) && (
             <div
-              title={`Due: ${dueDateStatus.fullText}`}
+              title={
+                startDateText && dueDateStatus
+                  ? `Start: ${startDateText} · Due: ${dueDateStatus.fullText}`
+                  : startDateText
+                  ? `Start: ${startDateText}`
+                  : `Due: ${dueDateStatus.fullText}`
+              }
               className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                dueDateStatus.isComplete
+                dueDateStatus?.isComplete
                   ? 'bg-success-tint text-success-text'
-                  : dueDateStatus.isOverdue
+                  : dueDateStatus?.isOverdue
                   ? 'bg-danger-tint text-danger-text'
-                  : dueDateStatus.isDueSoon
+                  : dueDateStatus?.isDueSoon
                   ? 'bg-warning-tint text-warning-text'
                   : 'bg-surface-muted text-text-secondary'
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
-              <span>{dueDateStatus.text}</span>
+              <span>
+                {startDateText && dueDateStatus
+                  ? `${startDateText} - ${dueDateStatus.text}`
+                  : startDateText
+                  ? startDateText
+                  : dueDateStatus.text}
+              </span>
             </div>
           )}
 

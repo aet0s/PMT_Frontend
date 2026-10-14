@@ -19,10 +19,13 @@ import {
   AlertCircle,
   Eye,
   LayoutDashboard,
-  Kanban
+  Kanban,
+  ListTodo,
+  Check
 } from 'lucide-react';
 import { getWorkspaceReports } from '../api/workspaces';
 import { formatDate, formatShortDate } from '../lib/dateFormat';
+import { useSocket } from '../context/SocketProvider';
 import Avatar from '../components/ui/Avatar';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -42,6 +45,15 @@ export default function ReportsPage({ workspace }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
 
+  // Safely connect to real-time socket events if available
+  let socketContext = null;
+  try {
+    socketContext = useSocket();
+  } catch {
+    // Graceful fallback when outside SocketProvider
+  }
+  const socket = socketContext?.socket;
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [reportsData, setReportsData] = useState(null);
@@ -54,14 +66,14 @@ export default function ReportsPage({ workspace }) {
 
   // Search & Filter States
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [userStatusFilter, setUserStatusFilter] = useState('all'); // 'all', 'active', 'overdue', 'completed'
+  const [userStatusFilter, setUserStatusFilter] = useState('all'); // 'all', 'active', 'todo', 'overdue', 'completed'
   const [boardSearchQuery, setBoardSearchQuery] = useState('');
   const [pipelineSearchQuery, setPipelineSearchQuery] = useState('');
   const [overdueSearchQuery, setOverdueSearchQuery] = useState('');
 
   // Detailed Member Dossier Modal state
   const [selectedMemberDossier, setSelectedMemberDossier] = useState(null);
-  const [dossierTaskTab, setDossierTaskTab] = useState('all'); // 'all', 'in_progress', 'overdue', 'completed'
+  const [dossierTaskTab, setDossierTaskTab] = useState('all'); // 'all', 'todo', 'in_progress', 'overdue', 'completed'
 
   useEffect(() => {
     document.title = `${workspace?.name || 'Workspace'} - Reports & Analytics | TaskFlow`;
@@ -103,6 +115,31 @@ export default function ReportsPage({ workspace }) {
     fetchReports();
   }, [fetchReports]);
 
+  // Real-time synchronization: silently refresh reports when cards move or change
+  useEffect(() => {
+    if (!socket || !workspace?.id) return;
+
+    const handleRealtimeUpdate = () => {
+      fetchReports(false);
+    };
+
+    socket.on('card:created', handleRealtimeUpdate);
+    socket.on('card:updated', handleRealtimeUpdate);
+    socket.on('card:moved', handleRealtimeUpdate);
+    socket.on('card:deleted', handleRealtimeUpdate);
+    socket.on('card:archived', handleRealtimeUpdate);
+    socket.on('card:restored', handleRealtimeUpdate);
+
+    return () => {
+      socket.off('card:created', handleRealtimeUpdate);
+      socket.off('card:updated', handleRealtimeUpdate);
+      socket.off('card:moved', handleRealtimeUpdate);
+      socket.off('card:deleted', handleRealtimeUpdate);
+      socket.off('card:archived', handleRealtimeUpdate);
+      socket.off('card:restored', handleRealtimeUpdate);
+    };
+  }, [socket, workspace?.id, fetchReports]);
+
   // Export specific user's report to CSV
   const handleExportUserCsv = (member) => {
     if (!member) return;
@@ -115,20 +152,23 @@ export default function ReportsPage({ workspace }) {
       csv += `Role,"${(member.role || 'Member').replace(/"/g, '""')}"\n`;
       csv += `Workspace,"${(workspace?.name || 'Workspace').replace(/"/g, '""')}"\n`;
       csv += `Total Assigned,${member.assigned_tasks}\n`;
-      csv += `Completed,${member.completed_tasks}\n`;
-      csv += `In Progress,${member.in_progress_tasks}\n`;
-      csv += `Overdue,${member.overdue_tasks}\n`;
+      csv += `To Do,${member.todo_tasks || 0}\n`;
+      csv += `In Progress,${member.in_progress_tasks || 0}\n`;
+      csv += `Completed,${member.completed_tasks || 0}\n`;
+      csv += `Overdue,${member.overdue_tasks || 0}\n`;
       csv += `Completion Rate,${member.completion_rate}%\n\n`;
 
       csv += `ASSIGNED TASKS BREAKDOWN\n`;
-      csv += `Task Title,Board,List,Due Date,Status,Days Overdue\n`;
+      csv += `Task Title,Board,List,Stage,Due Date,Status,Days Overdue\n`;
       (member.tasks || []).forEach((t) => {
         let status = 'In Progress';
-        if (t.is_complete) status = 'Completed';
+        if (t.is_complete || t.stage === 'done') status = 'Completed';
         else if (t.is_overdue) status = 'Overdue';
+        else if (t.stage === 'todo') status = 'To Do';
+        else if (t.stage === 'review') status = 'In Review';
         else if (t.is_due_soon) status = 'Due Soon';
 
-        csv += `"${(t.title || '').replace(/"/g, '""')}","${(t.board_name || '').replace(/"/g, '""')}","${(t.list_name || '').replace(/"/g, '""')}","${t.due_date ? formatDate(t.due_date) : 'No due date'}","${status}",${t.is_overdue ? 'Yes' : 'No'}\n`;
+        csv += `"${(t.title || '').replace(/"/g, '""')}","${(t.board_name || '').replace(/"/g, '""')}","${(t.list_name || '').replace(/"/g, '""')}","${t.stage || 'in_progress'}","${t.due_date ? formatDate(t.due_date) : 'No due date'}","${status}",${t.is_overdue ? 'Yes' : 'No'}\n`;
       });
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -175,20 +215,20 @@ export default function ReportsPage({ workspace }) {
       csv += `Timeframe,${selectedTimeframe}\n\n`;
 
       csv += `SUMMARY METRICS\n`;
-      csv += `Total Tasks,Completed Tasks,In Progress Tasks,Overdue Tasks,Completion Rate (%),Overdue Rate (%),Avg Cycle Time (Days)\n`;
-      csv += `${summary.total_tasks || 0},${summary.completed_tasks || 0},${summary.in_progress_tasks || 0},${summary.overdue_tasks || 0},${summary.completion_rate || 0}%,${summary.overdue_rate || 0}%,${summary.avg_cycle_days || 0}\n\n`;
+      csv += `Total Tasks,To Do Tasks,In Progress Tasks,Completed Tasks,Overdue Tasks,Completion Rate (%),Overdue Rate (%),Avg Cycle Time (Days)\n`;
+      csv += `${summary.total_tasks || 0},${summary.todo_tasks || 0},${summary.in_progress_tasks || 0},${summary.completed_tasks || 0},${summary.overdue_tasks || 0},${summary.completion_rate || 0}%,${summary.overdue_rate || 0}%,${summary.avg_cycle_days || 0}\n\n`;
 
       csv += `PROJECT & BOARD BREAKDOWN\n`;
-      csv += `Board Name,Total Tasks,Completed Tasks,Overdue Tasks,In Progress Tasks,Completion Rate (%)\n`;
+      csv += `Board Name,Total Tasks,To Do Tasks,In Progress Tasks,Completed Tasks,Overdue Tasks,Completion Rate (%)\n`;
       boards.forEach((b) => {
-        csv += `"${b.name.replace(/"/g, '""')}",${b.total_tasks},${b.completed_tasks},${b.overdue_tasks},${b.in_progress_tasks},${b.completion_rate}%\n`;
+        csv += `"${b.name.replace(/"/g, '""')}",${b.total_tasks},${b.todo_tasks || 0},${b.in_progress_tasks || 0},${b.completed_tasks},${b.overdue_tasks},${b.completion_rate}%\n`;
       });
       csv += `\n`;
 
       csv += `USER PERFORMANCE & WORKLOAD\n`;
-      csv += `Name,Email,Role,Assigned Tasks,Completed Tasks,Overdue Tasks,In Progress Tasks,Completion Rate (%)\n`;
+      csv += `Name,Email,Role,Assigned Tasks,To Do Tasks,In Progress Tasks,Completed Tasks,Overdue Tasks,Completion Rate (%)\n`;
       members.forEach((m) => {
-        csv += `"${(m.name || '').replace(/"/g, '""')}","${m.email || ''}","${m.role || 'Member'}",${m.assigned_tasks},${m.completed_tasks},${m.overdue_tasks},${m.in_progress_tasks},${m.completion_rate}%\n`;
+        csv += `"${(m.name || '').replace(/"/g, '""')}","${m.email || ''}","${m.role || 'Member'}",${m.assigned_tasks},${m.todo_tasks || 0},${m.in_progress_tasks || 0},${m.completed_tasks},${m.overdue_tasks},${m.completion_rate}%\n`;
       });
       csv += `\n`;
 
@@ -229,8 +269,10 @@ export default function ReportsPage({ workspace }) {
 
   const summary = reportsData?.summary || {
     total_tasks: 0,
-    completed_tasks: 0,
+    todo_tasks: 0,
     in_progress_tasks: 0,
+    review_tasks: 0,
+    completed_tasks: 0,
     overdue_tasks: 0,
     due_soon_tasks: 0,
     completion_rate: 0,
@@ -244,6 +286,12 @@ export default function ReportsPage({ workspace }) {
   const boards = reportsData?.boards || [];
   const boardsBreakdown = reportsData?.boards_breakdown || [];
   const statusBreakdown = reportsData?.status_breakdown || [];
+  const stageBreakdown = reportsData?.stage_breakdown || {
+    todo: 0,
+    in_progress: 0,
+    review: 0,
+    done: 0
+  };
   const membersWorkload = reportsData?.members_workload || [];
   const overdueTasksList = reportsData?.overdue_tasks_list || [];
   const velocity = reportsData?.velocity || [];
@@ -270,10 +318,13 @@ export default function ReportsPage({ workspace }) {
       }
 
       if (userStatusFilter === 'active') {
-        return member.in_progress_tasks > 0;
+        return (member.in_progress_tasks || 0) > 0 || (member.review_tasks || 0) > 0;
+      }
+      if (userStatusFilter === 'todo') {
+        return (member.todo_tasks || 0) > 0;
       }
       if (userStatusFilter === 'overdue') {
-        return member.overdue_tasks > 0;
+        return (member.overdue_tasks || 0) > 0;
       }
       if (userStatusFilter === 'completed') {
         return member.assigned_tasks > 0 && member.completion_rate === 100;
@@ -290,14 +341,15 @@ export default function ReportsPage({ workspace }) {
     return boardsBreakdown.filter((b) => (b.name || '').toLowerCase().includes(q));
   }, [boardsBreakdown, boardSearchQuery]);
 
-  // Filtered column pipeline
+  // Filtered column pipeline (matches list name or cards inside)
   const filteredPipeline = useMemo(() => {
     if (!pipelineSearchQuery.trim()) return statusBreakdown;
     const q = pipelineSearchQuery.toLowerCase();
     return statusBreakdown.filter(
       (s) =>
         (s.list_name || '').toLowerCase().includes(q) ||
-        (s.board_name || '').toLowerCase().includes(q)
+        (s.board_name || '').toLowerCase().includes(q) ||
+        (s.cards || []).some((c) => (c.title || '').toLowerCase().includes(q))
     );
   }, [statusBreakdown, pipelineSearchQuery]);
 
@@ -317,9 +369,10 @@ export default function ReportsPage({ workspace }) {
   const dossierTasks = useMemo(() => {
     if (!selectedMemberDossier) return [];
     const tasks = selectedMemberDossier.tasks || [];
-    if (dossierTaskTab === 'in_progress') return tasks.filter((t) => !t.is_complete && !t.is_overdue);
+    if (dossierTaskTab === 'todo') return tasks.filter((t) => t.stage === 'todo' && !t.is_complete);
+    if (dossierTaskTab === 'in_progress') return tasks.filter((t) => (t.stage === 'in_progress' || t.stage === 'review' || (!t.stage && !t.is_complete && !t.is_overdue)) && !t.is_complete && !t.is_overdue);
     if (dossierTaskTab === 'overdue') return tasks.filter((t) => t.is_overdue);
-    if (dossierTaskTab === 'completed') return tasks.filter((t) => t.is_complete);
+    if (dossierTaskTab === 'completed') return tasks.filter((t) => t.is_complete || t.stage === 'done');
     return tasks;
   }, [selectedMemberDossier, dossierTaskTab]);
 
@@ -435,8 +488,8 @@ export default function ReportsPage({ workspace }) {
           </div>
         ) : (
           <>
-            {/* Primary KPI Metric Cards (Bounded, Standard Height) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Primary KPI Metric Cards (Comprehensive Workflow Stages) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 sm:gap-4">
               {/* Total Tasks Card */}
               <div className="p-4 sm:p-5 bg-surface border border-border rounded-xl shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between">
                 <div>
@@ -456,8 +509,58 @@ export default function ReportsPage({ workspace }) {
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-text-secondary">
-                  <span>In Progress</span>
-                  <span className="font-semibold text-text-primary">{summary.in_progress_tasks}</span>
+                  <span>To Do: <strong className="text-text-primary">{summary.todo_tasks || 0}</strong></span>
+                  <span>Done: <strong className="text-success-text">{summary.completed_tasks}</strong></span>
+                </div>
+              </div>
+
+              {/* To Do / Backlog Card */}
+              <div className="p-4 sm:p-5 bg-surface border border-border rounded-xl shadow-xs hover:border-border-hover transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      To Do / Backlog
+                    </span>
+                    <div className="w-7 h-7 rounded-lg bg-surface-muted border border-border flex items-center justify-center text-text-secondary">
+                      <ListTodo className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-3xl font-extrabold text-text-primary tracking-tight">
+                      {summary.todo_tasks || 0}
+                    </span>
+                    <span className="text-xs text-text-secondary font-medium">pending</span>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-text-secondary">
+                  <span>Awaiting start</span>
+                  <span className="font-semibold text-text-muted">
+                    {summary.total_tasks > 0 ? Math.round(((summary.todo_tasks || 0) / summary.total_tasks) * 100) : 0}%
+                  </span>
+                </div>
+              </div>
+
+              {/* In Progress Card */}
+              <div className="p-4 sm:p-5 bg-surface border border-border rounded-xl shadow-xs hover:border-warning/40 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      In Progress
+                    </span>
+                    <div className="w-7 h-7 rounded-lg bg-warning-tint border border-warning/20 flex items-center justify-center text-warning-text">
+                      <Clock className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-3xl font-extrabold text-text-primary tracking-tight">
+                      {summary.in_progress_tasks}
+                    </span>
+                    <span className="text-xs text-text-secondary font-medium">in workflow</span>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-text-secondary">
+                  <span>Unassigned</span>
+                  <span className="font-semibold text-text-primary">{summary.unassigned_tasks}</span>
                 </div>
               </div>
 
@@ -525,30 +628,6 @@ export default function ReportsPage({ workspace }) {
                 <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-text-secondary">
                   <span>Due Soon (&lt;7d)</span>
                   <span className="font-semibold text-text-primary">{summary.due_soon_tasks}</span>
-                </div>
-              </div>
-
-              {/* In Progress Card */}
-              <div className="p-4 sm:p-5 bg-surface border border-border rounded-xl shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                      In Progress
-                    </span>
-                    <div className="w-7 h-7 rounded-lg bg-warning-tint border border-warning/20 flex items-center justify-center text-warning-text">
-                      <Clock className="w-3.5 h-3.5" />
-                    </div>
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-3xl font-extrabold text-text-primary tracking-tight">
-                      {summary.in_progress_tasks}
-                    </span>
-                    <span className="text-xs text-text-secondary font-medium">in workflow</span>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-text-secondary">
-                  <span>Unassigned</span>
-                  <span className="font-semibold text-text-primary">{summary.unassigned_tasks}</span>
                 </div>
               </div>
 
@@ -673,10 +752,10 @@ export default function ReportsPage({ workspace }) {
               </button>
             </div>
 
-            {/* TAB CONTENT 1: OVERVIEW DASHBOARD (2x2 Balanced Bounded Grid, Never Stretches) */}
+            {/* TAB CONTENT 1: OVERVIEW DASHBOARD */}
             {activeTab === 'overview' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 1. Project & Board Performance Widget (Bounded Normal Height: 420px) */}
+                {/* 1. Project & Board Performance Widget */}
                 <div className="p-5 bg-surface border border-border rounded-xl shadow-xs h-[420px] flex flex-col justify-between">
                   <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
                     <div className="flex items-center gap-2">
@@ -745,23 +824,40 @@ export default function ReportsPage({ workspace }) {
                           </div>
 
                           <div className="flex items-center justify-between text-xs text-text-secondary">
-                            <div className="flex items-center gap-2 text-[11px]">
+                            <div className="flex items-center gap-2 text-[11px] flex-wrap">
                               <span>
-                                <strong className="text-text-primary">{b.total_tasks}</strong> tasks
+                                <strong className="text-text-primary">{b.total_tasks}</strong> total
                               </span>
                               <span>·</span>
                               <span>
-                                <strong className="text-text-primary">{b.completed_tasks}</strong> done
+                                <strong className="text-text-secondary">{b.todo_tasks || 0}</strong> to do
                               </span>
                               <span>·</span>
                               <span>
-                                <strong className="text-text-primary">{b.in_progress_tasks}</strong> active
+                                <strong className="text-primary">{b.in_progress_tasks || 0}</strong> active
+                              </span>
+                              <span>·</span>
+                              <span>
+                                <strong className="text-success-text">{b.completed_tasks}</strong> done
                               </span>
                             </div>
-                            <span className="text-text-muted text-[11px]">
+                            <span className="text-text-muted text-[11px] shrink-0">
                               {b.member_count} member{b.member_count === 1 ? '' : 's'}
                             </span>
                           </div>
+
+                          {b.lists && b.lists.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2 pt-1.5 border-t border-border/40">
+                              {b.lists.map((l) => (
+                                <span
+                                  key={l.id}
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-surface border border-border text-text-secondary"
+                                >
+                                  {l.name}: <strong className="text-text-primary">{l.task_count}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -774,7 +870,7 @@ export default function ReportsPage({ workspace }) {
                   </div>
                 </div>
 
-                {/* 2. Daily Velocity & Throughput Widget (Bounded Normal Height: 420px) */}
+                {/* 2. Daily Velocity & Throughput Widget */}
                 <div className="p-5 bg-surface border border-border rounded-xl shadow-xs h-[420px] flex flex-col justify-between">
                   <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
                     <div className="flex items-center gap-2">
@@ -853,7 +949,7 @@ export default function ReportsPage({ workspace }) {
                   </div>
                 </div>
 
-                {/* 3. Task Pipeline by Column Widget (Bounded Normal Height: 420px) */}
+                {/* 3. Task Pipeline by Column Widget */}
                 <div className="p-5 bg-surface border border-border rounded-xl shadow-xs h-[420px] flex flex-col justify-between">
                   <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
                     <div className="flex items-center gap-2">
@@ -888,8 +984,30 @@ export default function ReportsPage({ workspace }) {
                           className="p-3 bg-surface-muted border border-border rounded-lg space-y-1.5 hover:border-border-hover transition-colors"
                         >
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-text-primary truncate">{s.list_name}</span>
-                            <span className="font-bold text-text-primary">{s.task_count} cards</span>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-semibold text-text-primary truncate">{s.list_name}</span>
+                              <Badge
+                                variant={
+                                  s.stage === 'done'
+                                    ? 'success'
+                                    : s.stage === 'todo'
+                                    ? 'secondary'
+                                    : s.stage === 'review'
+                                    ? 'info'
+                                    : 'warning'
+                                }
+                                size="sm"
+                              >
+                                {s.stage === 'todo'
+                                  ? 'To Do'
+                                  : s.stage === 'review'
+                                  ? 'Review'
+                                  : s.stage === 'done'
+                                  ? 'Done'
+                                  : 'In Progress'}
+                              </Badge>
+                            </div>
+                            <span className="font-bold text-text-primary shrink-0">{s.task_count} cards</span>
                           </div>
                           <ProgressBar value={s.percentage} max={100} variant="primary" size="sm" />
                           <div className="flex items-center justify-between text-[11px] text-text-secondary">
@@ -908,7 +1026,7 @@ export default function ReportsPage({ workspace }) {
                   </div>
                 </div>
 
-                {/* 4. Overdue Tasks Quick View Widget (Bounded Normal Height: 420px) */}
+                {/* 4. Overdue Tasks Quick View Widget */}
                 <div className="p-5 bg-surface border border-border rounded-xl shadow-xs h-[420px] flex flex-col justify-between">
                   <div className="flex items-center justify-between border-b border-border pb-3 shrink-0">
                     <div className="flex items-center gap-2">
@@ -998,7 +1116,7 @@ export default function ReportsPage({ workspace }) {
               </div>
             )}
 
-            {/* TAB CONTENT 2: TEAM PERFORMANCE (Clean Table + Details Modal, Never Endless Height) */}
+            {/* TAB CONTENT 2: TEAM PERFORMANCE */}
             {activeTab === 'team' && (
               <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden flex flex-col">
                 {/* Search & Filter Header */}
@@ -1009,7 +1127,7 @@ export default function ReportsPage({ workspace }) {
                         Team Performance & Individual Workloads
                       </h2>
                       <p className="text-xs text-text-secondary mt-0.5">
-                        Inspect individual capacity, assigned cards, completion rates, and overdue flags.
+                        Inspect individual capacity, assigned cards, workflow stages, completion rates, and overdue flags.
                       </p>
                     </div>
                     <span className="text-xs font-semibold text-text-secondary">
@@ -1044,14 +1162,19 @@ export default function ReportsPage({ workspace }) {
                       {[
                         { id: 'all', label: 'All Members', count: membersWorkload.length },
                         {
+                          id: 'todo',
+                          label: 'With To Do',
+                          count: membersWorkload.filter((m) => (m.todo_tasks || 0) > 0).length
+                        },
+                        {
                           id: 'active',
-                          label: 'Active Tasks',
-                          count: membersWorkload.filter((m) => m.in_progress_tasks > 0).length
+                          label: 'Active (In Progress)',
+                          count: membersWorkload.filter((m) => (m.in_progress_tasks || 0) > 0).length
                         },
                         {
                           id: 'overdue',
                           label: 'With Overdue',
-                          count: membersWorkload.filter((m) => m.overdue_tasks > 0).length
+                          count: membersWorkload.filter((m) => (m.overdue_tasks || 0) > 0).length
                         },
                         {
                           id: 'completed',
@@ -1090,7 +1213,9 @@ export default function ReportsPage({ workspace }) {
                         <tr>
                           <th className="py-3 px-4 font-semibold">Team Member</th>
                           <th className="py-3 px-3 font-semibold text-center">Assigned</th>
+                          <th className="py-3 px-3 font-semibold text-center">To Do</th>
                           <th className="py-3 px-3 font-semibold text-center">In Progress</th>
+                          <th className="py-3 px-3 font-semibold text-center">Done</th>
                           <th className="py-3 px-3 font-semibold text-center">Overdue</th>
                           <th className="py-3 px-3 font-semibold min-w-[140px]">Completion Rate</th>
                           <th className="py-3 px-4 font-semibold text-right">Actions</th>
@@ -1128,7 +1253,15 @@ export default function ReportsPage({ workspace }) {
                             </td>
 
                             <td className="py-3 px-3 text-center">
-                              <span className="font-semibold text-text-secondary">{member.in_progress_tasks}</span>
+                              <span className="font-semibold text-text-secondary">{member.todo_tasks || 0}</span>
+                            </td>
+
+                            <td className="py-3 px-3 text-center">
+                              <span className="font-semibold text-primary">{member.in_progress_tasks || 0}</span>
+                            </td>
+
+                            <td className="py-3 px-3 text-center">
+                              <span className="font-semibold text-success-text">{member.completed_tasks || 0}</span>
                             </td>
 
                             <td className="py-3 px-3 text-center">
@@ -1202,7 +1335,7 @@ export default function ReportsPage({ workspace }) {
                       Projects & Boards Breakdown
                     </h2>
                     <p className="text-xs text-text-secondary mt-0.5">
-                      Progress, health status, and throughput for all {boardsBreakdown.length} active boards.
+                      Progress, health status, and workflow distribution for all {boardsBreakdown.length} active boards.
                     </p>
                   </div>
 
@@ -1256,20 +1389,43 @@ export default function ReportsPage({ workspace }) {
                               />
                             </div>
 
-                            <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-border text-center text-xs">
+                            {/* 4-Stat Workflow Grid */}
+                            <div className="grid grid-cols-4 gap-1.5 mt-4 pt-3 border-t border-border text-center text-xs">
                               <div>
                                 <span className="text-[10px] text-text-muted uppercase block">Total</span>
                                 <span className="font-bold text-text-primary mt-0.5 block">{b.total_tasks}</span>
                               </div>
                               <div>
-                                <span className="text-[10px] text-text-muted uppercase block">Done</span>
-                                <span className="font-bold text-success-text mt-0.5 block">{b.completed_tasks}</span>
+                                <span className="text-[10px] text-text-muted uppercase block">To Do</span>
+                                <span className="font-bold text-text-secondary mt-0.5 block">{b.todo_tasks || 0}</span>
                               </div>
                               <div>
                                 <span className="text-[10px] text-text-muted uppercase block">Active</span>
-                                <span className="font-bold text-warning-text mt-0.5 block">{b.in_progress_tasks}</span>
+                                <span className="font-bold text-primary mt-0.5 block">{b.in_progress_tasks || 0}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-text-muted uppercase block">Done</span>
+                                <span className="font-bold text-success-text mt-0.5 block">{b.completed_tasks}</span>
                               </div>
                             </div>
+
+                            {/* Lists preview on this board */}
+                            {b.lists && b.lists.length > 0 && (
+                              <div className="mt-3 pt-2 border-t border-border/50">
+                                <span className="text-[10px] uppercase font-bold text-text-muted block mb-1.5">Columns</span>
+                                <div className="flex flex-wrap gap-1">
+                                  {b.lists.map((l) => (
+                                    <span
+                                      key={l.id}
+                                      className="text-[10px] px-2 py-0.5 rounded-md bg-surface border border-border text-text-secondary flex items-center gap-1"
+                                    >
+                                      <span>{l.name}</span>
+                                      <strong className="text-text-primary">({l.task_count})</strong>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
@@ -1293,58 +1449,190 @@ export default function ReportsPage({ workspace }) {
               </div>
             )}
 
-            {/* TAB CONTENT 4: TASK PIPELINE BY COLUMN */}
+            {/* TAB CONTENT 4: TASK PIPELINE & COLUMN DISTRIBUTION */}
             {activeTab === 'pipeline' && (
-              <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden flex flex-col">
-                <div className="p-4 sm:p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-bold text-text-primary tracking-tight">
-                      Task Pipeline & Column Distribution
-                    </h2>
-                    <p className="text-xs text-text-secondary mt-0.5">
-                      Visual distribution of tasks across workflow stages in all projects.
-                    </p>
+              <div className="space-y-5">
+                {/* Stage Summary Banner */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3.5 bg-surface border border-border rounded-xl shadow-xs flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block">To Do Stage</span>
+                      <span className="text-2xl font-black text-text-primary mt-0.5 block">{stageBreakdown.todo}</span>
+                      <span className="text-[11px] text-text-secondary">backlog & pending</span>
+                    </div>
+                    <div className="w-9 h-9 rounded-lg bg-surface-muted border border-border flex items-center justify-center text-text-secondary">
+                      <ListTodo className="w-4 h-4" />
+                    </div>
                   </div>
 
-                  <div className="relative w-full sm:w-64">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                    <input
-                      type="text"
-                      value={pipelineSearchQuery}
-                      onChange={(e) => setPipelineSearchQuery(e.target.value)}
-                      placeholder="Search list or board name..."
-                      className="w-full h-8 pl-8 pr-3 text-xs bg-surface-muted text-text-primary border border-border rounded-lg shadow-xs focus:outline-none focus:border-primary"
-                    />
+                  <div className="p-3.5 bg-surface border border-border rounded-xl shadow-xs flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block">In Progress Stage</span>
+                      <span className="text-2xl font-black text-primary mt-0.5 block">{stageBreakdown.in_progress}</span>
+                      <span className="text-[11px] text-text-secondary">active development</span>
+                    </div>
+                    <div className="w-9 h-9 rounded-lg bg-primary-tint border border-primary/20 flex items-center justify-center text-primary">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-surface border border-border rounded-xl shadow-xs flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block">Review / QA Stage</span>
+                      <span className="text-2xl font-black text-info-text mt-0.5 block">{stageBreakdown.review}</span>
+                      <span className="text-[11px] text-text-secondary">testing & review</span>
+                    </div>
+                    <div className="w-9 h-9 rounded-lg bg-info-tint border border-info/20 flex items-center justify-center text-info-text">
+                      <CheckSquare className="w-4 h-4" />
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-surface border border-border rounded-xl shadow-xs flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block">Done Stage</span>
+                      <span className="text-2xl font-black text-success-text mt-0.5 block">{stageBreakdown.done}</span>
+                      <span className="text-[11px] text-text-secondary">completed workflow</span>
+                    </div>
+                    <div className="w-9 h-9 rounded-lg bg-success-tint border border-success/20 flex items-center justify-center text-success-text">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
                   </div>
                 </div>
 
-                <div className="max-h-[540px] overflow-y-auto p-4 sm:p-5 custom-scrollbar">
-                  {filteredPipeline.length === 0 ? (
-                    <div className="py-12 text-center text-text-muted text-xs">
-                      No status columns found matching your search.
+                {/* Pipeline List Columns with Cards */}
+                <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden flex flex-col">
+                  <div className="p-4 sm:p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-bold text-text-primary tracking-tight">
+                        Task Pipeline & Column Distribution
+                      </h2>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        Inspect active cards distributed across all lists, columns, and workflow stages.
+                      </p>
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {filteredPipeline.map((s) => (
-                        <div
-                          key={`${s.board_id}-${s.list_id}`}
-                          className="p-3.5 bg-surface-muted border border-border rounded-xl space-y-2 hover:border-primary/40 transition-colors shadow-xs"
-                        >
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold text-text-primary truncate">{s.list_name}</span>
-                            <Badge variant="secondary" size="sm">
-                              {s.task_count} cards
-                            </Badge>
-                          </div>
-                          <ProgressBar value={s.percentage} max={100} variant="primary" size="sm" />
-                          <div className="flex items-center justify-between text-[11px] text-text-secondary pt-1">
-                            <span className="truncate text-text-muted">{s.board_name}</span>
-                            <span className="font-semibold text-text-primary">{s.percentage}%</span>
-                          </div>
-                        </div>
-                      ))}
+
+                    <div className="relative w-full sm:w-72">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                      <input
+                        type="text"
+                        value={pipelineSearchQuery}
+                        onChange={(e) => setPipelineSearchQuery(e.target.value)}
+                        placeholder="Search column, board, or task title..."
+                        className="w-full h-8 pl-8 pr-3 text-xs bg-surface-muted text-text-primary border border-border rounded-lg shadow-xs focus:outline-none focus:border-primary"
+                      />
                     </div>
-                  )}
+                  </div>
+
+                  <div className="max-h-[560px] overflow-y-auto p-4 sm:p-5 custom-scrollbar">
+                    {filteredPipeline.length === 0 ? (
+                      <div className="py-12 text-center text-text-muted text-xs">
+                        No status columns found matching your search.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredPipeline.map((s) => (
+                          <div
+                            key={`${s.board_id}-${s.list_id}`}
+                            className="bg-surface-muted border border-border rounded-xl p-4 flex flex-col justify-between hover:border-primary/40 transition-colors shadow-xs"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <span className="font-bold text-text-primary text-sm truncate">{s.list_name}</span>
+                                <Badge
+                                  variant={
+                                    s.stage === 'done'
+                                      ? 'success'
+                                      : s.stage === 'todo'
+                                      ? 'secondary'
+                                      : s.stage === 'review'
+                                      ? 'info'
+                                      : 'warning'
+                                  }
+                                  size="sm"
+                                >
+                                  {s.stage === 'todo'
+                                    ? 'To Do'
+                                    : s.stage === 'review'
+                                    ? 'Review'
+                                    : s.stage === 'done'
+                                    ? 'Done'
+                                    : 'In Progress'}
+                                </Badge>
+                              </div>
+
+                              <div className="flex items-center justify-between text-[11px] text-text-secondary mb-2">
+                                <span className="truncate text-text-muted font-medium">{s.board_name}</span>
+                                <span className="font-bold text-text-primary">{s.task_count} cards ({s.percentage}%)</span>
+                              </div>
+
+                              <ProgressBar value={s.percentage} max={100} variant="primary" size="sm" />
+
+                              {/* Cards preview in this list column */}
+                              <div className="mt-3 pt-2.5 border-t border-border/60 space-y-2 max-h-52 overflow-y-auto custom-scrollbar pr-1">
+                                {!s.cards || s.cards.length === 0 ? (
+                                  <div className="py-6 text-center text-text-muted text-[11px] italic">
+                                    No active cards currently in this column
+                                  </div>
+                                ) : (
+                                  s.cards.map((card) => (
+                                    <div
+                                      key={card.id}
+                                      onClick={() => navigate(`/b/${card.board_id}?card=${card.id}`)}
+                                      className="p-2.5 bg-surface border border-border rounded-lg hover:border-primary/50 transition-all cursor-pointer group shadow-2xs"
+                                    >
+                                      <div className="flex items-start justify-between gap-2">
+                                        <span className={`text-xs font-semibold group-hover:text-primary transition-colors line-clamp-2 ${card.is_complete ? 'line-through text-text-muted' : 'text-text-primary'}`}>
+                                          {card.title}
+                                        </span>
+                                        <ArrowUpRight className="w-3 h-3 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
+                                      </div>
+
+                                      <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-border/40 text-[10px]">
+                                        <div className="flex items-center gap-1.5">
+                                          {card.is_complete ? (
+                                            <span className="text-success-text font-bold flex items-center gap-0.5">
+                                              <Check className="w-2.5 h-2.5" /> Done
+                                            </span>
+                                          ) : card.is_overdue ? (
+                                            <span className="text-danger-text font-bold">Late</span>
+                                          ) : card.due_date ? (
+                                            <span className="text-text-muted">{formatShortDate(card.due_date)}</span>
+                                          ) : (
+                                            <span className="text-text-muted">No date</span>
+                                          )}
+                                        </div>
+
+                                        {card.members && card.members.length > 0 && (
+                                          <div className="flex items-center -space-x-1">
+                                            {card.members.slice(0, 2).map((m) => (
+                                              <Avatar key={m.id} name={m.name} src={m.avatar_url} size="xs" />
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-3 pt-2 border-t border-border flex items-center justify-between text-[11px]">
+                              <span className="text-text-muted">
+                                {s.completed_count > 0 ? `${s.completed_count} completed` : '0 completed'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/b/${s.board_id}`)}
+                                className="font-semibold text-primary hover:underline"
+                              >
+                                Board →
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1456,7 +1744,7 @@ export default function ReportsPage({ workspace }) {
         )}
       </div>
 
-      {/* DEDICATED MEMBER DOSSIER MODAL (Prevents infinite accordion stretching on the main page) */}
+      {/* DEDICATED MEMBER DOSSIER MODAL */}
       {selectedMemberDossier && (
         <Modal
           isOpen={!!selectedMemberDossier}
@@ -1501,8 +1789,8 @@ export default function ReportsPage({ workspace }) {
           }
         >
           <div className="space-y-4 py-1">
-            {/* KPI Chips Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {/* 5-KPI Chips Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
               <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
                 <span className="text-[10px] uppercase font-bold text-text-muted block">Assigned</span>
                 <span className="text-lg font-bold text-text-primary mt-0.5 block">
@@ -1510,9 +1798,21 @@ export default function ReportsPage({ workspace }) {
                 </span>
               </div>
               <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
+                <span className="text-[10px] uppercase font-bold text-text-muted block">To Do</span>
+                <span className="text-lg font-bold text-text-secondary mt-0.5 block">
+                  {selectedMemberDossier.todo_tasks || 0}
+                </span>
+              </div>
+              <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
                 <span className="text-[10px] uppercase font-bold text-text-muted block">In Progress</span>
-                <span className="text-lg font-bold text-warning-text mt-0.5 block">
-                  {selectedMemberDossier.in_progress_tasks}
+                <span className="text-lg font-bold text-primary mt-0.5 block">
+                  {selectedMemberDossier.in_progress_tasks || 0}
+                </span>
+              </div>
+              <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
+                <span className="text-[10px] uppercase font-bold text-text-muted block">Completed</span>
+                <span className="text-lg font-bold text-success-text mt-0.5 block">
+                  {selectedMemberDossier.completion_rate}%
                 </span>
               </div>
               <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
@@ -1523,12 +1823,6 @@ export default function ReportsPage({ workspace }) {
                   }`}
                 >
                   {selectedMemberDossier.overdue_tasks}
-                </span>
-              </div>
-              <div className="p-3 bg-surface-muted border border-border rounded-lg text-center">
-                <span className="text-[10px] uppercase font-bold text-text-muted block">Completed</span>
-                <span className="text-lg font-bold text-success-text mt-0.5 block">
-                  {selectedMemberDossier.completion_rate}%
                 </span>
               </div>
             </div>
@@ -1547,23 +1841,28 @@ export default function ReportsPage({ workspace }) {
 
             {/* Status Filter Tabs */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 pt-2">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {[
                   { id: 'all', label: 'All Tasks', count: (selectedMemberDossier.tasks || []).length },
                   {
+                    id: 'todo',
+                    label: 'To Do',
+                    count: (selectedMemberDossier.tasks || []).filter((t) => t.stage === 'todo' && !t.is_complete).length
+                  },
+                  {
                     id: 'in_progress',
                     label: 'In Progress',
-                    count: (selectedMemberDossier.tasks || []).filter((t) => !t.is_complete && !t.is_overdue).length
+                    count: (selectedMemberDossier.tasks || []).filter((t) => (t.stage === 'in_progress' || t.stage === 'review' || (!t.stage && !t.is_complete && !t.is_overdue)) && !t.is_complete && !t.is_overdue).length
+                  },
+                  {
+                    id: 'completed',
+                    label: 'Completed',
+                    count: (selectedMemberDossier.tasks || []).filter((t) => t.is_complete || t.stage === 'done').length
                   },
                   {
                     id: 'overdue',
                     label: 'Overdue',
                     count: (selectedMemberDossier.tasks || []).filter((t) => t.is_overdue).length
-                  },
-                  {
-                    id: 'completed',
-                    label: 'Completed',
-                    count: (selectedMemberDossier.tasks || []).filter((t) => t.is_complete).length
                   }
                 ].map((tab) => (
                   <button
@@ -1608,27 +1907,29 @@ export default function ReportsPage({ workspace }) {
                       <tr key={task.id} className="hover:bg-surface-hover/70 transition-colors">
                         <td className="py-2.5 px-3 font-semibold text-text-primary max-w-xs truncate">
                           <div className="flex items-center gap-2">
-                            {task.is_complete ? (
+                            {task.is_complete || task.stage === 'done' ? (
                               <CheckCircle2 className="w-3.5 h-3.5 text-success-text shrink-0" />
                             ) : task.is_overdue ? (
                               <AlertCircle className="w-3.5 h-3.5 text-danger-text shrink-0" />
+                            ) : task.stage === 'todo' ? (
+                              <ListTodo className="w-3.5 h-3.5 text-text-muted shrink-0" />
                             ) : (
                               <Clock className="w-3.5 h-3.5 text-text-muted shrink-0" />
                             )}
-                            <span className={task.is_complete ? 'line-through text-text-muted' : ''}>
+                            <span className={task.is_complete || task.stage === 'done' ? 'line-through text-text-muted' : ''}>
                               {task.title}
                             </span>
                           </div>
                         </td>
                         <td className="py-2.5 px-3 text-text-secondary">
                           <span className="font-semibold text-text-primary">{task.board_name}</span>
-                          <span className="text-text-muted ml-1">/ {task.list_name}</span>
+                          <span className="text-primary font-medium ml-1">/ {task.list_name}</span>
                         </td>
                         <td className="py-2.5 px-3 text-text-secondary">
                           {task.due_date ? formatShortDate(task.due_date) : 'No due date'}
                         </td>
                         <td className="py-2.5 px-3">
-                          {task.is_complete ? (
+                          {task.is_complete || task.stage === 'done' ? (
                             <Badge variant="success" size="sm">
                               Completed
                             </Badge>
@@ -1636,12 +1937,20 @@ export default function ReportsPage({ workspace }) {
                             <Badge variant="danger" size="sm">
                               Overdue
                             </Badge>
+                          ) : task.stage === 'todo' ? (
+                            <Badge variant="secondary" size="sm">
+                              To Do
+                            </Badge>
+                          ) : task.stage === 'review' ? (
+                            <Badge variant="info" size="sm">
+                              In Review
+                            </Badge>
                           ) : task.is_due_soon ? (
                             <Badge variant="warning" size="sm">
                               Due Soon
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" size="sm">
+                            <Badge variant="warning" size="sm">
                               In Progress
                             </Badge>
                           )}

@@ -100,13 +100,14 @@ export default function AttachmentPopover({ isOpen, onClose, anchorRef, onUpload
           >
             <Upload className="w-8 h-8 text-primary mb-2" />
             <p className="font-medium text-text-primary mb-1">Drag and drop file here</p>
-            <p className="text-[10px] text-text-muted mb-4">PNG, JPEG, WEBP, GIF up to 10MB</p>
+            <p className="text-[10px] text-text-muted mb-4">
+              All files supported (Excel, Word, PDF, CSV, JSON, images, etc. up to 20MB)
+            </p>
 
             <label className="px-4 py-2 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-xs rounded-md shadow-xs cursor-pointer transition-colors">
               {isUploading ? 'Uploading...' : 'Choose a file'}
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
                 onChange={(e) => handleFileChange(e.target.files[0])}
                 className="hidden"
                 disabled={isUploading}
