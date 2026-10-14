@@ -266,5 +266,30 @@ describe('Workspace Members Page & Company Members Page Refactoring', () => {
       expect(screen.getByRole('button', { name: 'Copy Link' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Regenerate' })).toBeInTheDocument();
     });
+
+    it('triggers remove confirmation and calls removeCompanyMember API when removing a member from company', async () => {
+      render(
+        <MemoryRouter>
+          <ToastProvider>
+            <PermissionProvider role={{ name: 'Admin' }} permissions={['member.view', 'member.assign_role', 'member.remove', 'member.invite']}>
+              <CompanyMembersPage workspace={mockWorkspace} />
+            </PermissionProvider>
+          </ToastProvider>
+        </MemoryRouter>
+      );
+
+      await screen.findByRole('heading', { name: /^Members$/i });
+
+      const removeButtons = screen.getAllByRole('button', { name: /^Remove$/i });
+      fireEvent.click(removeButtons[0]);
+
+      expect(screen.getByText('Remove Member from Company')).toBeInTheDocument();
+      const modalRemoveBtn = screen.getByRole('button', { name: /^Remove Member$/i });
+      fireEvent.click(modalRemoveBtn);
+
+      await waitFor(() => {
+        expect(workspacesApi.removeCompanyMember).toHaveBeenCalledWith(10, expect.any(Number));
+      });
+    });
   });
 });

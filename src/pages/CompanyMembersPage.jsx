@@ -290,6 +290,8 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
         try {
           await removeCompanyMember(workspace.id, member.id);
           toast.show(`${member.name} was removed from the organization`, 'success');
+          setMembers((prev) => prev.filter((m) => m.id !== member.id));
+          setPagination((prev) => ({ ...prev, total: Math.max(0, (prev.total || 1) - 1) }));
           loadData(currentPage, debouncedSearch, filterWorkspaceId);
         } catch (err) {
           toast.show(err.message || 'Failed to remove member', 'error');
