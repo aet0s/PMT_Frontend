@@ -12,18 +12,34 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     async function checkAuth() {
-      try {
-        const data = await getMe();
-        setUser(data.user);
-      } catch (err) {
-        setUser(null);
-      } finally {
-        setLoading(false);
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const data = await getMe();
+          setUser(data.user);
+          setLoading(false);
+          return;
+        } catch (err) {
+          // If error is transient (e.g. backend restarting, 502/503/504, network glitch), retry before logging out
+          const isTransient = !err.status || [502, 503, 504].includes(err.status) || err.code === 'HTTP_ERROR' || err.message?.includes('Failed to fetch');
+          if (isTransient && attempt < maxRetries) {
+            await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+            continue;
+          }
+          // Real 401 or unrecoverable error
+          setUser(null);
+          break;
+        }
       }
+      setLoading(false);
     }
     checkAuth();
 
     const handleLogoutSync = () => {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('pm_token');
+        localStorage.removeItem('pm_token');
+      }
       setUser(null);
       if (typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login';

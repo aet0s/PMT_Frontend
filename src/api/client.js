@@ -56,13 +56,44 @@ export async function refreshAuthToken() {
     }
 
     try {
-      const response = await fetch(getApiUrl('/api/auth/refresh'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
+      let response;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          response = await fetch(getApiUrl('/api/auth/refresh'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+          });
+          // If server is restarting (502/503/504), wait 1s and retry once
+          if ((response.status === 502 || response.status === 503 || response.status === 504) && attempt < 2) {
+            await new Promise((r) => setTimeout(r, 1000));
+            continue;
+          }
+          break;
+        } catch (netErr) {
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 1000));
+            continue;
+          }
+          throw netErr;
+        }
+      }
 
-      const success = response.ok;
+      const success = response && response.ok;
+      if (success) {
+        try {
+          const data = await response.json();
+          if (data?.token && typeof window !== 'undefined') {
+            sessionStorage.setItem('pm_token', data.token);
+            localStorage.setItem('pm_token', data.token);
+          }
+        } catch (e) {}
+      } else {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('pm_token');
+          localStorage.removeItem('pm_token');
+        }
+      }
       localStorage.removeItem(LOCK_KEY);
 
       if (bc) {
@@ -71,6 +102,10 @@ export async function refreshAuthToken() {
 
       return success;
     } catch (err) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('pm_token');
+        localStorage.removeItem('pm_token');
+      }
       localStorage.removeItem(LOCK_KEY);
       if (bc) {
         bc.postMessage({ type: 'REFRESH_FAILED', tabId: currentTabId });
@@ -192,20 +227,23 @@ export async function apiFetch(url, options = {}, isRetry = false) {
 
   if (!response.ok) {
     // If 401 Unauthorized occurs on a protected route and we haven't retried yet,
-    // attempt single-flight token refresh
+    // attempt single-flight token refresh (excluding only unauthenticated login/register/refresh/logout)
     const isAuthRoute = url.includes('/api/auth/login') ||
                         url.includes('/api/auth/refresh') ||
                         url.includes('/api/auth/register') ||
-                        url.includes('/api/auth/logout') ||
-                        url.includes('/api/auth/me');
+                        url.includes('/api/auth/logout');
 
     if (response.status === 401 && !isAuthRoute && !isRetry) {
       const refreshed = await refreshAuthToken();
       if (refreshed) {
         return apiFetch(url, options, true); // Retry once with refreshed cookie
       }
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('pm_token');
+        localStorage.removeItem('pm_token');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
 

@@ -166,12 +166,6 @@ export default function Lightbox({
   const resolvedMime = attachment?.file_type || '';
   const resolvedBytes = attachment?.file_size_bytes ?? fileSize;
 
-  const isLocalhost =
-    typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-  // View mode for Office documents: 'office' (Microsoft Office Online Viewer iframe) vs 'native' (high-fidelity in-browser rendering)
-  const [officeMode, setOfficeMode] = useState(isLocalhost ? 'native' : 'office');
   const [publicViewerUrl, setPublicViewerUrl] = useState(null);
 
   const detectedCategory = useMemo(() => {
@@ -185,26 +179,48 @@ export default function Lightbox({
   useEffect(() => {
     let isMounted = true;
     if (isOpen && (detectedCategory === 'excel' || detectedCategory === 'docx')) {
-      const rawPath = attachment?.file_url || src || '';
+      setPublicViewerUrl(null);
+      const rawInput = attachment?.file_url || src || '';
+      
+      // Normalize path to clean relative API route (/api/files/:tenantId/...)
+      let normalizedPath = rawInput;
+      if (/^https?:\/\//i.test(normalizedPath)) {
+        try {
+          normalizedPath = new URL(normalizedPath).pathname;
+        } catch (e) {
+          normalizedPath = normalizedPath.replace(/^https?:\/\/[^\/]+/i, '');
+        }
+      }
+      if (normalizedPath.startsWith('/uploads/')) {
+        normalizedPath = normalizedPath.replace('/uploads/', '/api/files/');
+      } else if (normalizedPath.startsWith('uploads/')) {
+        normalizedPath = `/api/files/${normalizedPath.replace('uploads/', '')}`;
+      } else if (normalizedPath.startsWith('api/files/')) {
+        normalizedPath = `/${normalizedPath}`;
+      } else if (!normalizedPath.startsWith('/api/files/')) {
+        normalizedPath = `/api/files/${normalizedPath.replace(/^\/+/, '')}`;
+      }
+
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isLiveHost = host.includes('solarman.in');
+      const publicBase = isLiveHost ? 'https://pmtmgmt.solarman.in' : getApiUrl('').replace(/\/+$/, '');
+
       apiFetch('/api/files/preview-token', {
         method: 'POST',
-        body: JSON.stringify({ file_url: rawPath })
+        body: JSON.stringify({ file_url: normalizedPath })
       })
         .then((data) => {
           if (!isMounted) return;
           const token = data?.token || '';
-          const host = window.location.hostname;
-          const isLiveHost = host.includes('solarman.in');
-          const publicBase = isLiveHost ? 'https://pmtmgmt.solarman.in' : getApiUrl('').replace(/\/+$/, '');
-          const directUrl = `${publicBase}${rawPath}?token=${token}&filename=${encodeURIComponent(resolvedTitle)}`;
+          const activePath = data?.normalized_path || normalizedPath;
+          const directUrl = `${publicBase}${activePath}?token=${token}&filename=${encodeURIComponent(resolvedTitle)}`;
           const msViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(directUrl)}`;
           setPublicViewerUrl(msViewerUrl);
         })
         .catch((err) => {
           if (!isMounted) return;
           console.warn('Could not generate preview token:', err);
-          const apiBase = getApiUrl('').replace(/\/+$/, '');
-          const directUrl = `${apiBase}${rawPath}?filename=${encodeURIComponent(resolvedTitle)}`;
+          const directUrl = `${publicBase}${normalizedPath}?filename=${encodeURIComponent(resolvedTitle)}`;
           setPublicViewerUrl(`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(directUrl)}`);
         });
     }
@@ -254,7 +270,6 @@ export default function Lightbox({
   };
 
   const extensionLabel = (resolvedTitle.split('.').pop() || detectedCategory).toUpperCase();
-  const isOfficeDoc = detectedCategory === 'excel' || detectedCategory === 'docx';
 
   return createPortal(
     <div
@@ -294,38 +309,8 @@ export default function Lightbox({
             </div>
           </div>
 
-          {/* Center: View Switcher for Office Documents */}
-          {isOfficeDoc && (
-            <div className="flex items-center bg-surface-muted border border-border rounded-lg p-0.5 text-xs order-3 sm:order-2 w-full sm:w-auto justify-center mt-1 sm:mt-0">
-              <button
-                type="button"
-                onClick={() => setOfficeMode('office')}
-                className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                  officeMode === 'office'
-                    ? 'bg-primary text-white shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
-                title="View in official Microsoft Office Online viewer"
-              >
-                Microsoft Office View
-              </button>
-              <button
-                type="button"
-                onClick={() => setOfficeMode('native')}
-                className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                  officeMode === 'native'
-                    ? 'bg-primary text-white shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
-                title="View in native high-fidelity document reader"
-              >
-                {detectedCategory === 'excel' ? 'Spreadsheet View' : 'Document Page View'}
-              </button>
-            </div>
-          )}
-
           {/* Action buttons — Note: 'Open in new window' button is explicitly removed as requested */}
-          <div className="flex items-center gap-2 shrink-0 order-2 sm:order-3">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={handleDownload}
@@ -348,29 +333,13 @@ export default function Lightbox({
 
         {/* Content Viewer Body */}
         <div className="w-full flex-1 min-h-[350px] max-h-[calc(95vh-64px)] overflow-hidden bg-surface-muted flex flex-col items-center justify-center relative p-2 sm:p-4">
-          {/* Office Documents: Microsoft Office Online Viewer or High-Fidelity Native */}
-          {detectedCategory === 'excel' && (
-            officeMode === 'office' ? (
-              <OfficeOnlineIframe
-                url={publicViewerUrl || `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(resolvedUrl)}`}
-                title={resolvedTitle}
-                onFallback={() => setOfficeMode('native')}
-              />
-            ) : (
-              <NativeExcelViewer url={resolvedUrl} title={resolvedTitle} onDownload={handleDownload} />
-            )
-          )}
-
-          {detectedCategory === 'docx' && (
-            officeMode === 'office' ? (
-              <OfficeOnlineIframe
-                url={publicViewerUrl || `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(resolvedUrl)}`}
-                title={resolvedTitle}
-                onFallback={() => setOfficeMode('native')}
-              />
-            ) : (
-              <DocxPreviewRenderer url={resolvedUrl} title={resolvedTitle} onDownload={handleDownload} />
-            )
+          {/* Office Documents (Excel, Word): Open directly in Microsoft Office Online Viewer */}
+          {(detectedCategory === 'excel' || detectedCategory === 'docx') && (
+            <OfficeOnlineIframe
+              url={publicViewerUrl}
+              directFileUrl={resolvedUrl}
+              title={resolvedTitle}
+            />
           )}
 
           {detectedCategory === 'pdf' && (
@@ -441,7 +410,7 @@ export default function Lightbox({
 // ==============================================================
 // Microsoft Office Online Viewer Iframe
 // ==============================================================
-function OfficeOnlineIframe({ url, title, onFallback }) {
+function OfficeOnlineIframe({ url, directFileUrl, title }) {
   const [loading, setLoading] = useState(true);
   const isLocalhost =
     typeof window !== 'undefined' &&
@@ -454,19 +423,21 @@ function OfficeOnlineIframe({ url, title, onFallback }) {
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>
-              <strong>Localhost Notice:</strong> Microsoft Office Online connects over the public internet. On your live server (<strong>https://pmt.solarman.in</strong>), this loads directly from Microsoft. On localhost, Microsoft's cloud servers cannot reach private URLs (http://localhost:5000). Use <strong>Interactive Spreadsheet</strong> for the in-browser Excel view.
+              <strong>Localhost Notice:</strong> Microsoft Office Online connects over the public internet. On your live server (<strong>https://pmt.solarman.in</strong>), this loads directly from Microsoft. On localhost, Microsoft cannot reach private URLs (http://localhost:5000).
             </span>
           </div>
-          <button
-            type="button"
-            onClick={onFallback}
-            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold shrink-0 cursor-pointer transition-colors"
-          >
-            Switch to Spreadsheet
-          </button>
+          {directFileUrl && (
+            <a
+              href={directFileUrl}
+              download={title}
+              className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold shrink-0 cursor-pointer transition-colors"
+            >
+              Download File
+            </a>
+          )}
         </div>
       )}
-      {loading && (
+      {(loading || !url) && (
         <div className="absolute inset-0 bg-surface/90 flex flex-col items-center justify-center gap-2 z-10">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="text-xs font-semibold text-text-secondary">
@@ -474,12 +445,14 @@ function OfficeOnlineIframe({ url, title, onFallback }) {
           </span>
         </div>
       )}
-      <iframe
-        src={url}
-        title={title}
-        onLoad={() => setLoading(false)}
-        className="w-full h-full border-0 bg-surface"
-      />
+      {url && (
+        <iframe
+          src={url}
+          title={title}
+          onLoad={() => setLoading(false)}
+          className="w-full h-full border-0 bg-surface"
+        />
+      )}
     </div>
   );
 }
