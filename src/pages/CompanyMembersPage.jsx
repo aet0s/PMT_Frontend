@@ -41,7 +41,8 @@ import {
 import {
   createInvitation,
   regenerateInvitation,
-  revokeInvitation
+  revokeInvitation,
+  resendInvitationEmail
 } from '../api/invitations';
 import { usePermissions } from '../context/PermissionContext';
 import { useSocket } from '../context/SocketProvider';
@@ -95,10 +96,12 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
   const [isInviting, setIsInviting] = useState(false);
   const [generatedInviteUrl, setGeneratedInviteUrl] = useState('');
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [inviteEmailSent, setInviteEmailSent] = useState(false);
 
   // Pending invite actions
   const [copiedId, setCopiedId] = useState(null);
   const [regeneratingId, setRegeneratingId] = useState(null);
+  const [resendingEmailId, setResendingEmailId] = useState(null);
 
   // Member audit log modal
   const [auditMember, setAuditMember] = useState(null);
@@ -308,6 +311,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
 
     setIsInviting(true);
     setGeneratedInviteUrl('');
+    setInviteEmailSent(false);
     try {
       const res = await createInvitation({
         email: inviteEmail.trim().toLowerCase(),
@@ -318,7 +322,13 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
 
       const inviteUrl = res.invite_url || (res.invite_token ? `${window.location.origin}/register?invite_token=${res.invite_token}&email=${encodeURIComponent(inviteEmail.trim())}` : '');
       setGeneratedInviteUrl(inviteUrl);
-      toast.show(res.message || 'Invitation created successfully', 'success');
+      setInviteEmailSent(Boolean(res.email_sent));
+      toast.show(
+        res.email_sent
+          ? `Invitation sent to ${inviteEmail.trim()} by email!`
+          : (res.message || 'Invitation created successfully'),
+        'success'
+      );
       loadData(currentPage, debouncedSearch, filterWorkspaceId);
     } catch (err) {
       toast.show(err.message || 'Failed to send invitation', 'error');
@@ -341,7 +351,20 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
     setInviteRoleId('');
     setInviteBoardIds([]);
     setGeneratedInviteUrl('');
+    setInviteEmailSent(false);
     setInviteCopied(false);
+  };
+
+  const handleResendEmail = async (inv) => {
+    setResendingEmailId(inv.id);
+    try {
+      const res = await resendInvitationEmail(inv.id);
+      toast.show(res.message || `Invitation email sent to ${inv.email}!`, 'success');
+    } catch (err) {
+      toast.show(err.message || 'Failed to send invitation email', 'error');
+    } finally {
+      setResendingEmailId(null);
+    }
   };
 
   // Pending Invite Actions
@@ -766,6 +789,24 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                disabled={resendingEmailId === inv.id}
+                                onClick={() => handleResendEmail(inv)}
+                                leftIcon={
+                                  <Mail
+                                    className={`w-3.5 h-3.5 text-primary ${
+                                      resendingEmailId === inv.id ? 'animate-pulse' : ''
+                                    }`}
+                                  />
+                                }
+                                className="text-xs font-semibold cursor-pointer"
+                                title="Resend invitation email"
+                              >
+                                {resendingEmailId === inv.id ? 'Sending...' : 'Resend Email'}
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleCopyInviteLink(inv)}
                                 leftIcon={
                                   copiedId === inv.id ? (
@@ -1013,7 +1054,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
         >
           <div className="space-y-4">
             <p className="text-xs text-text-muted">
-              Generate a unique invitation link to invite a new employee. Once invited, they can register and will receive assigned workspace and board access.
+              Send an invitation directly to a member's email address. Once invited, they will receive an activation email with registration instructions and immediate workspace access.
             </p>
 
             <div>
@@ -1028,6 +1069,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                 disabled={Boolean(generatedInviteUrl)}
                 className="w-full px-3 py-2 bg-surface hover:bg-surface-hover focus:bg-surface border border-border focus:border-primary rounded-xl text-sm font-medium text-text-primary placeholder:text-text-muted outline-hidden transition-colors"
               />
+              <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-text-muted">
+                <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span>An invitation email with activation link will be sent to this address.</span>
+              </div>
             </div>
 
             <div>
@@ -1062,9 +1107,12 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
             {/* Generated Invite Result */}
             {generatedInviteUrl && (
               <div className="p-4 bg-primary-tint/40 border border-primary/30 rounded-xl space-y-2">
-                <span className="text-xs font-bold text-primary block">
-                  Invitation Link Generated
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-bold text-primary">
+                    {inviteEmailSent ? 'Invitation Sent by Email & Link Generated' : 'Invitation Link Generated'}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -1083,7 +1131,9 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                   </Button>
                 </div>
                 <p className="text-[11px] text-text-muted">
-                  Share this secure link with the invited person to let them register.
+                  {inviteEmailSent
+                    ? `An invitation email was sent to ${inviteEmail}. You can also copy and share this link directly.`
+                    : 'Share this secure registration link with the invited person to let them register.'}
                 </p>
               </div>
             )}
@@ -1102,11 +1152,11 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                 <Button
                   variant="primary"
                   onClick={handleSendInvite}
-                  loading={isInviting}
-                  leftIcon={<UserPlus className="w-4 h-4" />}
+                  isLoading={isInviting}
+                  leftIcon={<Mail className="w-4 h-4" />}
                   className="cursor-pointer shadow-xs"
                 >
-                  Generate Invitation
+                  Send Invitation
                 </Button>
               )}
             </div>

@@ -28,6 +28,12 @@ export async function regenerateInvitation(invitationId) {
   });
 }
 
+export async function resendInvitationEmail(invitationId) {
+  return apiFetch(`/api/invitations/${invitationId}/resend`, {
+    method: 'POST'
+  });
+}
+
 export async function revokeInvitation(invitationId) {
   return apiFetch(`/api/invitations/${invitationId}`, {
     method: 'DELETE'

@@ -227,8 +227,8 @@ describe('Workspace Members Page & Company Members Page Refactoring', () => {
       const emailInput = screen.getByPlaceholderText('colleague@example.com');
       fireEvent.change(emailInput, { target: { value: 'new.engineer@example.com' } });
 
-      // Click Generate Invitation
-      const sendBtn = screen.getByRole('button', { name: 'Generate Invitation' });
+      // Click Send Invitation
+      const sendBtn = screen.getByRole('button', { name: /Send Invitation|Generate Invitation/i });
       fireEvent.click(sendBtn);
 
       await waitFor(() => {
@@ -241,7 +241,8 @@ describe('Workspace Members Page & Company Members Page Refactoring', () => {
       });
 
       // Link generated card appears
-      expect(await screen.findByText('Invitation Link Generated')).toBeInTheDocument();
+      const linkCards = await screen.findAllByText(/Invitation (Link Generated|Sent by Email)/i);
+      expect(linkCards.length).toBeGreaterThan(0);
       expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
     });
 

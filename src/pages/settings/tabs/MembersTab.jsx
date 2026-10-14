@@ -34,7 +34,8 @@ import {
 import {
   getWorkspaceInvitations,
   regenerateInvitation,
-  revokeInvitation
+  revokeInvitation,
+  resendInvitationEmail
 } from '../../../api/invitations';
 import { usePermissions } from '../../../context/PermissionContext';
 import { useSocket } from '../../../context/SocketProvider';
@@ -54,6 +55,7 @@ export default function MembersTab({ workspace, onOpenInvite }) {
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [isLoadingInvitations, setIsLoadingInvitations] = useState(true);
   const [regeneratingId, setRegeneratingId] = useState(null);
+  const [resendingEmailId, setResendingEmailId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [auditMember, setAuditMember] = useState(null);
 
@@ -278,6 +280,18 @@ export default function MembersTab({ workspace, onOpenInvite }) {
       toast.show(err.message || 'Failed to regenerate invitation', 'error');
     } finally {
       setRegeneratingId(null);
+    }
+  };
+
+  const handleResendEmail = async (inv) => {
+    setResendingEmailId(inv.id);
+    try {
+      const res = await resendInvitationEmail(inv.id);
+      toast.show(res.message || `Invitation email sent to ${inv.email}!`, 'success');
+    } catch (err) {
+      toast.show(err.message || 'Failed to send invitation email', 'error');
+    } finally {
+      setResendingEmailId(null);
     }
   };
 
@@ -584,6 +598,17 @@ export default function MembersTab({ workspace, onOpenInvite }) {
 
                   {/* Actions for Pending Invite */}
                   <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      isLoading={resendingEmailId === inv.id}
+                      onClick={() => handleResendEmail(inv)}
+                      leftIcon={<Mail className="w-3.5 h-3.5 text-primary" />}
+                      title="Resend invitation email"
+                    >
+                      Resend Email
+                    </Button>
+
                     <Button
                       variant="secondary"
                       size="sm"
