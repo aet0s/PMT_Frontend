@@ -72,7 +72,9 @@ export function useBoardSocket(boardId, onBoardEvent, onRefreshBoard) {
       'member:added',
       'member:removed',
       'checklist_item:toggled',
-      'board:activity'
+      'board:activity',
+      'board:label_created',
+      'board:label_deleted'
     ];
 
     events.forEach((evt) => {

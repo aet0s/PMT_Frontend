@@ -9,7 +9,10 @@ export function safeLazy(factory, componentName = '') {
         err?.name === 'ChunkLoadError' ||
         /loading chunk/i.test(err?.message || '') ||
         /failed to fetch dynamically imported module/i.test(err?.message || '') ||
-        /error loading dynamically imported module/i.test(err?.message || '');
+        /error loading dynamically imported module/i.test(err?.message || '') ||
+        /failed to fetch/i.test(err?.message || '') ||
+        /unexpected token '<'/i.test(err?.message || '') ||
+        /syntaxerror.*token '<'/i.test(err?.message || '');
 
       if (isChunkError && typeof window !== 'undefined' && window.sessionStorage) {
         const retryKey = `chunk_retry_${componentName || factory.toString().slice(0, 32)}`;

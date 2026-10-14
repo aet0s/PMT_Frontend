@@ -3,7 +3,9 @@ import { usePermissions } from '../../context/PermissionContext';
 import { AlignLeft, Loader2, FileEdit } from 'lucide-react';
 import { getDraft, setDraft, clearDraft } from '../../lib/storage';
 
-const RichTextEditor = React.lazy(() => import('./RichTextEditor'));
+import { safeLazy } from '../../lib/safeLazy';
+
+const RichTextEditor = safeLazy(() => import('./RichTextEditor'), 'RichTextEditor');
 
 export default function DescriptionEditor({ cardId, initialValue = '', onSave }) {
   const { hasPermission } = usePermissions();

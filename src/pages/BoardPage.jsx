@@ -7,26 +7,28 @@ import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../hooks/useAuth';
 import { getTenantItem, setTenantItem, removeTenantItem } from '../lib/storage';
 
-const CardDetailModal = React.lazy(() => import('../components/Card/CardDetailModal'));
-const CreateBoardModal = React.lazy(() => import('../components/Board/CreateBoardModal'));
-const CreateWorkspaceModal = React.lazy(() => import('../components/Sidebar/CreateWorkspaceModal'));
-const ArchivePage = React.lazy(() => import('../components/Archive/ArchivePage'));
-const NotificationsPage = React.lazy(() => import('../components/Notifications/NotificationsPage'));
-const BoardShareModal = React.lazy(() => import('../components/Board/BoardShareModal'));
-const InviteModal = React.lazy(() => import('../components/Board/InviteModal'));
-const WorkspaceHomePage = React.lazy(() => import('../pages/WorkspaceHomePage'));
-const MembersPage = React.lazy(() => import('../pages/MembersPage'));
-const CompanyMembersPage = React.lazy(() => import('../pages/CompanyMembersPage'));
-const ActivityPage = React.lazy(() => import('../pages/ActivityPage'));
-const ReportsPage = React.lazy(() => import('../pages/ReportsPage'));
-const SettingsPage = React.lazy(() => import('../pages/SettingsPage'));
-const AccountPage = React.lazy(() => import('../pages/AccountPage'));
-const ListView = React.lazy(() => import('../components/Board/ListView'));
-const CalendarView = React.lazy(() => import('../components/Board/CalendarView'));
-const NotFoundPage = React.lazy(() => import('../pages/NotFoundPage'));
+import { safeLazy } from '../lib/safeLazy';
+
+const CardDetailModal = safeLazy(() => import('../components/Card/CardDetailModal'), 'CardDetailModal');
+const CreateBoardModal = safeLazy(() => import('../components/Board/CreateBoardModal'), 'CreateBoardModal');
+const CreateWorkspaceModal = safeLazy(() => import('../components/Sidebar/CreateWorkspaceModal'), 'CreateWorkspaceModal');
+const ArchivePage = safeLazy(() => import('../components/Archive/ArchivePage'), 'ArchivePage');
+const NotificationsPage = safeLazy(() => import('../components/Notifications/NotificationsPage'), 'NotificationsPage');
+const BoardShareModal = safeLazy(() => import('../components/Board/BoardShareModal'), 'BoardShareModal');
+const InviteModal = safeLazy(() => import('../components/Board/InviteModal'), 'InviteModal');
+const WorkspaceHomePage = safeLazy(() => import('../pages/WorkspaceHomePage'), 'WorkspaceHomePage');
+const MembersPage = safeLazy(() => import('../pages/MembersPage'), 'MembersPage');
+const CompanyMembersPage = safeLazy(() => import('../pages/CompanyMembersPage'), 'CompanyMembersPage');
+const ActivityPage = safeLazy(() => import('../pages/ActivityPage'), 'ActivityPage');
+const ReportsPage = safeLazy(() => import('../pages/ReportsPage'), 'ReportsPage');
+const SettingsPage = safeLazy(() => import('../pages/SettingsPage'), 'SettingsPage');
+const AccountPage = safeLazy(() => import('../pages/AccountPage'), 'AccountPage');
+const ListView = safeLazy(() => import('../components/Board/ListView'), 'ListView');
+const CalendarView = safeLazy(() => import('../components/Board/CalendarView'), 'CalendarView');
+const NotFoundPage = safeLazy(() => import('../pages/NotFoundPage'), 'NotFoundPage');
 
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, autoArchiveWorkspaceCards } from '../api/workspaces';
-import { getBoards, createBoard, getBoard, updateBoard, deleteBoard, addBoardMember, createBoardLabel } from '../api/boards';
+import { getBoards, createBoard, getBoard, updateBoard, deleteBoard, addBoardMember, createBoardLabel, deleteBoardLabel } from '../api/boards';
 import { createList, updateList, deleteList } from '../api/lists';
 import {
   getCard,
@@ -697,6 +699,42 @@ export default function BoardPage() {
             return prevSelected;
           });
           return prevBoard;
+        }
+
+        case 'board:label_created': {
+          const newLabel = data.label;
+          if (!newLabel) return prevBoard;
+          const existing = (prevBoard.labels || []).some((l) => l.id === newLabel.id);
+          if (existing) return prevBoard;
+          return {
+            ...prevBoard,
+            labels: [...(prevBoard.labels || []), newLabel]
+          };
+        }
+
+        case 'board:label_deleted': {
+          const labelId = Number(data.labelId);
+          if (!labelId) return prevBoard;
+          const updatedLabels = (prevBoard.labels || []).filter((l) => l.id !== labelId);
+          const updatedLists = (prevBoard.lists || []).map((l) => ({
+            ...l,
+            cards: (l.cards || []).map((c) => ({
+              ...c,
+              labels: (c.labels || []).filter((cl) => cl.id !== labelId)
+            }))
+          }));
+
+          setSelectedCard((prevSelected) => {
+            if (prevSelected) {
+              return {
+                ...prevSelected,
+                labels: (prevSelected.labels || []).filter((cl) => cl.id !== labelId)
+              };
+            }
+            return prevSelected;
+          });
+
+          return { ...prevBoard, labels: updatedLabels, lists: updatedLists };
         }
 
         case 'list:created': {
@@ -1557,6 +1595,47 @@ export default function BoardPage() {
     }
   };
 
+  const handleDeleteBoardLabel = async (labelId) => {
+    if (!activeBoardIdRef.current) return false;
+    const prevBoardData = boardData;
+    const prevSelectedCard = selectedCard;
+
+    // Optimistically update board and card state
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        labels: (prev.labels || []).filter((l) => l.id !== labelId),
+        lists: (prev.lists || []).map((l) => ({
+          ...l,
+          cards: (l.cards || []).map((c) => ({
+            ...c,
+            labels: (c.labels || []).filter((cl) => cl.id !== labelId)
+          }))
+        }))
+      };
+    });
+
+    setSelectedCard((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        labels: (prev.labels || []).filter((cl) => cl.id !== labelId)
+      };
+    });
+
+    try {
+      await deleteBoardLabel(activeBoardIdRef.current, labelId);
+      toast.success('Label deleted');
+      return true;
+    } catch (err) {
+      setBoardData(prevBoardData);
+      setSelectedCard(prevSelectedCard);
+      toast.error(err?.message || 'Failed to delete label');
+      return false;
+    }
+  };
+
   return (
     <PermissionProvider workspaceId={activeWorkspace?.id}>
       <div className="flex h-screen w-screen overflow-hidden bg-app text-text-primary select-none relative">
@@ -2016,6 +2095,7 @@ export default function BoardPage() {
               onAddLinkAttachment={handleAddLinkAttachment}
               onDeleteAttachment={handleDeleteAttachment}
               onCreateBoardLabel={handleCreateBoardLabel}
+              onDeleteBoardLabel={handleDeleteBoardLabel}
               onCopyCard={handleCopyCard}
             />
           )}

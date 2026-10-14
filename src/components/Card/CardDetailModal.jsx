@@ -46,6 +46,7 @@ export default function CardDetailModal({
   onAddLinkAttachment,
   onDeleteAttachment,
   onCreateBoardLabel,
+  onDeleteBoardLabel,
   onCopyCard
 }) {
   const [activePopover, setActivePopover] = useState(null);
@@ -267,6 +268,7 @@ export default function CardDetailModal({
         boardLabels={boardLabels}
         onToggleLabel={(labelId) => onToggleLabel(card.id, labelId)}
         onCreateBoardLabel={onCreateBoardLabel}
+        onDeleteBoardLabel={onDeleteBoardLabel}
       />
 
       <MembersPopover

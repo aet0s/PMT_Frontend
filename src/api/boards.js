@@ -59,3 +59,10 @@ export async function createBoardLabel(boardId, name, color) {
     body: JSON.stringify({ name, color })
   });
 }
+
+export async function deleteBoardLabel(boardId, labelId) {
+  return apiFetch(`/api/boards/${boardId}/labels/${labelId}`, {
+    method: 'DELETE'
+  });
+}
+

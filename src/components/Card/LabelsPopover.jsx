@@ -3,8 +3,10 @@ import Popover from '../shared/Popover';
 import LabelPill from '../shared/LabelPill';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import { Check, Plus, Sparkles, Loader2 } from 'lucide-react';
+import { Check, Plus, Sparkles, Loader2, Trash2 } from 'lucide-react';
 import { LABEL_PALETTES } from '../../lib/labelColors';
+import { useAuth } from '../../hooks/useAuth';
+import { usePermissions } from '../../context/PermissionContext';
 
 export const PRESET_LABELS = [
   { name: 'Feature', color: 'blue' },
@@ -22,12 +24,55 @@ export default function LabelsPopover({
   cardLabels = [],
   boardLabels = [],
   onToggleLabel,
-  onCreateBoardLabel
+  onCreateBoardLabel,
+  onDeleteBoardLabel,
+  currentUser: propUser,
+  userRole: propRole
 }) {
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState('blue');
   const [isSeedingPresets, setIsSeedingPresets] = useState(false);
+  const [deletingLabelId, setDeletingLabelId] = useState(null);
+
+  let authUser = null;
+  try {
+    const auth = useAuth();
+    authUser = auth?.user;
+  } catch (e) {}
+
+  let contextRole = null;
+  let contextPermissions = [];
+  try {
+    const permCtx = usePermissions();
+    contextRole = permCtx?.userRole;
+    contextPermissions = permCtx?.permissions || [];
+  } catch (e) {}
+
+  const currentUser = propUser || authUser;
+  const userRole = propRole || contextRole;
+
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || '').toLowerCase().trim();
+  const isPrivileged = [
+    'owner',
+    'super admin',
+    'admin',
+    'project manager',
+    'manager'
+  ].includes(roleName) || (userRole?.rank >= 60) || contextPermissions.includes('label.delete');
+
+  const handleDeleteLabel = async (e, labelId) => {
+    e.stopPropagation();
+    if (!onDeleteBoardLabel || deletingLabelId) return;
+    setDeletingLabelId(labelId);
+    try {
+      await onDeleteBoardLabel(labelId);
+    } catch (err) {
+      console.error('Failed to delete label:', err);
+    } finally {
+      setDeletingLabelId(null);
+    }
+  };
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
@@ -127,16 +172,54 @@ export default function LabelsPopover({
             ) : (
               boardLabels.map((l) => {
                 const isChecked = cardLabels.some((cl) => cl.id === l.id);
+                const isCustom = Boolean(
+                  l.is_custom === 1 ||
+                  l.is_custom === true ||
+                  l.created_by_user_id ||
+                  (l.is_custom !== 0 && !PRESET_LABELS.some((p) => p.name.toLowerCase() === l.name.toLowerCase()))
+                );
+
+                const isOwnerOfLabel = Boolean(
+                  isCustom &&
+                  currentUser?.id &&
+                  l.created_by_user_id &&
+                  Number(l.created_by_user_id) === Number(currentUser.id)
+                );
+
+                const canDelete = isCustom && (isPrivileged || isOwnerOfLabel);
+                const isDeleting = deletingLabelId === l.id;
+
                 return (
                   <div
                     key={l.id}
-                    onClick={() => onToggleLabel(l.id)}
-                    className={`flex items-center justify-between p-2 rounded-lg bg-surface hover:bg-surface-muted border transition-all cursor-pointer ${
+                    className={`group flex items-center gap-1.5 p-1.5 rounded-lg bg-surface hover:bg-surface-muted border transition-all ${
                       isChecked ? 'border-primary/50 bg-primary/5 shadow-xs' : 'border-border'
                     }`}
                   >
-                    <LabelPill name={l.name} color={l.color} size="sm" />
-                    {isChecked && <Check className="w-4 h-4 text-primary shrink-0 ml-2" />}
+                    {/* Dustbin icon in front of custom created label */}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        title="Delete custom label"
+                        aria-label={`Delete custom label ${l.name}`}
+                        onClick={(e) => handleDeleteLabel(e, l.id)}
+                        disabled={isDeleting}
+                        className="p-1 rounded text-text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0 cursor-pointer"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    )}
+                    <div
+                      onClick={() => onToggleLabel(l.id)}
+                      className="flex-1 flex items-center justify-between cursor-pointer min-w-0 py-0.5"
+                    >
+                      <LabelPill name={l.name} color={l.color} size="sm" />
+                      {isChecked && <Check className="w-4 h-4 text-primary shrink-0 ml-2" />}
+                    </div>
                   </div>
                 );
               })

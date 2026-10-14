@@ -15,12 +15,31 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    const isChunkError =
+      error?.name === 'ChunkLoadError' ||
+      /loading chunk/i.test(error?.message || '') ||
+      /failed to fetch dynamically imported module/i.test(error?.message || '') ||
+      /error loading dynamically imported module/i.test(error?.message || '') ||
+      /unexpected token '<'/i.test(error?.message || '');
+
+    if (isChunkError && typeof window !== 'undefined' && window.sessionStorage) {
+      const hasRetried = window.sessionStorage.getItem('eb_chunk_retry');
+      if (!hasRetried) {
+        window.sessionStorage.setItem('eb_chunk_retry', '1');
+        window.location.reload();
+      }
+    }
   }
 
   handleReset = () => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem('eb_chunk_retry');
+    }
     this.setState({ hasError: false, error: null });
     if (this.props.onReset) {
       this.props.onReset();
+    } else {
+      window.location.reload();
     }
   };
 
