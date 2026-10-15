@@ -136,7 +136,7 @@ export default function InviteModal({
         selectedRoleId ? Number(selectedRoleId) : null
       );
       const inviteUrl = res.invite_url || (res.invite_token
-        ? `${window.location.origin}/register?invite_token=${res.invite_token}&email=${encodeURIComponent(email.trim())}`
+        ? `${window.location.origin}/invite?token=${res.invite_token}&email=${encodeURIComponent(email.trim())}`
         : null);
 
       const assignedRoleObj = roles.find((r) => String(r.id) === String(selectedRoleId));

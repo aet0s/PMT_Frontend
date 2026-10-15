@@ -23,6 +23,7 @@ const LoginPage = safeLazy(() => import('./pages/LoginPage'), 'LoginPage');
 const RegisterPage = safeLazy(() => import('./pages/RegisterPage'), 'RegisterPage');
 const ForgotPasswordPage = safeLazy(() => import('./pages/ForgotPasswordPage'), 'ForgotPasswordPage');
 const ResetPasswordPage = safeLazy(() => import('./pages/ResetPasswordPage'), 'ResetPasswordPage');
+const InviteAcceptPage = safeLazy(() => import('./pages/InviteAcceptPage'), 'InviteAcceptPage');
 const BoardPage = safeLazy(() => import('./pages/BoardPage'), 'BoardPage');
 const AccountPage = safeLazy(() => import('./pages/AccountPage'), 'AccountPage');
 const NotFoundPage = safeLazy(() => import('./pages/NotFoundPage'), 'NotFoundPage');
@@ -134,11 +135,7 @@ function RootRedirect() {
   return <Navigate to={targetUrl} replace />;
 }
 
-// Invite route handler: preserves query params and redirects to register
-function InviteRedirect() {
-  const location = useLocation();
-  return <Navigate to={`/register${location.search}`} replace />;
-}
+
 
 // Redirect top-level /account and /profile to the active workspace profile route
 function AccountRedirect() {
@@ -227,7 +224,11 @@ const router = createBrowserRouter([
       },
       {
         path: '/invite',
-        element: <InviteRedirect />
+        element: <InviteAcceptPage />
+      },
+      {
+        path: '/invite/:token',
+        element: <InviteAcceptPage />
       },
       ...(import.meta.env.DEV && DevComponentsPage
         ? [

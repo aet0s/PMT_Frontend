@@ -438,29 +438,6 @@ export default function WorkspaceSidebar({
               </NavLink>
             )}
 
-            {/* Kanban Board View (Active Board / Sprint) */}
-            {canViewSprint && (
-              <NavLink
-                to={
-                  fallbackBoardId
-                    ? `/w/${activeWorkspace?.id}/p/${fallbackBoardId}/board`
-                    : `/w/${activeWorkspace?.id}/board`
-                }
-                aria-label="Kanban Board (Active Sprint)"
-                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-                className={() =>
-                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                    isSprintActive
-                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                  }`
-                }
-              >
-                <Layers className="w-4.5 h-4.5 shrink-0" />
-                <span>Kanban Board</span>
-              </NavLink>
-            )}
-
             {/* Report */}
             {canViewReports && (
               <NavLink

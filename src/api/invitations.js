@@ -18,6 +18,13 @@ export async function verifyInvitationToken(token) {
   return apiFetch(`/api/invitations/verify?token=${encodeURIComponent(token)}`);
 }
 
+export async function acceptInvitation(token) {
+  return apiFetch('/api/invitations/accept', {
+    method: 'POST',
+    body: JSON.stringify({ token })
+  });
+}
+
 export async function getWorkspaceInvitations(workspaceId) {
   return apiFetch(`/api/invitations?workspace_id=${workspaceId}`);
 }

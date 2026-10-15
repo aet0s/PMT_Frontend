@@ -231,7 +231,9 @@ export async function apiFetch(url, options = {}, isRetry = false) {
     const isAuthRoute = url.includes('/api/auth/login') ||
                         url.includes('/api/auth/refresh') ||
                         url.includes('/api/auth/register') ||
-                        url.includes('/api/auth/logout');
+                        url.includes('/api/auth/logout') ||
+                        url.includes('/api/auth/me') ||
+                        url.includes('/api/invitations/verify');
 
     if (response.status === 401 && !isAuthRoute && !isRetry) {
       const refreshed = await refreshAuthToken();
@@ -241,7 +243,9 @@ export async function apiFetch(url, options = {}, isRetry = false) {
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('pm_token');
         localStorage.removeItem('pm_token');
-        if (window.location.pathname !== '/login') {
+        const publicPaths = ['/login', '/register', '/invite', '/forgot-password', '/reset-password'];
+        const isPublicPage = publicPaths.some((p) => window.location.pathname.startsWith(p));
+        if (!isPublicPage && window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
       }

@@ -1,11 +1,19 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, Navigate } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import RegisterForm from '../components/Auth/RegisterForm';
 import AuthProductShowcase from '../components/Auth/AuthProductShowcase';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 
 export default function RegisterPage({ onSwitchToLogin }) {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const inviteToken = searchParams.get('invite_token') || searchParams.get('token');
+
+  if (inviteToken) {
+    return <Navigate to={`/invite${location.search}`} replace />;
+  }
+
   return (
     <div className="w-full h-screen min-h-screen overflow-hidden flex flex-col lg:flex-row bg-surface text-text-primary selection:bg-primary-tint selection:text-primary">
       {/* Div 1 (Left): Brand showcase & interactive kanban preview */}

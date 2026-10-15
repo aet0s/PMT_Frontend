@@ -41,7 +41,9 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('pm_token');
       }
       setUser(null);
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+      const publicPaths = ['/login', '/register', '/invite', '/forgot-password', '/reset-password'];
+      const isPublicPage = typeof window !== 'undefined' && publicPaths.some((p) => window.location.pathname.startsWith(p));
+      if (!isPublicPage && typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     };
@@ -110,7 +112,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem('activeBoardId', data.initial_board_id);
       }
       setUser(data.user);
-      return data.user;
+      return { ...data.user, initial_workspace_id: data.initial_workspace_id, initial_board_id: data.initial_board_id };
     } catch (err) {
       setError(err.message || 'Registration failed');
       throw err;

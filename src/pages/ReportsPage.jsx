@@ -21,7 +21,8 @@ import {
   LayoutDashboard,
   Kanban,
   ListTodo,
-  Check
+  Check,
+  Plus
 } from 'lucide-react';
 import { getWorkspaceReports } from '../api/workspaces';
 import { formatDate, formatShortDate } from '../lib/dateFormat';

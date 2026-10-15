@@ -1,4 +1,4 @@
-# Dependency directories
+# Dependencies
 node_modules/
 jspm_packages/
 
@@ -18,14 +18,32 @@ build/
 .env.test.local
 .env.production.local
 
+# Test suites, test files, and test mocks (NO test files in production)
+src/test/
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+test/
+tests/
+test-utils/
+
+# Test runners, test scripts, visual regression, and screenshot artifacts
+scripts/test-*.js
+scripts/test_*.js
+scripts/capture-ui-and-a11y.js
+scripts/*.png
+*.png.diff.png
+
 # Test results and coverage reports
+coverage/
+.nyc_output/
 test-results/
 playwright-report/
 blob-report/
 .playwright/
-coverage/
+*.lcov
 
-# Logs
+# Logs and runtime dumps
 logs/
 *.log
 npm-debug.log*
@@ -39,6 +57,7 @@ lerna-debug.log*
 *.tar.gz
 *.tgz
 *.rar
+*.7z
 
 # Temporary and cache directories
 .eslintcache

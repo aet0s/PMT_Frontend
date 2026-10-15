@@ -1,14 +1,12 @@
 // client/src/components/Board/CalendarView.jsx
 import React, { useState, useMemo } from 'react';
-import { useSearchParams, NavLink, useParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
   Clock,
   Menu,
   Search,
   CheckSquare,
-  LayoutGrid,
-  List as ListIcon,
   ChevronRight,
   Sparkles
 } from 'lucide-react';
@@ -16,7 +14,6 @@ import Avatar from '../ui/Avatar';
 import { formatDate } from '../../lib/dateFormat';
 
 export default function CalendarView({ board, onCardClick, onOpenMobileSidebar }) {
-  const { workspaceId } = useParams();
   const [, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -74,49 +71,6 @@ export default function CalendarView({ board, onCardClick, onOpenMobileSidebar }
             <span className="hidden sm:inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-tint text-primary border border-primary/20">
               {filteredCards.length} scheduled
             </span>
-          </div>
-
-          {/* View Switcher Pills */}
-          <div className="flex items-center gap-1 ml-2 bg-surface-muted p-1 rounded-xl border border-border text-xs">
-            <NavLink
-              to={`/w/${workspaceId}/p/${board?.id}/board`}
-              className={({ isActive }) =>
-                `px-3 py-1 rounded-lg font-semibold transition-all min-h-[28px] flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-                  isActive
-                    ? 'bg-surface text-primary shadow-xs font-bold'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`
-              }
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              Board
-            </NavLink>
-            <NavLink
-              to={`/w/${workspaceId}/p/${board?.id}/list`}
-              className={({ isActive }) =>
-                `px-3 py-1 rounded-lg font-semibold transition-all min-h-[28px] flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-                  isActive
-                    ? 'bg-surface text-primary shadow-xs font-bold'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`
-              }
-            >
-              <ListIcon className="w-3.5 h-3.5" />
-              List
-            </NavLink>
-            <NavLink
-              to={`/w/${workspaceId}/p/${board?.id}/calendar`}
-              className={({ isActive }) =>
-                `px-3 py-1 rounded-lg font-semibold transition-all min-h-[28px] flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-                  isActive
-                    ? 'bg-surface text-primary shadow-xs font-bold'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`
-              }
-            >
-              <CalendarIcon className="w-3.5 h-3.5" />
-              Calendar
-            </NavLink>
           </div>
         </div>
 

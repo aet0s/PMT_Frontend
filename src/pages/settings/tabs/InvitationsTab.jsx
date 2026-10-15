@@ -67,8 +67,8 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
 
   const handleCopyLink = (inv) => {
     const inviteUrl = inv.invite_url || (inv.token
-      ? `${window.location.origin}/register?invite_token=${inv.token}&email=${encodeURIComponent(inv.email)}`
-      : `${window.location.origin}/register`);
+      ? `${window.location.origin}/invite?token=${inv.token}&email=${encodeURIComponent(inv.email)}`
+      : `${window.location.origin}/invite`);
     navigator.clipboard.writeText(inviteUrl);
     setCopiedId(inv.id);
     toast.show('Invite link copied to clipboard', 'info');
@@ -80,7 +80,7 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
     try {
       const res = await regenerateInvitation(inv.id);
       const newUrl = res.invite_url || (res.invite_token
-        ? `${window.location.origin}/register?invite_token=${res.invite_token}&email=${encodeURIComponent(inv.email)}`
+        ? `${window.location.origin}/invite?token=${res.invite_token}&email=${encodeURIComponent(inv.email)}`
         : null);
 
       setInvitations((prev) =>

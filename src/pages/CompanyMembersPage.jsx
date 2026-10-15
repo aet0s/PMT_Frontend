@@ -322,7 +322,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
         board_ids: inviteBoardIds
       });
 
-      const inviteUrl = res.invite_url || (res.invite_token ? `${window.location.origin}/register?invite_token=${res.invite_token}&email=${encodeURIComponent(inviteEmail.trim())}` : '');
+      const inviteUrl = res.invite_url || (res.invite_token ? `${window.location.origin}/invite?token=${res.invite_token}&email=${encodeURIComponent(inviteEmail.trim())}` : '');
       setGeneratedInviteUrl(inviteUrl);
       setInviteEmailSent(Boolean(res.email_sent));
       toast.show(
@@ -371,7 +371,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
 
   // Pending Invite Actions
   const handleCopyInviteLink = (invite) => {
-    const link = invite.invite_url || `${window.location.origin}/register?invite_token=${invite.token}&email=${encodeURIComponent(invite.email)}`;
+    const link = invite.invite_url || `${window.location.origin}/invite?token=${invite.token}&email=${encodeURIComponent(invite.email)}`;
     navigator.clipboard.writeText(link);
     setCopiedId(invite.id);
     toast.show('Invitation link copied to clipboard', 'info');
