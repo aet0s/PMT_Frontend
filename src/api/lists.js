@@ -1,9 +1,9 @@
 import { apiFetch } from './client';
 
-export async function createList(boardId, name, position) {
+export async function createList(boardId, name, position, wipLimitEnabled = true, wipLimit = null) {
   return apiFetch('/api/lists', {
     method: 'POST',
-    body: JSON.stringify({ board_id: boardId, name, position })
+    body: JSON.stringify({ board_id: boardId, name, position, wip_limit_enabled: wipLimitEnabled, wip_limit: wipLimit })
   });
 }
 

@@ -52,7 +52,7 @@ export default function SettingsPage({
   const allTabs = useMemo(
     () => [
       { id: 'general', label: 'General', icon: <Briefcase className="w-4 h-4" />, perm: null },
-      { id: 'project', label: 'Project Defaults', icon: <SlidersHorizontal className="w-4 h-4" />, perm: null },
+      { id: 'project', label: 'Workspace Defaults', icon: <SlidersHorizontal className="w-4 h-4" />, perm: null },
       { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, perm: null },
       { id: 'data', label: 'Data & Export', icon: <Database className="w-4 h-4" />, perm: null },
       { id: 'security-log', label: 'Activity & Security Log', icon: <ShieldAlert className="w-4 h-4" />, perms: ['audit.view', 'company.manage_security'] }

@@ -203,15 +203,11 @@ export default function BoardPage() {
     };
   }, [socket, loadWorkspaces]);
 
-  const loadArchive = useCallback(async () => {
+  const loadArchive = useCallback(async (params = {}) => {
     setArchiveLoading(true);
     try {
-      const data = await getArchive();
-      setArchiveData({
-        workspaces: data.workspaces || [],
-        boards: data.boards || [],
-        cards: data.cards || []
-      });
+      const data = await getArchive(params);
+      setArchiveData(data || {});
     } catch (err) {
       console.error('Failed to load archive:', err);
     } finally {
@@ -335,14 +331,16 @@ export default function BoardPage() {
     }
   }, [urlBoardId, loadActiveBoard]);
 
-  // Auto-archive completed tasks if policy is configured
+  // Auto-archive completed tasks if policy is configured (default 7 days)
   useEffect(() => {
     if (!activeWorkspace?.id) return;
     const defaults =
+      activeWorkspace?.settings?.workspace_defaults ||
       activeWorkspace?.settings?.project_defaults ||
-      getTenantItem(activeWorkspace?.company_id || activeWorkspace?.id, 'project_defaults', null);
-    if (defaults?.autoArchiveDays && defaults.autoArchiveDays !== 'never') {
-      const days = Number(defaults.autoArchiveDays);
+      getTenantItem(`ws_defaults_${activeWorkspace.id}`, 'settings', null);
+    const archiveSetting = defaults?.autoArchiveDays ?? '7';
+    if (archiveSetting && archiveSetting !== 'never') {
+      const days = Number(archiveSetting);
       autoArchiveWorkspaceCards(activeWorkspace.id, days)
         .then((res) => {
           if (res?.archived_count > 0 && urlBoardId) {
@@ -351,7 +349,7 @@ export default function BoardPage() {
         })
         .catch(() => {});
     }
-  }, [activeWorkspace?.id, activeWorkspace?.settings?.project_defaults, urlBoardId, loadActiveBoard]);
+  }, [activeWorkspace?.id, activeWorkspace?.settings?.workspace_defaults, activeWorkspace?.settings?.project_defaults, urlBoardId, loadActiveBoard]);
 
   // Handle /roadmap and /calendar routes at workspace level:
   // If boards exist, seamlessly navigate to the project's calendar roadmap view.
@@ -1134,9 +1132,9 @@ export default function BoardPage() {
   };
 
   // Handler: Create List
-  const handleCreateList = async (boardId, name) => {
+  const handleCreateList = async (boardId, name, position, wipLimitEnabled = true, wipLimit = null) => {
     try {
-      const data = await createList(boardId, name);
+      const data = await createList(boardId, name, position, wipLimitEnabled, wipLimit);
       if (data?.list) {
         setBoardData((prev) => {
           if (!prev || prev.id !== boardId) return prev;
@@ -1161,6 +1159,11 @@ export default function BoardPage() {
     });
     try {
       await updateList(listId, updates);
+      if (updates.wip_limit_enabled !== undefined) {
+        toast.success(updates.wip_limit_enabled ? 'WIP limit enabled for this column' : 'WIP limit disabled for this column');
+      } else if (updates.wip_limit !== undefined) {
+        toast.success(updates.wip_limit ? `WIP limit set to ${updates.wip_limit} cards` : 'WIP limit reset to board default');
+      }
       loadActiveBoard(activeBoardIdRef.current, true);
     } catch (err) {
       setBoardData(prevBoardData);
@@ -1794,6 +1797,9 @@ export default function BoardPage() {
               <ArchivePage
                 archiveData={archiveData}
                 isLoading={archiveLoading}
+                workspaces={workspaces}
+                activeWorkspace={activeWorkspace}
+                boards={boards}
                 onBack={() => {
                   if (activeWorkspace?.id) {
                     navigate(`/w/${activeWorkspace.id}/home`);
@@ -1990,8 +1996,9 @@ export default function BoardPage() {
                 boards={boards}
                 workspace={activeWorkspace}
                 projectDefaults={
+                  activeWorkspace?.settings?.workspace_defaults ||
                   activeWorkspace?.settings?.project_defaults ||
-                  getTenantItem(activeWorkspace?.company_id || activeWorkspace?.id, 'project_defaults', null)
+                  getTenantItem(`ws_defaults_${activeWorkspace?.id}`, 'settings', null)
                 }
                 onUpdateBoard={handleUpdateBoard}
                 onArchiveBoard={handleArchiveCurrentBoard}

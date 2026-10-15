@@ -134,13 +134,17 @@ export default function ListView({
       console.error('Failed to fetch issues:', err);
       // Fallback for offline or test mock environments if board prop was provided
       if (board?.lists) {
-        const localCards = board.lists.flatMap((list) =>
-          (list.cards || []).map((card) => ({
-            ...card,
-            listName: list.name,
-            boardName: board.name
-          }))
-        );
+        const localCards = board.lists
+          .flatMap((list) =>
+            (list.cards || []).map((card) => ({
+              ...card,
+              listName: list.name,
+              boardName: board.name
+            }))
+          )
+          .filter((card) =>
+            (card.labels || []).some((l) => /bug/i.test(l.name))
+          );
         const filtered = debouncedSearch
           ? localCards.filter(
               (c) =>
@@ -485,12 +489,12 @@ export default function ListView({
                   <CheckSquare className="w-6 h-6" />
                 </div>
                 <p className="text-base font-bold text-text-primary">
-                  {activeFiltersCount > 0 ? 'No issues matching current filters' : 'No issues in this project yet'}
+                  {activeFiltersCount > 0 ? 'No issues matching current filters' : 'No bug issues found'}
                 </p>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   {activeFiltersCount > 0
                     ? 'Try clearing or relaxing your search query and filters to see more results.'
-                    : 'Create new tasks on the Kanban board to track and organize issues.'}
+                    : 'Tasks labeled with "Bug" across projects in this workspace will automatically appear here.'}
                 </p>
                 {activeFiltersCount > 0 && (
                   <Button variant="secondary" size="sm" onClick={handleClearFilters}>
@@ -539,9 +543,22 @@ export default function ListView({
                                 {card.is_complete ? (
                                   <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                                 ) : (
-                                  <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                                  <span className="w-2 h-2 rounded-full bg-danger shrink-0" />
                                 )}
                                 <span className="truncate">{card.title}</span>
+                                {(card.labels || []).map((lbl) => (
+                                  <span
+                                    key={lbl.id}
+                                    style={{
+                                      backgroundColor: lbl.color ? `${lbl.color}20` : undefined,
+                                      color: lbl.color || undefined,
+                                      borderColor: lbl.color ? `${lbl.color}40` : undefined
+                                    }}
+                                    className="px-2 py-0.5 rounded-md text-[10px] font-bold border shrink-0 bg-danger-tint text-danger-text border-danger/30"
+                                  >
+                                    {lbl.name}
+                                  </span>
+                                ))}
                               </div>
                             </td>
                             <td className="py-3.5 px-4">
@@ -623,7 +640,22 @@ export default function ListView({
                       >
                         <div className="flex items-start justify-between gap-2.5">
                           <div className="min-w-0 flex-1">
-                            <span className="text-[10px] font-mono text-text-muted">#{card.id}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-mono text-text-muted">#{card.id}</span>
+                              {(card.labels || []).map((lbl) => (
+                                <span
+                                  key={lbl.id}
+                                  style={{
+                                    backgroundColor: lbl.color ? `${lbl.color}20` : undefined,
+                                    color: lbl.color || undefined,
+                                    borderColor: lbl.color ? `${lbl.color}40` : undefined
+                                  }}
+                                  className="px-1.5 py-0.2 rounded text-[9px] font-bold border shrink-0 bg-danger-tint text-danger-text border-danger/30"
+                                >
+                                  {lbl.name}
+                                </span>
+                              ))}
+                            </div>
                             <span className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors line-clamp-2 block mt-0.5">
                               {card.title}
                             </span>

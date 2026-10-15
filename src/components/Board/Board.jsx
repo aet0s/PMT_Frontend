@@ -49,12 +49,12 @@ import {
   Menu,
   MousePointer2,
   UserPlus,
-  PanelRightClose,
-  PanelRightOpen,
   Calendar,
   Sparkles,
   SlidersHorizontal,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   RotateCcw,
   Filter,
   Tag,
@@ -301,6 +301,7 @@ export default function Board({
   const [isEditingBoardTitle, setIsEditingBoardTitle] = useState(false);
   const [boardTitleInput, setBoardTitleInput] = useState('');
   const [newListTitle, setNewListTitle] = useState('');
+  const [newListWipLimitEnabled, setNewListWipLimitEnabled] = useState(true);
   const [isAddingList, setIsAddingList] = useState(false);
 
   // Board permissions member dropdown state
@@ -494,31 +495,19 @@ export default function Board({
 
   const effectiveDefaults =
     projectDefaults ||
+    workspace?.settings?.workspace_defaults ||
     workspace?.settings?.project_defaults ||
-    getTenantItem(workspace?.company_id || workspace?.id || board?.workspace_id, 'project_defaults', null) ||
+    getTenantItem(`ws_defaults_${workspace?.id}`, 'settings', null) ||
     {};
   const wipLimitEnabled = effectiveDefaults.wipLimitEnabled ?? true;
   const wipLimitMax = Number(effectiveDefaults.wipLimitMax || 5);
-  const defaultCardSort = effectiveDefaults.defaultCardSort || 'position';
 
   const sortCardsFn = useCallback(
     (cards) => {
       if (!cards || cards.length <= 1) return cards || [];
-      const copy = [...cards];
-      if (defaultCardSort === 'due_date') {
-        return copy.sort((a, b) => {
-          if (a.due_date && b.due_date) return new Date(a.due_date) - new Date(b.due_date);
-          if (a.due_date && !b.due_date) return -1;
-          if (!a.due_date && b.due_date) return 1;
-          return (a.position || 0) - (b.position || 0);
-        });
-      }
-      if (defaultCardSort === 'title') {
-        return copy.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-      }
-      return copy.sort((a, b) => (a.position || 0) - (b.position || 0));
+      return [...cards].sort((a, b) => (a.position || 0) - (b.position || 0));
     },
-    [defaultCardSort]
+    []
   );
 
   const listsWithFilteredCards = (board.lists || []).map((l) => ({
@@ -825,8 +814,9 @@ export default function Board({
     e.preventDefault();
     if (!newListTitle.trim()) return;
     try {
-      await onCreateList(board.id, newListTitle.trim());
+      await onCreateList(board.id, newListTitle.trim(), undefined, newListWipLimitEnabled, wipLimitMax);
       setNewListTitle('');
+      setNewListWipLimitEnabled(true);
       setIsAddingList(false);
     } catch (err) {
       console.error('Failed to create list:', err);
@@ -1069,30 +1059,7 @@ export default function Board({
           )}
         </div>
 
-        {/* Right: Toggle Calendar Sidebar Button (Prominent & easy to find) */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
-            title={isRightPanelOpen ? 'Hide calendar panel' : 'Show calendar panel'}
-            aria-label={isRightPanelOpen ? 'Hide calendar panel' : 'Show calendar panel'}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 cursor-pointer min-h-[38px] shadow-2xs text-xs font-bold ${
-              isRightPanelOpen
-                ? 'bg-primary-tint border-primary/40 text-primary hover:bg-primary-tint/80 shadow-xs'
-                : 'bg-surface hover:bg-surface-muted border-border text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            <Calendar className={`w-4 h-4 text-primary transition-transform duration-300 ${isRightPanelOpen ? 'scale-110' : 'scale-100'}`} />
-            <span className="hidden sm:inline">Calendar</span>
-            <span className="inline-flex transition-transform duration-300">
-              {isRightPanelOpen ? (
-                <PanelRightClose className="w-3.5 h-3.5 opacity-70 animate-in fade-in zoom-in-95 duration-200" />
-              ) : (
-                <PanelRightOpen className="w-3.5 h-3.5 opacity-70 animate-in fade-in zoom-in-95 duration-200" />
-              )}
-            </span>
-          </button>
-        </div>
+        {/* Header right spacer */}
       </header>
 
       {/* Main Workspace Body with Floating Inset Rounded Board & Right Context Area */}
@@ -1100,10 +1067,11 @@ export default function Board({
         {/* ======================================================== */}
         {/* FLOATING INSET ROUNDED BOARD SURFACE (Matching Reference) */}
         {/* ======================================================== */}
-        <section
-          aria-label="Sprint Board Workspace"
-          className={`flex-1 min-w-0 h-full rounded-[28px] lg:rounded-[36px] ${boardBgClass} p-4 sm:p-5 lg:p-6 flex flex-col overflow-hidden shadow-xs relative`}
-        >
+        <div className="flex-1 min-w-0 h-full relative">
+          <section
+            aria-label="Sprint Board Workspace"
+            className={`w-full h-full rounded-[28px] lg:rounded-[36px] ${boardBgClass} p-4 sm:p-5 lg:p-6 flex flex-col overflow-hidden shadow-xs relative`}
+          >
           {/* Top of Board Surface: Teammates, Invite Pill, and "Create Task +" CTA (Matching Reference Image) */}
           <div className="flex items-center justify-between gap-3 text-xs shrink-0 select-none pb-4">
             {/* Left: Clickable Member Count Button & Board Permissions Dropdown */}
@@ -1569,10 +1537,28 @@ export default function Board({
                           required
                           placeholder="Enter list title..."
                           value={newListTitle}
-                          onChange={(e) => setNewListTitle(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewListTitle(val);
+                            if (/^(done|completed|finished|closed|released|shipped|archive)/i.test(val.trim())) {
+                              setNewListWipLimitEnabled(false);
+                            }
+                          }}
                           className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 min-h-[40px]"
                         />
-                        <div className="flex items-center gap-2">
+
+                        {/* List-Level WIP Limit Setting Checkbox */}
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary select-none">
+                          <input
+                            type="checkbox"
+                            checked={newListWipLimitEnabled}
+                            onChange={(e) => setNewListWipLimitEnabled(e.target.checked)}
+                            className="w-4 h-4 rounded border-border text-primary focus:ring-primary/40 cursor-pointer accent-primary"
+                          />
+                          <span>Enable WIP limit on this list</span>
+                        </label>
+
+                        <div className="flex items-center gap-2 pt-1">
                           <Button
                             type="submit"
                             variant="primary"
@@ -1583,7 +1569,10 @@ export default function Board({
                           </Button>
                           <button
                             type="button"
-                            onClick={() => setIsAddingList(false)}
+                            onClick={() => {
+                              setIsAddingList(false);
+                              setNewListWipLimitEnabled(true);
+                            }}
                             className="p-1.5 text-text-muted hover:text-text-primary rounded-xl transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
                           >
                             <X className="w-4 h-4" />
@@ -1629,16 +1618,33 @@ export default function Board({
         </div>
       </section>
 
-      {/* Right Context Panel (Calendar & Upcoming Tasks) with Smooth Animated Toggle */}
+      {/* Shutter Toggle Circle Button (Positioned directly over the right edge of the board in both open and closed states) */}
+      <button
+        type="button"
+        onClick={() => setIsRightPanelOpen((prev) => !prev)}
+        title={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
+        aria-label={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
+        className="hidden xl:flex absolute -right-4.5 top-1/2 -translate-y-1/2 z-40 items-center justify-center w-9 h-9 rounded-full bg-surface border border-border shadow-md hover:shadow-lg hover:border-primary/60 hover:bg-surface-muted text-text-secondary hover:text-primary transition-all duration-200 cursor-pointer group hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {isRightPanelOpen ? (
+          <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+        ) : (
+          <ChevronLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+        )}
+      </button>
+    </div>
+
+      {/* Right Context Panel (Calendar & Upcoming Tasks) */}
       <div
-        className={`hidden xl:flex flex-col h-full transition-all duration-300 ease-in-out shrink-0 overflow-hidden ${
+        className={`hidden xl:flex flex-col h-full shrink-0 relative transition-all duration-300 ease-in-out ${
           isRightPanelOpen
-            ? 'w-76 xl:w-84 opacity-100 translate-x-0'
-            : 'w-0 opacity-0 translate-x-8 pointer-events-none -mr-4 lg:-mr-6'
+            ? 'w-76 xl:w-84 opacity-100'
+            : 'w-0 opacity-0 pointer-events-none -mr-4 lg:-mr-6'
         }`}
         aria-hidden={!isRightPanelOpen}
       >
-        <div className="w-76 xl:w-84 h-full shrink-0">
+        {/* Sliding Inner Panel Container */}
+        <div className="w-76 xl:w-84 h-full shrink-0 overflow-hidden">
           <RightContextPanel
             user={user}
             board={board}
