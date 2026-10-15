@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../context/PermissionContext';
@@ -67,6 +68,34 @@ export default function WorkspaceSidebar({
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [workspaceRenameValue, setWorkspaceRenameValue] = useState('');
   const menuRef = useRef(null);
+  const [railTooltip, setRailTooltip] = useState(null);
+
+  const showTooltip = (e, text, badge = null) => {
+    if (!text) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setRailTooltip({
+      text,
+      badge,
+      top: rect.top + rect.height / 2,
+      left: rect.right + 10,
+    });
+  };
+
+  const hideTooltip = () => {
+    setRailTooltip(null);
+  };
+
+  // Close tooltip on any scroll or window resize
+  useEffect(() => {
+    if (!railTooltip) return;
+    const handleDismiss = () => setRailTooltip(null);
+    window.addEventListener('scroll', handleDismiss, true);
+    window.addEventListener('resize', handleDismiss);
+    return () => {
+      window.removeEventListener('scroll', handleDismiss, true);
+      window.removeEventListener('resize', handleDismiss);
+    };
+  }, [railTooltip]);
 
   // Close menus on outside click
   useEffect(() => {
@@ -198,8 +227,10 @@ export default function WorkspaceSidebar({
           <Link
             to={activeWorkspace ? `/w/${activeWorkspace.id}/home` : '/'}
             className="w-10 h-10 rounded-full bg-primary bg-white/20 hover:bg-white/30 border border-white/30 flex items-center justify-center text-white font-black text-xl shadow-inner transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-95"
-            title="TaskFlow"
             aria-label="TaskFlow Home"
+            onMouseEnter={(e) => showTooltip(e, 'TaskFlow')}
+            onMouseLeave={hideTooltip}
+            onClick={hideTooltip}
           >
             <Trello className="w-5.5 h-5.5" />
           </Link>
@@ -207,9 +238,13 @@ export default function WorkspaceSidebar({
           {/* Expand Sidebar Toggle Button (At TOP of Rail 1 when collapsed) */}
           {isCollapsed && (
             <button
-              onClick={onToggleCollapse}
-              title="Expand Sidebar (Ctrl+B)"
+              onClick={(e) => {
+                hideTooltip();
+                onToggleCollapse(e);
+              }}
               aria-label="Expand Sidebar"
+              onMouseEnter={(e) => showTooltip(e, 'Expand Sidebar', 'Ctrl+B')}
+              onMouseLeave={hideTooltip}
               className="w-10 h-10 rounded-full bg-primary bg-white/20 hover:bg-white/35 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95 mt-3 hidden lg:flex"
             >
               <ChevronRight className="w-5 h-5" />
@@ -220,7 +255,10 @@ export default function WorkspaceSidebar({
           <div className="w-8 h-px bg-white/20 my-3 shrink-0" />
 
           {/* Workspace Circles Stack (Pure circles with zero clipping on any side) */}
-          <div className="flex-1 overflow-y-auto space-y-2.5 w-full flex flex-col items-center no-scrollbar py-1">
+          <div
+            onScroll={hideTooltip}
+            className="flex-1 overflow-y-auto space-y-2.5 w-full flex flex-col items-center no-scrollbar py-1"
+          >
             {workspaces.map((ws) => {
               const isSelected = activeWorkspace?.id === ws.id;
               return (
@@ -234,11 +272,13 @@ export default function WorkspaceSidebar({
                   <button
                     type="button"
                     onClick={() => {
+                      hideTooltip();
                       onSelectWorkspace(ws);
                       navigate(`/w/${ws.id}/home`);
                       if (onCloseMobile) onCloseMobile();
                     }}
-                    title={ws.name}
+                    onMouseEnter={(e) => showTooltip(e, ws.name, isSelected ? 'Active' : null)}
+                    onMouseLeave={hideTooltip}
                     aria-label={ws.name}
                     className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer ${
                       isSelected
@@ -258,10 +298,12 @@ export default function WorkspaceSidebar({
                 <button
                   type="button"
                   onClick={() => {
+                    hideTooltip();
                     onCreateWorkspaceClick();
                     if (onCloseMobile) onCloseMobile();
                   }}
-                  title="Create Workspace"
+                  onMouseEnter={(e) => showTooltip(e, 'Create Workspace')}
+                  onMouseLeave={hideTooltip}
                   aria-label="Create Workspace"
                   className="w-10 h-10 rounded-full bg-primary border-2 border-dashed border-white/40 hover:border-white text-white/80 hover:text-white hover:bg-white/15 flex items-center justify-center transition-all cursor-pointer active:scale-95"
                 >
@@ -274,8 +316,12 @@ export default function WorkspaceSidebar({
           {/* Bottom Actions: Logout */}
           <div className="pt-3 pb-1 flex flex-col items-center shrink-0">
             <button
-              onClick={logoutUser}
-              title="Log Out"
+              onClick={() => {
+                hideTooltip();
+                logoutUser();
+              }}
+              onMouseEnter={(e) => showTooltip(e, 'Log Out')}
+              onMouseLeave={hideTooltip}
               aria-label="Log Out"
               className="w-10 h-10 rounded-full bg-primary bg-white/15 hover:bg-danger text-white hover:text-white flex items-center justify-center transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-95"
             >
@@ -677,6 +723,32 @@ export default function WorkspaceSidebar({
           onConfirm={handleRenameConfirm}
           onCancel={() => setIsRenameDialogOpen(false)}
         />
+
+        {/* Theme-matched Rail Tooltip Popup (Instant, Smooth slide animation, Zero delay) */}
+        {railTooltip && typeof document !== 'undefined' && createPortal(
+          <div
+            role="tooltip"
+            className="fixed z-[9999] pointer-events-none animate-tooltip-rail"
+            style={{
+              top: `${railTooltip.top}px`,
+              left: `${railTooltip.left}px`,
+            }}
+          >
+            <div className="relative flex items-center gap-2 bg-surface text-text-primary px-3 py-1.5 rounded-xl border border-border shadow-xl whitespace-nowrap">
+              {/* Subtle caret indicator pointing left towards the workspace circle */}
+              <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 bg-surface border-l border-b border-border" />
+              <span className="text-xs font-semibold tracking-tight text-text-primary max-w-[280px] sm:max-w-[360px] truncate">
+                {railTooltip.text}
+              </span>
+              {railTooltip.badge && (
+                <span className="text-[10px] font-bold tracking-wider uppercase bg-primary-tint text-primary px-1.5 py-0.5 rounded-md">
+                  {railTooltip.badge}
+                </span>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
       </aside>
     </>
   );

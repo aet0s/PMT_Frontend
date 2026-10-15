@@ -545,3 +545,21 @@
 .animate-calendar-date-select {
   animation: calendar-date-select 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Smooth instant tooltip slide keyframes for sidebar rail */
+@keyframes tooltip-rail-slide {
+  0% {
+    opacity: 0;
+    transform: translate(-8px, -50%) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, -50%) scale(1);
+  }
+}
+
+.animate-tooltip-rail {
+  animation: tooltip-rail-slide 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: center left;
+}
+

@@ -27,6 +27,7 @@ import {
   ExternalLink,
   FileText,
   ChevronLeft,
+  ChevronDown,
   ChevronsLeft,
   ChevronsRight
 } from 'lucide-react';
@@ -37,6 +38,332 @@ import Button from '../ui/Button';
 import Avatar from '../ui/Avatar';
 import { Modal } from '../ui/Modal';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import Popover from '../ui/Popover';
+
+// Theme-matched Calendar Date Selector with Day, Month, and Year Pickers
+function DateFilterPicker({ label, value, onChange, placeholder = 'Select date' }) {
+  const selectedDate = value ? new Date(value + 'T00:00:00') : null;
+  const [viewDate, setViewDate] = useState(() => selectedDate || new Date());
+  const [pickerMode, setPickerMode] = useState('days'); // 'days' | 'month' | 'year'
+
+  useEffect(() => {
+    if (value) {
+      setViewDate(new Date(value + 'T00:00:00'));
+    }
+  }, [value]);
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  // Year range block for year selector (12 years block)
+  const [yearBase, setYearBase] = useState(() => Math.floor(year / 12) * 12);
+  useEffect(() => {
+    setYearBase(Math.floor(year / 12) * 12);
+  }, [year]);
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    if (pickerMode === 'days') {
+      setViewDate(new Date(year, month - 1, 1));
+    } else if (pickerMode === 'month') {
+      setViewDate(new Date(year - 1, month, 1));
+    } else if (pickerMode === 'year') {
+      setYearBase((prev) => prev - 12);
+    }
+  };
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    if (pickerMode === 'days') {
+      setViewDate(new Date(year, month + 1, 1));
+    } else if (pickerMode === 'month') {
+      setViewDate(new Date(year + 1, month, 1));
+    } else if (pickerMode === 'year') {
+      setYearBase((prev) => prev + 12);
+    }
+  };
+
+  const handleSelectDay = (day, close) => {
+    const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    onChange(dStr);
+    setPickerMode('days');
+    close();
+  };
+
+  const handleSelectMonth = (mIdx) => {
+    setViewDate(new Date(year, mIdx, 1));
+    setPickerMode('days');
+  };
+
+  const handleSelectYear = (y) => {
+    setViewDate(new Date(y, month, 1));
+    setPickerMode('days');
+  };
+
+  const handleToday = (close) => {
+    const now = new Date();
+    const dStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    onChange(dStr);
+    setViewDate(now);
+    setPickerMode('days');
+    close();
+  };
+
+  const handleClear = (e, close) => {
+    if (e) e.stopPropagation();
+    onChange('');
+    setPickerMode('days');
+    if (close) close();
+  };
+
+  const displayFormatted = selectedDate
+    ? selectedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : null;
+
+  return (
+    <div className="space-y-1">
+      <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
+        {label}
+      </label>
+      <Popover
+        placement="bottom-start"
+        trigger={
+          <button
+            type="button"
+            className={`w-full h-8 px-2.5 rounded-lg border text-xs flex items-center justify-between gap-1.5 transition-all cursor-pointer ${
+              value
+                ? 'bg-surface text-text-primary border-primary/40 font-semibold shadow-2xs'
+                : 'bg-surface text-text-muted border-border hover:border-border-strong hover:bg-surface-muted/40 font-normal'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Calendar className={`w-3.5 h-3.5 shrink-0 ${value ? 'text-primary' : 'text-text-muted'}`} />
+              <span className="truncate">{displayFormatted || placeholder}</span>
+            </div>
+            {value && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => handleClear(e)}
+                className="p-0.5 rounded-md hover:bg-danger-tint hover:text-danger text-text-muted transition-colors shrink-0"
+                title="Clear date"
+              >
+                <X className="w-3 h-3" />
+              </span>
+            )}
+          </button>
+        }
+      >
+        {({ close }) => (
+          <div className="w-68 p-1.5 space-y-2 select-none">
+            {/* Header: Interactive Month & Year Buttons + Navigation Arrows */}
+            <div className="flex items-center justify-between px-1 border-b border-border/60 pb-1.5">
+              <div className="flex items-center gap-1">
+                {/* Month Picker Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setPickerMode(pickerMode === 'month' ? 'days' : 'month')}
+                  className={`px-2 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    pickerMode === 'month'
+                      ? 'bg-primary text-white shadow-2xs'
+                      : 'text-text-primary hover:bg-surface-muted'
+                  }`}
+                  title="Pick Month"
+                >
+                  <span>{monthNames[month]}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${pickerMode === 'month' ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Year Picker Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setPickerMode(pickerMode === 'year' ? 'days' : 'year')}
+                  className={`px-2 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    pickerMode === 'year'
+                      ? 'bg-primary text-white shadow-2xs'
+                      : 'text-text-primary hover:bg-surface-muted'
+                  }`}
+                  title="Pick Year"
+                >
+                  <span>{year}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${pickerMode === 'year' ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+
+              {/* Prev / Next Arrows */}
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors cursor-pointer"
+                  title={pickerMode === 'year' ? 'Previous 12 Years' : pickerMode === 'month' ? 'Previous Year' : 'Previous Month'}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors cursor-pointer"
+                  title={pickerMode === 'year' ? 'Next 12 Years' : pickerMode === 'month' ? 'Next Year' : 'Next Month'}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* VIEW 1: MONTH PICKER GRID (12 Months) */}
+            {pickerMode === 'month' && (
+              <div className="grid grid-cols-3 gap-1.5 py-1">
+                {monthNames.map((mName, mIdx) => {
+                  const isCurrent = mIdx === month;
+                  return (
+                    <button
+                      key={mName}
+                      type="button"
+                      onClick={() => handleSelectMonth(mIdx)}
+                      className={`py-2 px-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                        isCurrent
+                          ? 'bg-primary text-white font-bold shadow-xs'
+                          : 'text-text-primary hover:bg-surface-muted hover:text-text-primary'
+                      }`}
+                    >
+                      {mName.slice(0, 3)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* VIEW 2: YEAR PICKER GRID (12 Years) */}
+            {pickerMode === 'year' && (
+              <div className="space-y-1.5 py-1">
+                <div className="text-[11px] font-bold text-text-muted px-1">
+                  Range: {yearBase} &ndash; {yearBase + 11}
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {Array.from({ length: 12 }, (_, i) => yearBase + i).map((y) => {
+                    const isCurrent = y === year;
+                    return (
+                      <button
+                        key={y}
+                        type="button"
+                        onClick={() => handleSelectYear(y)}
+                        className={`py-2 px-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                          isCurrent
+                            ? 'bg-primary text-white font-bold shadow-xs'
+                            : 'text-text-primary hover:bg-surface-muted hover:text-text-primary'
+                        }`}
+                      >
+                        {y}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* VIEW 3: STANDARD DAYS GRID */}
+            {pickerMode === 'days' && (
+              <>
+                {/* Days of week */}
+                <div className="grid grid-cols-7 gap-1 text-center">
+                  {daysOfWeek.map((d) => (
+                    <span key={d} className="text-[10px] font-bold text-text-muted">
+                      {d}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Calendar Days Grid */}
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+                    <span
+                      key={`prev-${i}`}
+                      className="h-7 flex items-center justify-center text-[11px] text-text-muted/40 font-medium pointer-events-none"
+                    >
+                      {daysInPrevMonth - firstDayOfMonth + i + 1}
+                    </span>
+                  ))}
+
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const dayNum = i + 1;
+                    const isSelected =
+                      selectedDate &&
+                      selectedDate.getFullYear() === year &&
+                      selectedDate.getMonth() === month &&
+                      selectedDate.getDate() === dayNum;
+
+                    const isToday =
+                      new Date().getFullYear() === year &&
+                      new Date().getMonth() === month &&
+                      new Date().getDate() === dayNum;
+
+                    return (
+                      <button
+                        key={`day-${dayNum}`}
+                        type="button"
+                        onClick={() => handleSelectDay(dayNum, close)}
+                        className={`h-7 w-7 mx-auto flex items-center justify-center rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-primary text-white font-bold shadow-xs'
+                            : isToday
+                            ? 'ring-1 ring-primary/50 text-primary font-bold hover:bg-primary-tint'
+                            : 'text-text-primary hover:bg-surface-muted hover:text-text-primary'
+                        }`}
+                      >
+                        {dayNum}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* Quick Actions Footer */}
+            <div className="flex items-center justify-between pt-2 border-t border-border/60 px-1 text-[11px]">
+              <button
+                type="button"
+                onClick={() => handleToday(close)}
+                className="text-primary hover:text-primary-hover font-semibold transition-colors cursor-pointer"
+              >
+                Today
+              </button>
+              {pickerMode !== 'days' && (
+                <button
+                  type="button"
+                  onClick={() => setPickerMode('days')}
+                  className="text-text-muted hover:text-text-primary font-medium transition-colors cursor-pointer"
+                >
+                  Back to Days
+                </button>
+              )}
+              {value && (
+                <button
+                  type="button"
+                  onClick={() => handleClear(null, close)}
+                  className="text-danger hover:text-danger-hover font-medium transition-colors cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </Popover>
+    </div>
+  );
+}
 
 export default function ArchivePage({
   archiveData,
@@ -111,8 +438,8 @@ export default function ArchivePage({
   const [filterLabelId, setFilterLabelId] = useState('all');
   const [filterAssigneeId, setFilterAssigneeId] = useState('all');
   const [filterAssignerId, setFilterAssignerId] = useState('all');
-  const [filterDueDate, setFilterDueDate] = useState('all');
-  const [filterStartDate, setFilterStartDate] = useState('all');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   // Pagination State (server-side, default 20)
   const [page, setPage] = useState(1);
@@ -150,8 +477,8 @@ export default function ArchivePage({
           label_id: filterLabelId,
           assignee_id: filterAssigneeId,
           assigner_id: filterAssignerId,
-          due_date: filterDueDate,
-          start_date: filterStartDate
+          start_date: filterStartDate,
+          end_date: filterEndDate
         });
       }
       return;
@@ -167,8 +494,8 @@ export default function ArchivePage({
         label_id: filterLabelId,
         assignee_id: filterAssigneeId,
         assigner_id: filterAssignerId,
-        due_date: filterDueDate,
-        start_date: filterStartDate
+        start_date: filterStartDate,
+        end_date: filterEndDate
       });
     }
   }, [
@@ -180,8 +507,8 @@ export default function ArchivePage({
     filterLabelId,
     filterAssigneeId,
     filterAssignerId,
-    filterDueDate,
-    filterStartDate
+    filterStartDate,
+    filterEndDate
   ]);
 
   const archivedCards = archiveData?.cards || [];
@@ -197,19 +524,22 @@ export default function ArchivePage({
   // Dropdown options directly from server response (availableLabels, availableMembers)
   const labelOptions = useMemo(() => {
     const map = new Map();
-    (archiveData?.availableLabels || []).forEach((l) => {
-      if (!map.has(l.id)) map.set(l.id, l);
-    });
+    const addLabel = (l) => {
+      if (!l || !l.name) return;
+      const key = l.name.trim().toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, { name: l.name.trim(), color: l.color });
+      }
+    };
+    (archiveData?.availableLabels || []).forEach(addLabel);
     // Also include any labels on current cards
     archivedCards.forEach((c) => {
-      (c.labels || []).forEach((l) => {
-        if (!map.has(l.id)) map.set(l.id, l);
-      });
+      (c.labels || []).forEach(addLabel);
     });
     return [
       { value: 'all', label: 'All Labels' },
       ...Array.from(map.values()).map((l) => ({
-        value: String(l.id),
+        value: l.name,
         label: l.name,
         icon: (
           <span
@@ -265,10 +595,10 @@ export default function ArchivePage({
     if (filterLabelId !== 'all') count++;
     if (filterAssigneeId !== 'all') count++;
     if (filterAssignerId !== 'all') count++;
-    if (filterDueDate !== 'all') count++;
-    if (filterStartDate !== 'all') count++;
+    if (filterStartDate) count++;
+    if (filterEndDate) count++;
     return count;
-  }, [searchQuery, filterLabelId, filterAssigneeId, filterAssignerId, filterDueDate, filterStartDate]);
+  }, [searchQuery, filterLabelId, filterAssigneeId, filterAssignerId, filterStartDate, filterEndDate]);
 
   const handleClearFilters = () => {
     setSearchQuery('');
@@ -276,26 +606,9 @@ export default function ArchivePage({
     setFilterLabelId('all');
     setFilterAssigneeId('all');
     setFilterAssignerId('all');
-    setFilterDueDate('all');
-    setFilterStartDate('all');
+    setFilterStartDate('');
+    setFilterEndDate('');
     setPage(1);
-  };
-
-  const handleRefresh = () => {
-    if (onRefresh) {
-      onRefresh({
-        page,
-        limit,
-        workspace_id: selectedWorkspaceId,
-        board_id: selectedBoardId,
-        search: debouncedSearch,
-        label_id: filterLabelId,
-        assignee_id: filterAssigneeId,
-        assigner_id: filterAssignerId,
-        due_date: filterDueDate,
-        start_date: filterStartDate
-      });
-    }
   };
 
   return (
@@ -325,22 +638,6 @@ export default function ArchivePage({
               Progressively browse, filter, inspect, and restore archived cards, projects, and workspaces.
             </p>
           </div>
-        </div>
-
-        {/* Top Right Actions */}
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isLoading}
-            className="rounded-xl font-semibold shadow-2xs hover:bg-surface-muted transition-all active:scale-95 flex items-center gap-1.5"
-            title="Refresh archive data"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 text-primary ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </Button>
         </div>
       </header>
 
@@ -564,52 +861,27 @@ export default function ArchivePage({
                   />
                 </div>
 
-                {/* Deadline Filter */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
-                    Deadline
-                  </label>
-                  <Select
-                    value={filterDueDate}
-                    onChange={(val) => {
-                      setFilterDueDate(val);
-                      setPage(1);
-                    }}
-                    options={[
-                      { value: 'all', label: 'All Deadlines' },
-                      { value: 'overdue', label: 'Overdue' },
-                      { value: 'today', label: 'Due Today' },
-                      { value: 'this_week', label: 'Due This Week' },
-                      { value: 'has_date', label: 'Has Due Date' },
-                      { value: 'no_date', label: 'No Due Date' }
-                    ]}
-                    size="sm"
-                    className="w-full text-xs font-medium"
-                  />
-                </div>
+                {/* Start Date Filter (Card Creation Date) */}
+                <DateFilterPicker
+                  label="Start Date"
+                  value={filterStartDate}
+                  onChange={(val) => {
+                    setFilterStartDate(val);
+                    setPage(1);
+                  }}
+                  placeholder="Pick start date"
+                />
 
-                {/* Start Date Filter */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
-                    Start Date
-                  </label>
-                  <Select
-                    value={filterStartDate}
-                    onChange={(val) => {
-                      setFilterStartDate(val);
-                      setPage(1);
-                    }}
-                    options={[
-                      { value: 'all', label: 'All Start Dates' },
-                      { value: 'today', label: 'Starting Today' },
-                      { value: 'this_week', label: 'Starting This Week' },
-                      { value: 'has_date', label: 'Has Start Date' },
-                      { value: 'no_date', label: 'No Start Date' }
-                    ]}
-                    size="sm"
-                    className="w-full text-xs font-medium"
-                  />
-                </div>
+                {/* End Date Filter (Card Creation Date) */}
+                <DateFilterPicker
+                  label="End Date"
+                  value={filterEndDate}
+                  onChange={(val) => {
+                    setFilterEndDate(val);
+                    setPage(1);
+                  }}
+                  placeholder="Pick end date"
+                />
               </div>
             </div>
 
