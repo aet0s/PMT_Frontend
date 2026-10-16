@@ -208,7 +208,7 @@ export default function WorkspaceSidebar({
 
   return (
     <>
-      {/* Mobile Drawer Backdrop */}
+      {/*  Mobile Drawer Backdrop */}
       {isMobileOpen && (
         <div
           onClick={onCloseMobile}
@@ -219,11 +219,10 @@ export default function WorkspaceSidebar({
 
       <aside
         aria-label="Workspace navigation"
-        className={`h-screen flex shrink-0 select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          isMobileOpen
+        className={`h-screen flex shrink-0 select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isMobileOpen
             ? 'fixed inset-y-0 left-0 z-50 shadow-2xl translate-x-0 lg:relative lg:z-20'
             : 'fixed inset-y-0 left-0 z-50 -translate-x-full lg:relative lg:translate-x-0 lg:z-20'
-        }`}
+          }`}
       >
         {/* ======================================================== */}
         {/* RAIL 1: DEEP VIBRANT BRAND BLUE RAIL (Matching Reference) */}
@@ -286,11 +285,10 @@ export default function WorkspaceSidebar({
                     onMouseEnter={(e) => showTooltip(e, ws.name, isSelected ? 'Active' : null)}
                     onMouseLeave={hideTooltip}
                     aria-label={ws.name}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer ${
-                      isSelected
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer ${isSelected
                         ? 'bg-white text-primary shadow-md font-black ring-2 ring-white/60'
                         : 'bg-primary bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
-                    }`}
+                      }`}
                   >
                     {ws.name.charAt(0).toUpperCase()}
                   </button>
@@ -340,11 +338,10 @@ export default function WorkspaceSidebar({
         {/* RAIL 2: LIGHT WORKSPACE NAVIGATION PANEL (Smooth sliding transition) */}
         {/* ======================================================== */}
         <div
-          className={`bg-app flex flex-col h-full overflow-hidden shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            isCollapsed
+          className={`bg-app flex flex-col h-full overflow-hidden shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isCollapsed
               ? 'w-0 opacity-0 pointer-events-none'
               : 'w-60 lg:w-64 opacity-100'
-          }`}
+            }`}
         >
           {/* Header: #WorkspaceName with actions dropdown */}
           <div className="h-16 px-4 flex items-center justify-between shrink-0">
@@ -387,11 +384,10 @@ export default function WorkspaceSidebar({
                           setIsWsDropdownOpen(false);
                           if (onCloseMobile) onCloseMobile();
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-left transition-all cursor-pointer ${
-                          isSelected
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-left transition-all cursor-pointer ${isSelected
                             ? 'bg-primary-tint text-primary font-bold'
                             : 'text-text-primary hover:bg-surface-muted'
-                        }`}
+                          }`}
                       >
                         <span className="truncate">{ws.name}</span>
                         {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
@@ -457,10 +453,9 @@ export default function WorkspaceSidebar({
               to={`/w/${activeWorkspace?.id}/home`}
               onClick={() => { if (onCloseMobile) onCloseMobile(); }}
               className={() =>
-                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isDashboardActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isDashboardActive
+                  ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                 }`
               }
             >
@@ -478,10 +473,9 @@ export default function WorkspaceSidebar({
                 }
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                 className={() =>
-                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                    isRoadmapActive
-                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isRoadmapActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`
                 }
               >
@@ -496,10 +490,9 @@ export default function WorkspaceSidebar({
                 to={`/w/${activeWorkspace?.id}/reports`}
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                 className={() =>
-                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                    isReportActive
-                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isReportActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`
                 }
               >
@@ -518,10 +511,9 @@ export default function WorkspaceSidebar({
                 }
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                 className={() =>
-                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                    isIssuesActive
-                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isIssuesActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`
                 }
               >
@@ -536,10 +528,9 @@ export default function WorkspaceSidebar({
                 to={`/w/${activeWorkspace?.id}/activity`}
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                 className={() =>
-                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                    isReleasesActive
-                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isReleasesActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`
                 }
               >
@@ -554,10 +545,9 @@ export default function WorkspaceSidebar({
                 to={`/w/${activeWorkspace?.id}/members`}
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                 className={() =>
-                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                    isWorkspaceMembersActive
-                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isWorkspaceMembersActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`
                 }
               >
@@ -572,10 +562,9 @@ export default function WorkspaceSidebar({
                 to={`/w/${activeWorkspace?.id}/settings/general`}
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                 className={() =>
-                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${
-                    isSettingsActive
-                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isSettingsActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`
                 }
               >
@@ -620,10 +609,9 @@ export default function WorkspaceSidebar({
                       to={`/w/${activeWorkspace?.id}/p/${b.id}/board`}
                       onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                       className={({ isActive }) =>
-                        `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] font-medium text-left transition-all cursor-pointer ${
-                          isActive
-                            ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                        `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] font-medium text-left transition-all cursor-pointer ${isActive
+                          ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                         }`
                       }
                     >
@@ -647,10 +635,9 @@ export default function WorkspaceSidebar({
                   to={`/w/${activeWorkspace?.id}/company-members`}
                   onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                   className={() =>
-                    `w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${
-                      isCompanyMembersActive
-                        ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                    `w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${isCompanyMembersActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                     }`
                   }
                 >
@@ -665,10 +652,9 @@ export default function WorkspaceSidebar({
                 to={`/w/${activeWorkspace?.id}/notifications`}
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                 className={({ isActive }) =>
-                  `w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-primary-tint text-primary font-bold'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  `w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${isActive
+                    ? 'bg-primary-tint text-primary font-bold'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`
                 }
               >
@@ -687,10 +673,9 @@ export default function WorkspaceSidebar({
                 to={`/w/${activeWorkspace?.id}/archive`}
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                 className={({ isActive }) =>
-                  `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-warning-tint text-warning font-bold'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${isActive
+                    ? 'bg-warning-tint text-warning font-bold'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`
                 }
               >
