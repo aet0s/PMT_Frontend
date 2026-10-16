@@ -194,11 +194,17 @@ export default function WorkspaceSidebar({
       return null;
     }
   })();
+
   const effectiveLastBoardId =
     boards.some((b) => String(b.id) === String(lastVisitedBoardId))
       ? Number(lastVisitedBoardId)
       : null;
-  const fallbackBoardId = activeBoardId || effectivePinnedBoardId || effectiveLastBoardId || boards[0]?.id;
+
+  const effectiveActiveBoardId =
+    boards.some((b) => Number(b.id) === Number(activeBoardId))
+      ? Number(activeBoardId)
+      : null;
+  const fallbackBoardId = effectiveActiveBoardId || effectivePinnedBoardId || effectiveLastBoardId || boards[0]?.id;
 
   return (
     <>

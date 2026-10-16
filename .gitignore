@@ -6,7 +6,12 @@ jspm_packages/
 dist/
 dist-ssr/
 build/
+out/
 .vite/
+.turbo/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+*.tsbuildinfo
 
 # Environment and secret files
 .env
@@ -66,6 +71,11 @@ lerna-debug.log*
 tmp/
 temp/
 .temp/
+scratch/
+screenshots/
+recordings/
+.system_generated/
+.gemini/
 
 # IDE and Editor files
 .vscode/*

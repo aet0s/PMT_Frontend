@@ -90,12 +90,7 @@ export default function BoardPage() {
   const activeBoardIdRef = useRef(urlBoardId);
   useEffect(() => {
     activeBoardIdRef.current = urlBoardId;
-    if (urlBoardId && activeWorkspace?.id) {
-      try {
-        localStorage.setItem(`taskflow_last_board_${activeWorkspace.id}`, String(urlBoardId));
-      } catch {}
-    }
-  }, [urlBoardId, activeWorkspace?.id]);
+  }, [urlBoardId]);
 
   const boardsRef = useRef(boards);
   useEffect(() => {
@@ -282,12 +277,21 @@ export default function BoardPage() {
       setBoardData(data.board);
       setIsNotFound(false);
       setTenantItem(user?.tenant_id, `last_board_id_${activeWorkspace?.id || data.board?.workspace_id}`, targetId);
+      try {
+        localStorage.setItem(`taskflow_last_board_${activeWorkspace?.id || data.board?.workspace_id}`, String(targetId));
+      } catch {}
     } catch (err) {
       // Guard: if user navigated away while request was in flight, ignore the error and do not 404
       if (activeBoardIdRef.current !== Number(targetId)) {
         return;
       }
-      console.error('Failed to load board details:', err);
+      console.warn('Board failed to load, cleaning up stale references:', err?.message || err);
+      // Clean up stale or invalid remembered board IDs
+      try {
+        removeTenantItem(user?.tenant_id, `last_board_id_${activeWorkspace?.id}`);
+        localStorage.removeItem(`taskflow_last_board_${activeWorkspace?.id}`);
+      } catch {}
+
       // Auto-fallback: if the requested board ID does not exist in this workspace,
       // check if other valid boards exist in this workspace to gracefully auto-recover
       let availableBoards = boardsRef.current || [];
@@ -299,16 +303,20 @@ export default function BoardPage() {
       }
 
       if (availableBoards.length > 0) {
-        const fallbackBoard = availableBoards.find((b) => b.id !== Number(targetId)) || availableBoards[0];
-        if (fallbackBoard && fallbackBoard.id !== Number(targetId)) {
+        const fallbackBoard = availableBoards.find((b) => b.id !== Number(targetId));
+        if (fallbackBoard) {
           console.warn(`Board ${targetId} not found. Gracefully redirecting to board ${fallbackBoard.id}`);
           navigate(`/w/${activeWorkspace?.id}/p/${fallbackBoard.id}/${currentView || 'board'}`, { replace: true });
           return;
         }
-      } else if (activeWorkspace?.id) {
-        // Workspace exists but has no boards; redirect to roadmap or home instead of showing 404
+      }
+
+      if (activeWorkspace?.id) {
+        // Workspace exists but has no valid boards; redirect to roadmap, issues, or home gracefully
         if (currentView === 'calendar' || location.pathname.includes('/calendar')) {
           navigate(`/w/${activeWorkspace.id}/roadmap`, { replace: true });
+        } else if (currentView === 'list' || location.pathname.includes('/list')) {
+          navigate(`/w/${activeWorkspace.id}/issues`, { replace: true });
         } else {
           navigate(`/w/${activeWorkspace.id}/home`, { replace: true });
         }

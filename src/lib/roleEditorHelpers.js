@@ -114,14 +114,14 @@ export function getScopeBadge(scope) {
     return {
       label: 'Company',
       color: 'purple',
-      className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+      className: 'bg-primary-tint text-primary-text border border-primary/25',
       description: 'Applies workspace-wide across all boards and company resources.'
     };
   }
   return {
     label: 'Project',
     color: 'blue',
-    className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+    className: 'bg-info-tint text-info-text border border-info/25',
     description: 'Scoped strictly to boards and projects where the user is an active member.'
   };
 }
@@ -138,7 +138,7 @@ export function getDangerousBadge(perm) {
     isDangerous: true,
     label: 'Dangerous',
     color: 'red',
-    className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800 font-semibold',
+    className: 'bg-danger-tint text-danger-text border border-danger/25 font-medium',
     tooltip: 'High-risk action with potential data loss or security impact.'
   };
 }
