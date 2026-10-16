@@ -12,6 +12,7 @@ import {
 } from '../api/notifications';
 import { playNotificationBellSound } from '../lib/notificationSound';
 import { useToast } from '../components/ui/Toast';
+import { useNotificationSound } from './NotificationSoundContext';
 
 const SocketContext = createContext(null);
 
@@ -26,6 +27,7 @@ function getTabOriginId() {
 
 export function SocketProvider({ children }) {
   const { user } = useAuth();
+  const { enabled: soundEnabled } = useNotificationSound();
   let toastContext = null;
   try {
     toastContext = useToast();
@@ -61,9 +63,7 @@ export function SocketProvider({ children }) {
   // Audio bell player (respects mutes, reduced-motion, and user setting)
   const playNotificationSound = useCallback((notification) => {
     try {
-      // Respect sound preference (enabled by default unless explicitly turned off)
-      const soundPref = localStorage.getItem('soundEffectsEnabled');
-      if (soundPref === 'false') return;
+      if (!soundEnabled) return;
 
       // Never play for muted boards
       if (notification?.board_id && mutes.boards?.some((id) => Number(id) === Number(notification.board_id))) {
@@ -79,7 +79,7 @@ export function SocketProvider({ children }) {
     } catch {
       // Audio playback failed or blocked
     }
-  }, [mutes]);
+  }, [mutes, soundEnabled]);
 
   // Fetch summary (total unread, by_board unread map, by_category map, mutes, preferences)
   const fetchSummary = useCallback(async () => {
@@ -101,14 +101,6 @@ export function SocketProvider({ children }) {
     } catch (err) {
       console.warn('Failed to load notification summary:', err);
     }
-
-    try {
-      const prefs = await getNotificationPreferences();
-      if (prefs && (prefs.play_sound !== undefined || prefs.sound_effects !== undefined)) {
-        const enabled = Boolean(prefs.play_sound ?? prefs.sound_effects);
-        localStorage.setItem('soundEffectsEnabled', String(enabled));
-      }
-    } catch (e) {}
   }, [user]);
 
   // Fetch top 10 notifications for quick bell access
@@ -193,10 +185,22 @@ export function SocketProvider({ children }) {
         }));
       }
 
-      playNotificationSound(notification);
+      // Only personal events produce toast and sound (other main events appear in bell silently)
+      const PERSONAL_EVENTS = new Set([
+        'card.assigned',
+        'card.unassigned',
+        'comment.mention',
+        'comment.added',
+        'card.due_soon',
+        'card.overdue'
+      ]);
 
-      // Live toast notification with aria-live="polite"
-      if (notification.toast || notification.priority === 'urgent' || notification.priority === 'high') {
+      const evType = notification.event_type || notification.type;
+      const isPersonal = PERSONAL_EVENTS.has(evType);
+
+      if (isPersonal) {
+        playNotificationSound(notification);
+
         try {
           toastContext?.show?.({
             type: notification.priority === 'urgent' ? 'error' : 'info',

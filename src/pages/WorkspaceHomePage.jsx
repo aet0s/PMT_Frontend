@@ -31,6 +31,7 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import ProgressBar from '../components/ui/ProgressBar';
 import { Select } from '../components/ui/Select';
+import UserDropdown from '../components/ui/UserDropdown';
 import { getBoardBgClass, getBoardStyle } from '../lib/palettes';
 import { getTimeBasedGreeting, fetchServerGreeting, getCurrentServerDate } from '../lib/serverTime';
 
@@ -228,7 +229,7 @@ export default function WorkspaceHomePage({
         {/* ======================================================== */}
         {/* HERO / WORKSPACE GREETING BANNER                         */}
         {/* ======================================================== */}
-        <div className="bg-surface border border-border rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden transition-all">
+        <div className="bg-surface border border-border rounded-3xl p-6 sm:p-8 shadow-xs relative z-20 transition-all">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
               <div className="flex items-center gap-2.5 flex-wrap">
@@ -270,6 +271,7 @@ export default function WorkspaceHomePage({
                   Create Project
                 </Button>
               )}
+              <UserDropdown workspaceId={workspace?.id} />
             </div>
           </div>
         </div>

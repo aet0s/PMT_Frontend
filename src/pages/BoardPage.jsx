@@ -23,6 +23,7 @@ const ActivityPage = safeLazy(() => import('../pages/ActivityPage'), 'ActivityPa
 const ReportsPage = safeLazy(() => import('../pages/ReportsPage'), 'ReportsPage');
 const SettingsPage = safeLazy(() => import('../pages/SettingsPage'), 'SettingsPage');
 const AccountPage = safeLazy(() => import('../pages/AccountPage'), 'AccountPage');
+const ProfilePage = safeLazy(() => import('../pages/ProfilePage'), 'ProfilePage');
 const ListView = safeLazy(() => import('../components/Board/ListView'), 'ListView');
 const CalendarView = safeLazy(() => import('../components/Board/CalendarView'), 'CalendarView');
 const NotFoundPage = safeLazy(() => import('../pages/NotFoundPage'), 'NotFoundPage');
@@ -1848,7 +1849,11 @@ export default function BoardPage() {
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
               <ReportsPage workspace={activeWorkspace} />
             </Suspense>
-          ) : subPath.startsWith('profile') || subPath.startsWith('account') ? (
+          ) : subPath === 'profile' || subPath.startsWith('profile/') ? (
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
+              <ProfilePage workspace={activeWorkspace} />
+            </Suspense>
+          ) : subPath.startsWith('account') ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
               <AccountPage
                 tab={pathParts[1]}

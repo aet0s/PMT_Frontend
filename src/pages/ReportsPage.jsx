@@ -47,7 +47,7 @@ export default function ReportsPage({ workspace }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const { hasPermission, loading: permissionsLoading } = usePermissions();
-  const canViewReports = hasPermission('report.view_team') || hasPermission('report.view_all');
+  const canViewReports = hasPermission('activity.view') || hasPermission('project.view');
 
   useEffect(() => {
     if (!permissionsLoading && !canViewReports && workspace?.id) {

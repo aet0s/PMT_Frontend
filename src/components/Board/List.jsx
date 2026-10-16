@@ -5,6 +5,7 @@ import { usePermissions } from '../../context/PermissionContext';
 import Card from './Card';
 import Button from '../ui/Button';
 import { Plus, MoreHorizontal, Trash2, Edit3, X, AlertTriangle, SlidersHorizontal } from 'lucide-react';
+import { getListStatusConfig } from '../../lib/listStatusColors';
 
 export default function List({
   list,
@@ -112,6 +113,7 @@ export default function List({
   );
   const effectiveWipMax = list.wip_limit ? Number(list.wip_limit) : wipLimitMax;
   const isWipExceeded = isListWipEnabled && effectiveWipMax > 0 && cards.length > effectiveWipMax;
+  const listStatusConfig = getListStatusConfig(list?.name);
 
   return (
     <div
@@ -123,7 +125,11 @@ export default function List({
       }`}
     >
       {/* Column Header (White rounded box matching reference Image 1) */}
-      <div className="bg-surface border border-border-strong/70 rounded-2xl px-4 py-3 flex items-center justify-between select-none shadow-xs mb-3">
+      <div
+        className={`bg-surface border border-border-strong/70 rounded-2xl px-4 py-3 flex items-center justify-between select-none shadow-xs mb-3 transition-all ${
+          listStatusConfig ? listStatusConfig.headerClass : ''
+        }`}
+      >
         {isEditingTitle && canEditList ? (
           <form onSubmit={handleRenameSubmit} className="flex items-center gap-1.5 flex-1 pr-2">
             <input
@@ -351,6 +357,7 @@ export default function List({
             <Card
               key={card.id}
               card={card}
+              listName={list.name}
               taskNumber={taskNumberMap?.get(card.id) ?? card.task_number}
               onClick={() => onCardClick(card)}
               onUpdateCard={onUpdateCard}

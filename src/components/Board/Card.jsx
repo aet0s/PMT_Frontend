@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import LabelPill from '../shared/LabelPill';
@@ -18,9 +19,11 @@ import {
 } from 'lucide-react';
 import { usePermissions } from '../../context/PermissionContext';
 import { useAuth } from '../../hooks/useAuth';
+import { getListStatusConfig, getCardDefaultStatus } from '../../lib/listStatusColors';
 
 export default function Card({
   card,
+  listName,
   taskNumber,
   onClick,
   onUpdateCard,
@@ -37,6 +40,35 @@ export default function Card({
   const canCopyCard = hasPermission('task.duplicate') || hasPermission('task.create');
   const canArchiveCard = hasPermission('task.archive') || hasPermission('task.edit');
   const hasAnyCardActions = (onCopyCard && canCopyCard) || (onUpdateCard && canArchiveCard) || (onDeleteCard && canDeleteCard);
+  const statusConfig = getListStatusConfig(getCardDefaultStatus(card, listName));
+
+  const [memberTooltip, setMemberTooltip] = useState(null);
+
+  const showMemberTooltip = (e, member, roleType) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMemberTooltip({
+      member,
+      roleType,
+      rect
+    });
+  };
+
+  const hideMemberTooltip = () => {
+    setMemberTooltip(null);
+  };
+
+  useEffect(() => {
+    if (!memberTooltip) return;
+    const handleDismiss = () => setMemberTooltip(null);
+    window.addEventListener('scroll', handleDismiss, true);
+    window.addEventListener('resize', handleDismiss);
+    return () => {
+      window.removeEventListener('scroll', handleDismiss, true);
+      window.removeEventListener('resize', handleDismiss);
+    };
+  }, [memberTooltip]);
+
   const {
     attributes,
     listeners,
@@ -115,10 +147,15 @@ export default function Card({
         }
       }}
       onClick={(e) => {
+        hideMemberTooltip();
         if (e.target.closest('button[aria-label="Card actions"]') || e.defaultPrevented) return;
         onClick?.();
       }}
-      className={`group relative bg-surface border border-border/80 hover:border-primary/40 rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.08)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer select-none space-y-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
+      className={`group relative bg-surface border border-border/80 rounded-2xl p-4 transition-all duration-200 cursor-pointer select-none space-y-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
+        statusConfig
+          ? `${statusConfig.cardClass} hover:border-t-primary/40 hover:border-x-primary/40 hover:-translate-y-0.5`
+          : 'hover:border-primary/40 shadow-[0_2px_10px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.08)] hover:-translate-y-0.5'
+      } ${
         isOverlay ? 'shadow-2xl border-primary ring-2 ring-primary/20 scale-105 rotate-1 z-50 bg-surface' : ''
       } ${
         isHighlighted ? 'ring-2 ring-primary border-primary shadow-lg animate-pulse' : ''
@@ -240,47 +277,55 @@ export default function Card({
 
       {/* Card Footer: Assignee Avatars on Left, Metadata Counters on Right */}
       <div className="flex items-center justify-between pt-1 border-t border-border/40 text-text-secondary text-xs">
-        {/* Assignee / Member Avatars (Pure circular with no square boundaries) */}
+        {/* Assignee / Member Avatars (Pure circular with custom hover popup matching sidebar) */}
         <div className="flex items-center gap-1.5 shrink-0">
           {((card.assigners && card.assigners.length > 0) || (card.members && card.members.length > 0)) ? (
             <div className="flex items-center">
               {card.assigners && card.assigners.length > 0 && (
-                <div
-                  className="flex -space-x-1.5 mr-1"
-                  title={`Assigners: ${card.assigners.map((a) => a.name).join(', ')}`}
-                >
+                <div className="flex -space-x-1.5 mr-1">
                   {card.assigners.map((a) => (
-                    <Avatar
+                    <div
                       key={a.id}
-                      name={a.name}
-                      src={a.avatar_url || a.avatar}
-                      user={a}
-                      size="xs"
-                      className="rounded-full ring-2 ring-surface shadow-2xs"
-                    />
+                      onMouseEnter={(e) => showMemberTooltip(e, a, 'Assigner')}
+                      onMouseLeave={hideMemberTooltip}
+                      className="relative inline-block cursor-pointer"
+                    >
+                      <Avatar
+                        name={a.name}
+                        src={a.avatar_url || a.avatar}
+                        user={a}
+                        size="xs"
+                        className="rounded-full ring-2 ring-surface shadow-2xs"
+                        title=""
+                      />
+                    </div>
                   ))}
                 </div>
               )}
               {card.members && card.members.length > 0 && (
-                <div
-                  className="flex -space-x-1.5"
-                  title={`Assignees: ${card.members.map((m) => m.name).join(', ')}`}
-                >
+                <div className="flex -space-x-1.5">
                   {card.members.map((m) => (
-                    <Avatar
+                    <div
                       key={m.id}
-                      name={m.name}
-                      src={m.avatar_url || m.avatar}
-                      user={m}
-                      size="xs"
-                      className="rounded-full ring-2 ring-surface shadow-2xs"
-                    />
+                      onMouseEnter={(e) => showMemberTooltip(e, m, 'Assignee')}
+                      onMouseLeave={hideMemberTooltip}
+                      className="relative inline-block cursor-pointer"
+                    >
+                      <Avatar
+                        name={m.name}
+                        src={m.avatar_url || m.avatar}
+                        user={m}
+                        size="xs"
+                        className="rounded-full ring-2 ring-surface shadow-2xs"
+                        title=""
+                      />
+                    </div>
                   ))}
                 </div>
               )}
             </div>
           ) : (
-            <div className="w-5.5 h-5.5 rounded-full border border-dashed border-border flex items-center justify-center text-[10px] text-text-muted" title="Unassigned">
+            <div className="w-5.5 h-5.5 rounded-full border border-dashed border-border flex items-center justify-center text-[10px] text-text-muted">
               —
             </div>
           )}
@@ -351,6 +396,76 @@ export default function Card({
           )}
         </div>
       </div>
+
+      {/* Theme-matched Member Hover Tooltip Popup (Centered directly above/below hovered avatar) */}
+      {memberTooltip && !isDragging && typeof document !== 'undefined' && createPortal(
+        (() => {
+          const avatarCenter = memberTooltip.rect.left + memberTooltip.rect.width / 2;
+          const popupHalfWidth = 130;
+          const clampedCenter = Math.max(popupHalfWidth + 12, Math.min(window.innerWidth - popupHalfWidth - 12, avatarCenter));
+          const caretOffset = Math.max(-popupHalfWidth + 24, Math.min(popupHalfWidth - 24, avatarCenter - clampedCenter));
+          const isPlacedAbove = memberTooltip.rect.top > 95;
+          return (
+            <div
+              role="tooltip"
+              className="fixed z-[9999] pointer-events-none"
+              style={{
+                top: `${isPlacedAbove ? memberTooltip.rect.top - 8 : memberTooltip.rect.bottom + 8}px`,
+                left: `${clampedCenter}px`,
+                transform: isPlacedAbove ? 'translate(-50%, -100%)' : 'translate(-50%, 0)'
+              }}
+            >
+              <div className="relative flex items-center gap-3 bg-surface text-text-primary p-2.5 rounded-2xl border border-border shadow-xl min-w-[210px] max-w-[280px] animate-popup-card">
+                {/* Dynamic Caret indicator pointing directly at the center of the hovered avatar */}
+                {isPlacedAbove ? (
+                  <span
+                    className="absolute -bottom-1 w-2 h-2 rotate-45 bg-surface border-r border-b border-border pointer-events-none"
+                    style={{
+                      left: `calc(50% + ${caretOffset}px)`,
+                      transform: 'translateX(-50%) rotate(45deg)'
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="absolute -top-1 w-2 h-2 rotate-45 bg-surface border-l border-t border-border pointer-events-none"
+                    style={{
+                      left: `calc(50% + ${caretOffset}px)`,
+                      transform: 'translateX(-50%) rotate(45deg)'
+                    }}
+                  />
+                )}
+
+                {/* Member Image a little big: size="md" (40x40px) */}
+                <Avatar
+                  name={memberTooltip.member.name}
+                  src={memberTooltip.member.avatar_url || memberTooltip.member.avatar}
+                  user={memberTooltip.member}
+                  size="md"
+                  className="rounded-full ring-2 ring-primary/25 shrink-0 shadow-xs"
+                  title=""
+                />
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-text-primary truncate block leading-tight">
+                      {memberTooltip.member.name || 'Unknown Member'}
+                    </span>
+                    {memberTooltip.roleType && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-tint text-primary shrink-0">
+                        {memberTooltip.roleType}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] font-medium text-text-muted truncate block mt-0.5">
+                    {memberTooltip.member.email || 'No email provided'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })(),
+        document.body
+      )}
     </div>
   );
 }

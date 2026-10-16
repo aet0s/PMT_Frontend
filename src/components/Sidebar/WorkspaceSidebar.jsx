@@ -4,9 +4,7 @@ import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../context/PermissionContext';
 import { useSocket } from '../../context/SocketProvider';
-import Avatar from '../ui/Avatar';
 import PromptDialog from '../shared/PromptDialog';
-import { ThemeToggle } from '../ui/ThemeToggle';
 import { getThemeDotClass } from '../../lib/palettes';
 import {
   Trello,
@@ -25,6 +23,7 @@ import {
   Settings,
   User,
   Bell,
+  BellOff,
   Home,
   Users,
   Activity,
@@ -38,6 +37,11 @@ import {
   MapPin,
   Sparkles
 } from 'lucide-react';
+import Avatar from '../ui/Avatar';
+import Switch from '../ui/Switch';
+import { Popover } from '../ui/Popover';
+import { useNotificationSound } from '../../context/NotificationSoundContext';
+import { useToast } from '../ui/Toast';
 
 export default function WorkspaceSidebar({
   isCollapsed = false,
@@ -127,16 +131,28 @@ export default function WorkspaceSidebar({
   }, [isWsDropdownOpen, isWsActionsOpen, isMobileOpen, onCloseMobile]);
 
   const { hasPermission } = usePermissions();
+  const { enabled: soundEnabled, setEnabled: setSoundEnabled } = useNotificationSound();
+  const canManageSound = hasPermission('notification.manage_own');
+  const toast = useToast();
+
+  const handleSoundToggle = async (checked) => {
+    try {
+      await setSoundEnabled(checked);
+    } catch (err) {
+      toast.show(err.message || 'Failed to update sound setting', 'error');
+    }
+  };
+
   const canCreateBoard = hasPermission('project.create');
   const canEditWs = hasPermission('workspace.edit');
   const canCreateWs = hasPermission('workspace.create') || hasPermission('workspace.edit');
   const canDeleteWs = hasPermission('workspace.delete');
   const canViewRoadmap = hasPermission('project.view') || hasPermission('task.view');
   const canViewSprint = hasPermission('project.view') || hasPermission('task.view');
-  const canViewReports = hasPermission('report.view_team') || hasPermission('report.view_all');
   const canViewIssues = hasPermission('task.view');
   const canViewActivity = hasPermission('activity.view');
   const canViewMembers = hasPermission('member.view');
+  const canViewReports = hasPermission('report.view_project') || hasPermission('role.view');
   const canViewSettings = hasPermission('workspace.edit') || hasPermission('role.view') || hasPermission('member.invite');
 
   const openRenameDialog = () => {
@@ -173,6 +189,7 @@ export default function WorkspaceSidebar({
   const isCompanyMembersActive =
     !location.pathname.includes('/settings') && location.pathname.endsWith('/company-members');
   const isSettingsActive = location.pathname.includes('/settings');
+  const isAccountSettingsActive = location.pathname.includes('/account');
 
   // Determine current active project board ID fallback (priority: active board -> pinned board -> last visited board -> first board)
   const pinnedBoardId = (() => {
@@ -220,8 +237,8 @@ export default function WorkspaceSidebar({
       <aside
         aria-label="Workspace navigation"
         className={`h-screen flex shrink-0 select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isMobileOpen
-            ? 'fixed inset-y-0 left-0 z-50 shadow-2xl translate-x-0 lg:relative lg:z-20'
-            : 'fixed inset-y-0 left-0 z-50 -translate-x-full lg:relative lg:translate-x-0 lg:z-20'
+          ? 'fixed inset-y-0 left-0 z-50 shadow-2xl translate-x-0 lg:relative lg:z-20'
+          : 'fixed inset-y-0 left-0 z-50 -translate-x-full lg:relative lg:translate-x-0 lg:z-20'
           }`}
       >
         {/* ======================================================== */}
@@ -286,8 +303,8 @@ export default function WorkspaceSidebar({
                     onMouseLeave={hideTooltip}
                     aria-label={ws.name}
                     className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer ${isSelected
-                        ? 'bg-white text-primary shadow-md font-black ring-2 ring-white/60'
-                        : 'bg-primary bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
+                      ? 'bg-white text-primary shadow-md font-black ring-2 ring-white/60'
+                      : 'bg-primary bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
                       }`}
                   >
                     {ws.name.charAt(0).toUpperCase()}
@@ -317,20 +334,111 @@ export default function WorkspaceSidebar({
             )}
           </div>
 
-          {/* Bottom Actions: Logout */}
-          <div className="pt-3 pb-1 flex flex-col items-center shrink-0">
-            <button
-              onClick={() => {
-                hideTooltip();
-                logoutUser();
-              }}
-              onMouseEnter={(e) => showTooltip(e, 'Log Out')}
-              onMouseLeave={hideTooltip}
-              aria-label="Log Out"
-              className="w-10 h-10 rounded-full bg-primary bg-white/15 hover:bg-danger text-white hover:text-white flex items-center justify-center transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-95"
+          {/* User Profile Avatar Block at Bottom of Rail 1 */}
+          <div className="w-full flex flex-col items-center pt-2 mt-auto shrink-0 border-t border-white/20">
+            <Popover
+              placement="right-end"
+              offsetDistance={12}
+              trigger={({ isOpen }) => (
+                <button
+                  type="button"
+                  aria-label="User account menu"
+                  aria-haspopup="true"
+                  aria-expanded={isOpen}
+                  onMouseEnter={(e) => showTooltip(e, user?.name || 'My Profile')}
+                  onMouseLeave={hideTooltip}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center p-0 transition-all cursor-pointer focus:outline-none ${
+                    isOpen
+                      ? 'ring-2 ring-white ring-offset-2 ring-offset-primary shadow-lg scale-105'
+                      : 'hover:ring-2 hover:ring-white/60 hover:scale-105'
+                  }`}
+                >
+                  <Avatar
+                    name={user?.name || 'User'}
+                    src={user?.avatar_url || user?.avatar}
+                    user={user}
+                    size="sm"
+                    status="online"
+                  />
+                </button>
+              )}
             >
-              <LogOut className="w-4.5 h-4.5" />
-            </button>
+              {({ close }) => (
+                <div className="w-60 sm:w-64 bg-surface border border-border/80 rounded-2xl shadow-xl p-1.5 text-left select-none animate-sassy-dropdown">
+                  {/* User Info Header */}
+                  <div className="px-3 py-2.5 bg-surface-muted/50 rounded-xl mb-1 border border-border/40">
+                    <p className="text-xs font-bold text-text-primary truncate">{user?.name || 'User'}</p>
+                    <p className="text-[11px] text-text-muted truncate mt-0.5">{user?.email || ''}</p>
+                  </div>
+
+                  <div className="py-0.5 space-y-0.5">
+                    {/* My Profile */}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        close();
+                        if (onCloseMobile) onCloseMobile();
+                        if (onOpenProfile) {
+                          onOpenProfile();
+                        } else if (activeWorkspace) {
+                          navigate(`/w/${activeWorkspace.id}/profile`);
+                        } else {
+                          navigate('/profile');
+                        }
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-text-primary hover:text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left group"
+                    >
+                      <User className="w-4 h-4 text-text-secondary group-hover:text-primary transition-colors shrink-0" />
+                      <span>My Profile</span>
+                    </button>
+
+                    {/* Notification Sound Toggle (Guarded by notification.manage_own) */}
+                    {canManageSound && (
+                      <div
+                        role="menuitem"
+                        title={soundEnabled ? 'Notification sound enabled' : 'Notification sound disabled'}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          {soundEnabled ? (
+                            <Bell className="w-4 h-4 text-primary shrink-0" />
+                          ) : (
+                            <BellOff className="w-4 h-4 text-text-muted shrink-0" />
+                          )}
+                          <span className="truncate">Notification sound</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-[10px] font-bold ${soundEnabled ? 'text-primary' : 'text-text-muted'}`}>
+                            {soundEnabled ? 'ON' : 'OFF'}
+                          </span>
+                          <Switch
+                            checked={soundEnabled}
+                            onChange={handleSoundToggle}
+                            aria-label="Toggle notification sound"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Log Out */}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={async () => {
+                        close();
+                        if (onCloseMobile) onCloseMobile();
+                        await logoutUser();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-danger hover:bg-danger-tint transition-colors cursor-pointer text-left group"
+                    >
+                      <LogOut className="w-4 h-4 text-danger shrink-0" />
+                      <span>Log Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </Popover>
           </div>
         </div>
 
@@ -339,8 +447,8 @@ export default function WorkspaceSidebar({
         {/* ======================================================== */}
         <div
           className={`bg-app flex flex-col h-full overflow-hidden shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isCollapsed
-              ? 'w-0 opacity-0 pointer-events-none'
-              : 'w-60 lg:w-64 opacity-100'
+            ? 'w-0 opacity-0 pointer-events-none'
+            : 'w-60 lg:w-64 opacity-100'
             }`}
         >
           {/* Header: #WorkspaceName with actions dropdown */}
@@ -385,8 +493,8 @@ export default function WorkspaceSidebar({
                           if (onCloseMobile) onCloseMobile();
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-left transition-all cursor-pointer ${isSelected
-                            ? 'bg-primary-tint text-primary font-bold'
-                            : 'text-text-primary hover:bg-surface-muted'
+                          ? 'bg-primary-tint text-primary font-bold'
+                          : 'text-text-primary hover:bg-surface-muted'
                           }`}
                       >
                         <span className="truncate">{ws.name}</span>
@@ -685,22 +793,123 @@ export default function WorkspaceSidebar({
             </div>
           </div>
 
-          {/* User Profile & Theme Controls at Bottom of Panel */}
-          <div className="p-3 bg-surface-muted/50 rounded-2xl mx-3 mb-3 flex items-center justify-between gap-2 shrink-0">
-            <NavLink
-              to={`/w/${activeWorkspace?.id}/profile`}
-              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-              className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity"
-              title="My Profile"
+          {/* User Profile Bar & Settings in Rail 2 */}
+          <div className="px-3 pb-3 shrink-0 space-y-1 border-t border-border/50 pt-2">
+            <Popover
+              placement="top-start"
+              offsetDistance={8}
+              trigger={({ isOpen }) => (
+                <button
+                  type="button"
+                  aria-label="User account menu"
+                  aria-haspopup="true"
+                  aria-expanded={isOpen}
+                  className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer select-none ${
+                    isOpen ? 'bg-surface-muted ring-1 ring-border' : 'hover:bg-surface-muted'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Avatar
+                      name={user?.name || 'User'}
+                      src={user?.avatar_url || user?.avatar}
+                      user={user}
+                      size="sm"
+                      status="online"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-text-primary truncate">{user?.name || 'User'}</p>
+                      <p className="text-[11px] text-text-muted truncate">{user?.email || ''}</p>
+                    </div>
+                  </div>
+                </button>
+              )}
             >
-              <Avatar name={user?.name} src={user?.avatar_url || user?.avatar} user={user} size="md" />
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-text-primary truncate">{user?.name || 'User'}</p>
-                <p className="text-xs text-text-muted truncate">Profile & Settings</p>
-              </div>
-            </NavLink>
+              {({ close }) => (
+                <div className="w-60 sm:w-64 bg-surface border border-border/80 rounded-2xl shadow-xl p-1.5 text-left select-none animate-sassy-dropdown">
+                  <div className="px-3 py-2.5 bg-surface-muted/50 rounded-xl mb-1 border border-border/40">
+                    <p className="text-xs font-bold text-text-primary truncate">{user?.name || 'User'}</p>
+                    <p className="text-[11px] text-text-muted truncate mt-0.5">{user?.email || ''}</p>
+                  </div>
 
-            <ThemeToggle className="p-2 rounded-xl shadow-2xs" />
+                  <div className="py-0.5 space-y-0.5">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        close();
+                        if (onCloseMobile) onCloseMobile();
+                        if (onOpenProfile) {
+                          onOpenProfile();
+                        } else if (activeWorkspace) {
+                          navigate(`/w/${activeWorkspace.id}/profile`);
+                        } else {
+                          navigate('/profile');
+                        }
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-text-primary hover:text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left group"
+                    >
+                      <User className="w-4 h-4 text-text-secondary group-hover:text-primary transition-colors shrink-0" />
+                      <span>My Profile</span>
+                    </button>
+
+                    {canManageSound && (
+                      <div
+                        role="menuitem"
+                        title={soundEnabled ? 'Notification sound enabled' : 'Notification sound disabled'}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          {soundEnabled ? (
+                            <Bell className="w-4 h-4 text-primary shrink-0" />
+                          ) : (
+                            <BellOff className="w-4 h-4 text-text-muted shrink-0" />
+                          )}
+                          <span className="truncate">Notification sound</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-[10px] font-bold ${soundEnabled ? 'text-primary' : 'text-text-muted'}`}>
+                            {soundEnabled ? 'ON' : 'OFF'}
+                          </span>
+                          <Switch
+                            checked={soundEnabled}
+                            onChange={handleSoundToggle}
+                            aria-label="Toggle notification sound"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={async () => {
+                        close();
+                        if (onCloseMobile) onCloseMobile();
+                        await logoutUser();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-danger hover:bg-danger-tint transition-colors cursor-pointer text-left group"
+                    >
+                      <LogOut className="w-4 h-4 text-danger shrink-0" />
+                      <span>Log Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </Popover>
+
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/account`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className={() =>
+                `w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isAccountSettingsActive
+                  ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`
+              }
+            >
+              <Settings className="w-4.5 h-4.5 shrink-0" />
+              <span>Settings</span>
+            </NavLink>
           </div>
         </div>
 

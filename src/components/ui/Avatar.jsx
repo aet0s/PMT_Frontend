@@ -87,7 +87,7 @@ export function Avatar({
       ) : (
         <div
           className={`w-full h-full rounded-full flex items-center justify-center font-semibold select-none ${pastelClass}`}
-          title={displayName}
+          title={props.title !== undefined ? (props.title || undefined) : undefined}
         >
           {initials}
         </div>

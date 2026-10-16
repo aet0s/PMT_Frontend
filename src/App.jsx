@@ -9,6 +9,7 @@ import {
   useParams
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { NotificationSoundProvider } from './context/NotificationSoundContext';
 import { SocketProvider } from './context/SocketProvider';
 import { ToastProvider } from './components/ui/Toast';
 import { ThemeProvider } from './context/ThemeContext';
@@ -141,6 +142,7 @@ function RootRedirect() {
 function AccountRedirect() {
   const { user } = useAuth();
   const { tab } = useParams();
+  const location = useLocation();
   const [targetUrl, setTargetUrl] = React.useState(null);
 
   useEffect(() => {
@@ -154,8 +156,10 @@ function AccountRedirect() {
           const matched = activeWorkspaces.find((w) => String(w.id) === String(lastWsId));
           const targetWs = matched || activeWorkspaces[0];
           setTenantItem(user?.tenant_id, 'last_workspace_id', targetWs.id);
+          const isProfile = location.pathname.startsWith('/profile');
+          const prefix = isProfile ? 'profile' : 'account';
           const tabSuffix = tab ? `/${tab}` : '';
-          setTargetUrl(`/w/${targetWs.id}/profile${tabSuffix}`);
+          setTargetUrl(`/w/${targetWs.id}/${prefix}${tabSuffix}`);
         } else {
           setTargetUrl('/w/none');
         }
@@ -164,7 +168,7 @@ function AccountRedirect() {
       }
     }
     determineProfileUrl();
-  }, [user, tab]);
+  }, [user, tab, location.pathname]);
 
   if (!targetUrl) {
     return <LoadingScreen />;
@@ -313,9 +317,11 @@ export default function App() {
       <ThemeProvider>
         <ToastProvider>
           <AuthProvider>
-            <SocketProvider>
-              <RouterProvider router={router} future={{ v7_startTransition: true }} />
-            </SocketProvider>
+            <NotificationSoundProvider>
+              <SocketProvider>
+                <RouterProvider router={router} future={{ v7_startTransition: true }} />
+              </SocketProvider>
+            </NotificationSoundProvider>
           </AuthProvider>
         </ToastProvider>
       </ThemeProvider>

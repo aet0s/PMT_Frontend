@@ -15,6 +15,7 @@ import {
   ExternalLink,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Pencil,
   Filter,
   CheckSquare,
@@ -85,6 +86,8 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
   const [editWsIds, setEditWsIds] = useState([]);
   const [editBoardIds, setEditBoardIds] = useState([]);
   const [editModalSearch, setEditModalSearch] = useState('');
+  const [editWsFilterTab, setEditWsFilterTab] = useState('all'); // 'all' | 'assigned' | 'unassigned'
+  const [expandedWsIds, setExpandedWsIds] = useState(new Set());
   const [isSavingEmployee, setIsSavingEmployee] = useState(false);
 
   // Single Invite Modal state
@@ -224,9 +227,13 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
     setEditEmployeeUser(member);
     const existingRoleId = member.workspaces?.[0]?.role_id || (roles.find((r) => r.name === member.role)?.id || '');
     setEditRoleId(existingRoleId ? String(existingRoleId) : '');
-    setEditWsIds((member.workspaces || []).map((w) => w.id));
+    const wsIds = (member.workspaces || []).map((w) => w.id);
+    setEditWsIds(wsIds);
     setEditBoardIds((member.boards || []).map((b) => b.id));
     setEditModalSearch('');
+    setEditWsFilterTab('all');
+    // Auto-expand workspaces the member already has access to
+    setExpandedWsIds(new Set(wsIds));
   };
 
   const handleToggleWorkspaceInEdit = (wsId) => {
@@ -238,6 +245,8 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
         setEditBoardIds((prevB) => prevB.filter((bId) => !wsBoardIds.includes(bId)));
         return prev.filter((id) => id !== wsId);
       } else {
+        // Auto-expand newly assigned workspace so owner can inspect its boards
+        setExpandedWsIds((prevExp) => new Set([...prevExp, wsId]));
         return [...prev, wsId];
       }
     });
@@ -256,6 +265,43 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
         return [...prev, boardId];
       }
     });
+  };
+
+  const handleToggleAllBoardsInWorkspace = (wsId) => {
+    const wsBoards = allBoards.filter((b) => b.workspace_id === wsId);
+    const wsBoardIds = wsBoards.map((b) => b.id);
+    if (wsBoardIds.length === 0) return;
+
+    const allSelected = wsBoardIds.every((id) => editBoardIds.includes(id));
+    if (allSelected) {
+      setEditBoardIds((prev) => prev.filter((id) => !wsBoardIds.includes(id)));
+    } else {
+      setEditBoardIds((prev) => Array.from(new Set([...prev, ...wsBoardIds])));
+      if (!editWsIds.includes(wsId)) {
+        setEditWsIds((prevW) => [...prevW, wsId]);
+      }
+      setExpandedWsIds((prevExp) => new Set([...prevExp, wsId]));
+    }
+  };
+
+  const toggleExpandWorkspace = (wsId) => {
+    setExpandedWsIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(wsId)) {
+        next.delete(wsId);
+      } else {
+        next.add(wsId);
+      }
+      return next;
+    });
+  };
+
+  const handleExpandAllWorkspaces = (wsList) => {
+    setExpandedWsIds(new Set(wsList.map((w) => w.id)));
+  };
+
+  const handleCollapseAllWorkspaces = () => {
+    setExpandedWsIds(new Set());
   };
 
   const handleSaveEmployee = async () => {
@@ -429,18 +475,46 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
     { id: 'pending', label: 'Pending Invitations', count: invitations.length }
   ];
 
-  // Filtered boards for edit employee modal
-  const filteredBoardsInEdit = useMemo(() => {
-    if (!editModalSearch.trim()) return allBoards;
-    const q = editModalSearch.toLowerCase();
-    return allBoards.filter((b) => b.name.toLowerCase().includes(q) || (b.workspace_name && b.workspace_name.toLowerCase().includes(q)));
-  }, [allBoards, editModalSearch]);
+  // Filtered workspaces for edit employee modal (Hierarchical search across workspace name and child board names)
+  const filteredWorkspacesForModal = useMemo(() => {
+    let list = allWorkspaces;
+    const q = editModalSearch.trim().toLowerCase();
 
-  const filteredWorkspacesInEdit = useMemo(() => {
-    if (!editModalSearch.trim()) return allWorkspaces;
-    const q = editModalSearch.toLowerCase();
-    return allWorkspaces.filter((w) => w.name.toLowerCase().includes(q));
-  }, [allWorkspaces, editModalSearch]);
+    if (q) {
+      list = list.filter((ws) => {
+        const wsMatch = ws.name.toLowerCase().includes(q);
+        const boardMatch = allBoards.some(
+          (b) => b.workspace_id === ws.id && b.name.toLowerCase().includes(q)
+        );
+        return wsMatch || boardMatch;
+      });
+    }
+
+    if (editWsFilterTab === 'assigned') {
+      list = list.filter((ws) => editWsIds.includes(ws.id));
+    } else if (editWsFilterTab === 'unassigned') {
+      list = list.filter((ws) => !editWsIds.includes(ws.id));
+    }
+
+    return list;
+  }, [allWorkspaces, allBoards, editModalSearch, editWsFilterTab, editWsIds]);
+
+  // Auto-expand matching workspaces when search query is typed
+  useEffect(() => {
+    if (editModalSearch.trim()) {
+      const q = editModalSearch.trim().toLowerCase();
+      const matchingIds = allWorkspaces
+        .filter((ws) => {
+          const wsMatch = ws.name.toLowerCase().includes(q);
+          const boardMatch = allBoards.some(
+            (b) => b.workspace_id === ws.id && b.name.toLowerCase().includes(q)
+          );
+          return wsMatch || boardMatch;
+        })
+        .map((w) => w.id);
+      setExpandedWsIds(new Set(matchingIds));
+    }
+  }, [editModalSearch, allWorkspaces, allBoards]);
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-6 md:p-8">
@@ -912,111 +986,216 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                 </p>
               </div>
 
-              {/* Quick filter in modal */}
-              {(allWorkspaces.length > 4 || allBoards.length > 6) && (
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={editModalSearch}
-                    onChange={(e) => setEditModalSearch(e.target.value)}
-                    placeholder="Filter workspaces & boards..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-surface border border-border/80 rounded-lg text-xs font-medium text-text-primary placeholder:text-text-muted outline-hidden"
-                  />
-                </div>
-              )}
-
-              {/* 2. Workspaces Assignment Section */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider">
-                    Workspaces Assigned
-                  </label>
-                  <span className="text-xs font-bold text-primary px-2 py-0.5 rounded-full bg-primary-tint">
-                    {editWsIds.length} of {allWorkspaces.length} selected
-                  </span>
+              {/* 2. Unified Workspace & Board Access Management */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider">
+                      Workspace & Board Access
+                    </label>
+                    <span className="text-[11px] text-text-muted">
+                      Grant access to workspaces and select specific boards.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-primary px-2.5 py-0.5 rounded-full bg-primary-tint border border-primary/20">
+                      {editWsIds.length} {editWsIds.length === 1 ? 'Workspace' : 'Workspaces'}
+                    </span>
+                    <span className="text-xs font-bold text-info px-2.5 py-0.5 rounded-full bg-info/10 border border-info/20">
+                      {editBoardIds.length} {editBoardIds.length === 1 ? 'Board' : 'Boards'}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 border border-border/70 rounded-xl bg-surface">
-                  {filteredWorkspacesInEdit.map((ws) => {
-                    const isChecked = editWsIds.includes(ws.id);
-                    return (
-                      <div
-                        key={ws.id}
-                        onClick={() => handleToggleWorkspaceInEdit(ws.id)}
-                        className={`flex items-center gap-2.5 p-2 rounded-lg border transition-all cursor-pointer ${
-                          isChecked
-                            ? 'bg-primary-tint/30 border-primary text-text-primary'
-                            : 'bg-surface hover:bg-surface-muted/60 border-border/60 text-text-secondary'
+                {/* Toolbar: Live Search + Fast Filter Tabs + Expand/Collapse Controls */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 bg-surface-muted/50 rounded-xl border border-border/70">
+                  {/* Search Input */}
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={editModalSearch}
+                      onChange={(e) => setEditModalSearch(e.target.value)}
+                      placeholder="Search workspaces or boards..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-surface border border-border rounded-lg text-xs font-medium text-text-primary placeholder:text-text-muted outline-hidden focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                    />
+                    {editModalSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setEditModalSearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary text-xs cursor-pointer"
+                        title="Clear search"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Tabs: All, Assigned, Unassigned */}
+                  <div className="flex items-center gap-1 shrink-0 bg-surface p-0.5 rounded-lg border border-border/60">
+                    {[
+                      { id: 'all', label: 'All', count: allWorkspaces.length },
+                      { id: 'assigned', label: 'Assigned', count: allWorkspaces.filter((w) => editWsIds.includes(w.id)).length },
+                      { id: 'unassigned', label: 'Unassigned', count: allWorkspaces.filter((w) => !editWsIds.includes(w.id)).length }
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setEditWsFilterTab(tab.id)}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                          editWsFilterTab === tab.id
+                            ? 'bg-primary text-white shadow-2xs'
+                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                         }`}
                       >
-                        {isChecked ? (
-                          <CheckSquare className="w-4 h-4 text-primary shrink-0" />
-                        ) : (
-                          <Square className="w-4 h-4 text-text-muted shrink-0" />
-                        )}
-                        <Briefcase className="w-3.5 h-3.5 text-primary shrink-0" />
-                        <span className="text-xs font-semibold truncate flex-1">{ws.name}</span>
-                      </div>
-                    );
-                  })}
+                        {tab.label} ({tab.count})
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Expand / Collapse All Toggle */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleExpandAllWorkspaces(filteredWorkspacesForModal)}
+                      className="text-[11px] font-semibold text-text-secondary hover:text-primary px-2 py-1 rounded-md hover:bg-surface transition-colors cursor-pointer"
+                      title="Expand all workspaces"
+                    >
+                      Expand All
+                    </button>
+                    <span className="text-border">|</span>
+                    <button
+                      type="button"
+                      onClick={handleCollapseAllWorkspaces}
+                      className="text-[11px] font-semibold text-text-secondary hover:text-primary px-2 py-1 rounded-md hover:bg-surface transition-colors cursor-pointer"
+                      title="Collapse all workspaces"
+                    >
+                      Collapse All
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* 3. Boards Assignment Section */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider">
-                    Boards Assigned
-                  </label>
-                  <span className="text-xs font-bold text-info px-2 py-0.5 rounded-full bg-info/10">
-                    {editBoardIds.length} of {allBoards.length} selected
-                  </span>
-                </div>
+                {/* Optimized Hierarchical Workspace & Board Cards Area */}
+                <div className="max-h-[380px] overflow-y-auto space-y-2 p-1 border border-border/70 rounded-xl bg-surface-muted/20">
+                  {filteredWorkspacesForModal.length > 0 ? (
+                    filteredWorkspacesForModal.map((ws) => {
+                      const isWsChecked = editWsIds.includes(ws.id);
+                      const isExpanded = expandedWsIds.has(ws.id);
+                      const wsBoards = allBoards.filter((b) => b.workspace_id === ws.id);
+                      const selectedBoardsInWs = wsBoards.filter((b) => editBoardIds.includes(b.id));
+                      const allBoardsSelected = wsBoards.length > 0 && selectedBoardsInWs.length === wsBoards.length;
 
-                <div className="max-h-60 overflow-y-auto p-2 border border-border/70 rounded-xl bg-surface space-y-3">
-                  {allWorkspaces.map((ws) => {
-                    const wsBoards = filteredBoardsInEdit.filter((b) => b.workspace_id === ws.id);
-                    if (wsBoards.length === 0) return null;
+                      // Filter boards if search query is present
+                      const q = editModalSearch.trim().toLowerCase();
+                      const visibleBoards = q
+                        ? wsBoards.filter((b) => b.name.toLowerCase().includes(q) || ws.name.toLowerCase().includes(q))
+                        : wsBoards;
 
-                    return (
-                      <div key={ws.id} className="space-y-1.5">
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-muted border-b border-border/40 pb-1">
-                          <Briefcase className="w-3 h-3 text-primary shrink-0" />
-                          <span>{ws.name}</span>
-                        </div>
+                      return (
+                        <div
+                          key={ws.id}
+                          className={`rounded-xl border transition-all ${
+                            isWsChecked
+                              ? 'bg-surface border-primary/40 shadow-xs'
+                              : 'bg-surface/80 border-border/70 hover:border-border-strong'
+                          }`}
+                        >
+                          {/* Workspace Header Row */}
+                          <div className="flex items-center justify-between p-3 gap-2 select-none">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              {/* Workspace Checkbox Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleWorkspaceInEdit(ws.id)}
+                                className="cursor-pointer text-left flex items-center gap-2.5 min-w-0 flex-1"
+                              >
+                                {isWsChecked ? (
+                                  <CheckSquare className="w-4.5 h-4.5 text-primary shrink-0" />
+                                ) : (
+                                  <Square className="w-4.5 h-4.5 text-text-muted shrink-0" />
+                                )}
+                                <Briefcase className="w-4 h-4 text-primary shrink-0" />
+                                <span className={`text-xs truncate ${isWsChecked ? 'font-bold text-text-primary' : 'font-semibold text-text-secondary'}`}>
+                                  {ws.name}
+                                </span>
+                              </button>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-1">
-                          {wsBoards.map((board) => {
-                            const isChecked = editBoardIds.includes(board.id);
-                            return (
-                              <div
-                                key={board.id}
-                                onClick={() => handleToggleBoardInEdit(board.id, ws.id)}
-                                className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer ${
-                                  isChecked
-                                    ? 'bg-info/10 border-info text-text-primary'
-                                    : 'bg-surface hover:bg-surface-muted/60 border-border/60 text-text-secondary'
+                              {/* Selected Boards Badge */}
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                  selectedBoardsInWs.length > 0
+                                    ? 'bg-primary-tint text-primary border border-primary/20'
+                                    : 'bg-surface-muted text-text-muted border border-border/60'
                                 }`}
                               >
-                                {isChecked ? (
-                                  <CheckSquare className="w-4 h-4 text-info shrink-0" />
-                                ) : (
-                                  <Square className="w-4 h-4 text-text-muted shrink-0" />
-                                )}
-                                <Layers className="w-3.5 h-3.5 text-info shrink-0" />
-                                <span className="text-xs font-semibold truncate flex-1">
-                                  {board.name}
-                                </span>
-                              </div>
-                            );
-                          })}
+                                {selectedBoardsInWs.length} of {wsBoards.length} boards
+                              </span>
+                            </div>
+
+                            {/* Right Actions: Select All Boards + Expand Chevron */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {wsBoards.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleAllBoardsInWorkspace(ws.id)}
+                                  className="text-[11px] font-semibold text-text-secondary hover:text-primary px-2 py-1 rounded-md hover:bg-surface-muted transition-colors cursor-pointer"
+                                >
+                                  {allBoardsSelected ? 'Deselect all' : 'Select all'}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => toggleExpandWorkspace(ws.id)}
+                                className="p-1 rounded-md hover:bg-surface-muted text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                                aria-label={isExpanded ? `Collapse ${ws.name}` : `Expand ${ws.name}`}
+                              >
+                                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Collapsible Boards Section */}
+                          {isExpanded && (
+                            <div className="px-3 pb-3 pt-1 border-t border-border/40 bg-surface-muted/20">
+                              {visibleBoards.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                                  {visibleBoards.map((board) => {
+                                    const isBoardChecked = editBoardIds.includes(board.id);
+                                    return (
+                                      <div
+                                        key={board.id}
+                                        onClick={() => handleToggleBoardInEdit(board.id, ws.id)}
+                                        className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer text-xs select-none ${
+                                          isBoardChecked
+                                            ? 'bg-primary-tint/30 border-primary text-text-primary font-semibold shadow-2xs'
+                                            : 'bg-surface hover:bg-surface-muted/60 border-border/60 text-text-secondary'
+                                        }`}
+                                      >
+                                        {isBoardChecked ? (
+                                          <CheckSquare className="w-3.5 h-3.5 text-primary shrink-0" />
+                                        ) : (
+                                          <Square className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                                        )}
+                                        <Layers className="w-3.5 h-3.5 text-primary shrink-0" />
+                                        <span className="truncate flex-1">{board.name}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-text-muted italic py-1 pl-1">
+                                  {q ? 'No boards matching filter.' : 'No active boards in this workspace.'}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    );
-                  })}
-                  {allBoards.length === 0 && (
-                    <p className="text-xs text-text-muted text-center py-4">No active boards found.</p>
+                      );
+                    })
+                  ) : (
+                    <div className="py-8 text-center text-xs text-text-muted">
+                      No workspaces found matching current filter or search.
+                    </div>
                   )}
                 </div>
               </div>

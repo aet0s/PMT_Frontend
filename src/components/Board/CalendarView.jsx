@@ -11,6 +11,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import Avatar from '../ui/Avatar';
+import UserDropdown from '../ui/UserDropdown';
 import { formatDate } from '../../lib/dateFormat';
 
 export default function CalendarView({ board, onCardClick, onOpenMobileSidebar }) {
@@ -74,20 +75,23 @@ export default function CalendarView({ board, onCardClick, onOpenMobileSidebar }
           </div>
         </div>
 
-        {/* Header Search Filter */}
-        <div className="relative w-full sm:w-64">
-          <label htmlFor="calendar-search-input" className="sr-only">
-            Filter scheduled tasks
-          </label>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-          <input
-            id="calendar-search-input"
-            type="text"
-            placeholder="Search deadlines..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 bg-surface border border-border rounded-xl text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-all shadow-xs"
-          />
+        {/* Header Search Filter & User Dropdown */}
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <div className="relative w-full sm:w-64">
+            <label htmlFor="calendar-search-input" className="sr-only">
+              Filter scheduled tasks
+            </label>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+            <input
+              id="calendar-search-input"
+              type="text"
+              placeholder="Search deadlines..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-1.5 bg-surface border border-border rounded-xl text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-all shadow-xs"
+            />
+          </div>
+          <UserDropdown workspaceId={board?.workspace_id} />
         </div>
       </header>
 

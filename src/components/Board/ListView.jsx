@@ -24,6 +24,7 @@ import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { Select } from '../ui/Select';
 import Spinner from '../ui/Spinner';
+import UserDropdown from '../ui/UserDropdown';
 import { formatDate } from '../../lib/dateFormat';
 import { getWorkspaceIssues } from '../../api/workspaces';
 
@@ -332,33 +333,36 @@ export default function ListView({
           </div>
         </div>
 
-        {/* Global Keyword Search Input */}
-        <div className="relative w-full sm:w-72">
-          <label htmlFor="issues-search-input" className="sr-only">
-            Search issues by title, description, or ID
-          </label>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-          <input
-            id="issues-search-input"
-            type="text"
-            placeholder="Search all issues by title, description, #ID..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-9 pr-8 py-1.5 bg-surface border border-border rounded-xl text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-all shadow-xs"
-          />
-          {searchInput && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchInput('');
-                setDebouncedSearch('');
-              }}
-              aria-label="Clear search text"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-0.5 rounded-md"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+        {/* Right side: Global Keyword Search Input & User Dropdown */}
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <div className="relative w-full sm:w-72">
+            <label htmlFor="issues-search-input" className="sr-only">
+              Search issues by title, description, or ID
+            </label>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+            <input
+              id="issues-search-input"
+              type="text"
+              placeholder="Search all issues by title, description, #ID..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 bg-surface border border-border rounded-xl text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-all shadow-xs"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput('');
+                  setDebouncedSearch('');
+                }}
+                aria-label="Clear search text"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-0.5 rounded-md"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <UserDropdown workspaceId={currentWsId} />
         </div>
       </header>
 

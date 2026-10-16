@@ -200,10 +200,22 @@ export function AuthProvider({ children }) {
 }
 
 
+const fallbackAuth = {
+  user: null,
+  setUser: () => {},
+  loading: false,
+  error: null,
+  loginUser: async () => {},
+  verify2FaLogin: async () => {},
+  registerUser: async () => {},
+  logoutUser: async () => {},
+  updateUserProfile: async () => {},
+  updateUserPassword: async () => {},
+  refreshUser: async () => {}
+};
+
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return context || fallbackAuth;
 }
+

@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
-  User,
   ShieldCheck,
   Shield,
   Laptop,
@@ -12,10 +11,10 @@ import {
   ChevronRight
 } from 'lucide-react';
 import Spinner from '../components/ui/Spinner';
+import UserDropdown from '../components/ui/UserDropdown';
 import { useUnsavedChanges } from '../lib/useUnsavedChanges';
 import { usePermissions } from '../context/PermissionContext';
 
-const ProfileTab = lazy(() => import('./account/tabs/ProfileTab'));
 const RolesTab = lazy(() => import('./settings/tabs/RolesTab'));
 const SecurityTab = lazy(() => import('./account/tabs/SecurityTab'));
 const SessionsTab = lazy(() => import('./account/tabs/SessionsTab'));
@@ -44,7 +43,6 @@ export default function AccountPage({ tab: propTab, workspace }) {
 
   const tabs = useMemo(
     () => [
-      { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" /> },
       ...(canViewRoles
         ? [{ id: 'roles', label: 'Roles & Permissions', icon: <Shield className="w-4 h-4" /> }]
         : []),
@@ -56,7 +54,9 @@ export default function AccountPage({ tab: propTab, workspace }) {
     [canViewRoles]
   );
 
-  // Tab persistence: URL path > propTab > routeTab > stored localStorage tab > 'profile'
+  const defaultTabId = canViewRoles ? 'roles' : 'security';
+
+  // Tab persistence: URL path > propTab > routeTab > stored localStorage tab > defaultTabId
   const pathMatch = location.pathname.match(/\/(?:profile|account)\/([^/?#]+)/);
   const pathTab = pathMatch ? pathMatch[1] : null;
 
@@ -66,8 +66,8 @@ export default function AccountPage({ tab: propTab, workspace }) {
     if (routeTab && tabs.some((t) => t.id === routeTab)) return routeTab;
     const stored = localStorage.getItem('last_account_tab');
     if (stored && tabs.some((t) => t.id === stored)) return stored;
-    return 'profile';
-  }, [pathTab, propTab, routeTab, tabs]);
+    return defaultTabId;
+  }, [pathTab, propTab, routeTab, tabs, defaultTabId]);
 
   useEffect(() => {
     if (currentTabId) {
@@ -75,11 +75,11 @@ export default function AccountPage({ tab: propTab, workspace }) {
     }
   }, [currentTabId]);
 
-  // If path is just /profile or /account without a tab suffix, redirect to persisted or default tab
+  // If path is just /account without a tab suffix, redirect to persisted or default tab
   useEffect(() => {
-    if (!pathTab) {
+    if (!pathTab || pathTab === 'profile') {
       if (isWorkspaceContext) {
-        navigate(`/w/${activeWsId}/profile/${currentTabId}`, { replace: true });
+        navigate(`/w/${activeWsId}/account/${currentTabId}`, { replace: true });
       } else {
         navigate(`/account/${currentTabId}`, { replace: true });
       }
@@ -89,13 +89,15 @@ export default function AccountPage({ tab: propTab, workspace }) {
   const currentTab = tabs.find((t) => t.id === currentTabId) || tabs[0];
 
   useEffect(() => {
-    document.title = `${currentTab.label} - Profile & Settings | TaskFlow`;
+    if (currentTab?.label) {
+      document.title = `${currentTab.label} - Settings | TaskFlow`;
+    }
   }, [currentTab]);
 
   const handleTabChange = (newTabId) => {
     localStorage.setItem('last_account_tab', newTabId);
     if (isWorkspaceContext) {
-      navigate(`/w/${activeWsId}/profile/${newTabId}`);
+      navigate(`/w/${activeWsId}/account/${newTabId}`);
     } else {
       navigate(`/account/${newTabId}`);
     }
@@ -105,7 +107,7 @@ export default function AccountPage({ tab: propTab, workspace }) {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app select-none">
-      {/* Top Header with Breadcrumbs */}
+      {/* Top Header with Breadcrumbs & Top-Right User Dropdown */}
       <header className="h-14 px-6 border-b border-border bg-surface flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 text-xs text-text-secondary">
           <Link
@@ -122,9 +124,18 @@ export default function AccountPage({ tab: propTab, workspace }) {
             </>
           )}
           <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-          <span className="font-semibold text-text-primary">Profile & Settings</span>
-          <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-          <span className="font-bold text-primary">{currentTab.label}</span>
+          <span className="font-semibold text-text-primary">Settings</span>
+          {currentTab && (
+            <>
+              <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
+              <span className="font-bold text-primary">{currentTab.label}</span>
+            </>
+          )}
+        </div>
+
+        {/* Top-Right Corner User Dropdown */}
+        <div className="flex items-center gap-3">
+          <UserDropdown workspaceId={activeWsId} />
         </div>
       </header>
 
@@ -133,7 +144,7 @@ export default function AccountPage({ tab: propTab, workspace }) {
         <div className="px-6 md:px-8">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1.5">
             {tabs.map((t) => {
-              const isActive = t.id === currentTab.id;
+              const isActive = t.id === currentTab?.id;
               return (
                 <button
                   key={t.id}
@@ -171,22 +182,19 @@ export default function AccountPage({ tab: propTab, workspace }) {
               </div>
             }
           >
-            {currentTab.id === 'profile' && (
-              <ProfileTab setFormDirty={setFormDirty} />
-            )}
-            {currentTab.id === 'roles' && (
+            {currentTab?.id === 'roles' && (
               <RolesTab workspace={effectiveWorkspace} />
             )}
-            {currentTab.id === 'security' && (
+            {currentTab?.id === 'security' && (
               <SecurityTab setFormDirty={setFormDirty} />
             )}
-            {currentTab.id === 'sessions' && (
+            {currentTab?.id === 'sessions' && (
               <SessionsTab />
             )}
-            {currentTab.id === 'activity' && (
+            {currentTab?.id === 'activity' && (
               <ActivityTab />
             )}
-            {currentTab.id === 'preferences' && (
+            {currentTab?.id === 'preferences' && (
               <PreferencesTab setFormDirty={setFormDirty} />
             )}
           </Suspense>

@@ -347,18 +347,13 @@ export default function RightContextPanel({
       className={`w-full shrink-0 bg-app flex flex-col h-full overflow-y-auto select-none px-2 py-1 lg:px-4 lg:py-2 space-y-6 no-scrollbar ${className}`}
     >
       {/* User Greeting & Header */}
-      <div className="flex items-center justify-between pb-1">
-        <div className="min-w-0 pr-2">
-          <h2 className="text-lg font-bold text-text-primary tracking-tight truncate">
-            Hi, {greetingName}!
-          </h2>
-          <p className="text-xs text-text-secondary mt-0.5 truncate">
-            Today is {todayFormatted}
-          </p>
-        </div>
-        <div className="flex items-center shrink-0">
-          <Avatar name={user?.name || 'User'} src={user?.avatar_url || user?.avatar} user={user} size="md" status="online" />
-        </div>
+      <div className="pb-1">
+        <h2 className="text-lg font-bold text-text-primary tracking-tight truncate">
+          Hi, {greetingName}!
+        </h2>
+        <p className="text-xs text-text-secondary mt-0.5 truncate">
+          Today is {todayFormatted}
+        </p>
       </div>
 
       {/* Mini Calendar Widget */}

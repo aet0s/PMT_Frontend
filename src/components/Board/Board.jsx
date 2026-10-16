@@ -32,6 +32,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { matchesCardFilter } from '../../lib/filterCards';
 import { getTenantItem } from '../../lib/storage';
 import RightContextPanel from './RightContextPanel';
+import UserDropdown from '../ui/UserDropdown';
 import { getBoardWorkspaceMembers } from '../../api/boards';
 
 import {
@@ -1059,7 +1060,10 @@ export default function Board({
           )}
         </div>
 
-        {/* Header right spacer */}
+        {/* Header Right: Top Right Corner User Dropdown */}
+        <div className="flex items-center gap-2.5 shrink-0 pl-2">
+          <UserDropdown workspaceId={workspaceId || workspace?.id} />
+        </div>
       </header>
 
       {/* Main Workspace Body with Floating Inset Rounded Board & Right Context Area */}
@@ -1608,6 +1612,7 @@ export default function Board({
                 <div className="w-72">
                   <Card
                     card={activeItem.card}
+                    listName={(board?.lists || visibleLists || []).find((l) => l.id === activeItem.card.list_id)?.name || activeItem.card.list_name}
                     taskNumber={taskNumberMap.get(activeItem.card.id) ?? activeItem.card.task_number}
                     isOverlay={true}
                   />
@@ -1763,6 +1768,7 @@ export default function Board({
               <div className="w-72">
                 <Card
                   card={remote.card}
+                  listName={(board?.lists || visibleLists || []).find((l) => l.id === remote.card.list_id)?.name || remote.card.list_name}
                   taskNumber={taskNumberMap.get(remote.card.id) ?? remote.card.task_number}
                   isOverlay={true}
                 />

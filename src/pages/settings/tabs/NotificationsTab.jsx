@@ -1,15 +1,14 @@
 // client/src/pages/settings/tabs/NotificationsTab.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Bell,
   Check,
-  UserCheck,
-  MessageSquare,
-  Calendar,
   Volume2,
   Shield,
   Radio,
-  Sliders,
+  Briefcase,
+  Layout,
+  Layers,
   Sparkles,
   Info
 } from 'lucide-react';
@@ -17,14 +16,18 @@ import Button from '../../../components/ui/Button';
 import Switch from '../../../components/ui/Switch';
 import { useToast } from '../../../components/ui/Toast';
 import { getNotificationPreferences, updateNotificationPreferences } from '../../../api/notifications';
-import { playNotificationBellSound } from '../../../lib/notificationSound';
+import { useNotificationSound } from '../../../context/NotificationSoundContext';
 
 export default function NotificationsTab({ workspace, setFormDirty }) {
   const toast = useToast();
-  const [notifyAssignments, setNotifyAssignments] = useState(true);
-  const [notifyMentions, setNotifyMentions] = useState(true);
-  const [notifyDueDates, setNotifyDueDates] = useState(true);
-  const [soundEffects, setSoundEffects] = useState(() => localStorage.getItem('soundEffectsEnabled') !== 'false');
+  const { enabled: soundEffects, setEnabled: setSoundEffects, playPreview } = useNotificationSound();
+
+  const [categories, setCategories] = useState({
+    Workspace: [],
+    Boards: [],
+    Cards: []
+  });
+  const [eventStates, setEventStates] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -33,15 +36,17 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
       setIsLoading(true);
       try {
         const res = await getNotificationPreferences();
-        if (res) {
-          if (res.preferences) {
-            setNotifyAssignments(res.preferences.notify_assignments ?? true);
-            setNotifyMentions(res.preferences.notify_mentions ?? true);
-            setNotifyDueDates(res.preferences.notify_due_dates ?? true);
-          }
-          const soundVal = res.play_sound !== undefined ? Boolean(res.play_sound) : (res.sound_effects !== undefined ? Boolean(res.sound_effects) : true);
-          setSoundEffects(soundVal);
-          localStorage.setItem('soundEffectsEnabled', String(soundVal));
+        if (res && res.preferences) {
+          setCategories(res.preferences);
+          const initialStates = {};
+          Object.values(res.preferences).forEach((eventList) => {
+            if (Array.isArray(eventList)) {
+              eventList.forEach((ev) => {
+                initialStates[ev.eventType] = ev.in_app !== false;
+              });
+            }
+          });
+          setEventStates(initialStates);
         }
       } catch (err) {
         console.warn('Failed to load notification preferences:', err);
@@ -53,18 +58,35 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
     load();
   }, [setFormDirty]);
 
+  const handleToggleEvent = (eventType, checked) => {
+    setEventStates((prev) => ({
+      ...prev,
+      [eventType]: checked
+    }));
+    setFormDirty?.(true);
+  };
+
+  const handleToggleAll = (val) => {
+    setEventStates((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((k) => {
+        next[k] = val;
+      });
+      return next;
+    });
+    setFormDirty?.(true);
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await updateNotificationPreferences({
-        notify_assignments: notifyAssignments,
-        notify_mentions: notifyMentions,
-        notify_due_dates: notifyDueDates,
-        play_sound: soundEffects,
-        sound_effects: soundEffects
-      });
-      localStorage.setItem('soundEffectsEnabled', String(soundEffects));
+      const updates = Object.entries(eventStates).map(([eventType, is_enabled]) => ({
+        eventType,
+        channel: 'in_app',
+        is_enabled
+      }));
+      await updateNotificationPreferences({ updates });
       toast.show('Notification preferences saved successfully', 'success');
       setFormDirty?.(false);
     } catch (err) {
@@ -74,24 +96,36 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
     }
   };
 
-  const handleToggleAll = (val) => {
-    setNotifyAssignments(val);
-    setNotifyMentions(val);
-    setNotifyDueDates(val);
-    setSoundEffects(val);
-    setFormDirty?.(true);
+  const handleSoundToggle = async (checked) => {
+    try {
+      await setSoundEffects(checked);
+    } catch (err) {
+      toast.show(err.message || 'Failed to update sound settings', 'error');
+    }
   };
 
   const handleTestChime = () => {
     try {
-      playNotificationBellSound();
+      playPreview();
       toast.show('Notification bell chime played', 'info');
     } catch {
       toast.show('Audio chime test triggered', 'info');
     }
   };
 
-  const activeAlertsCount = [notifyAssignments, notifyMentions, notifyDueDates].filter(Boolean).length;
+  const activeAlertsCount = useMemo(() => {
+    return Object.values(eventStates).filter(Boolean).length;
+  }, [eventStates]);
+
+  const totalEventsCount = useMemo(() => {
+    return Object.keys(eventStates).length || 17;
+  }, [eventStates]);
+
+  const categoryIcons = {
+    Workspace: <Briefcase className="w-4 h-4 text-primary" />,
+    Boards: <Layout className="w-4 h-4 text-info" />,
+    Cards: <Layers className="w-4 h-4 text-success-text" />
+  };
 
   return (
     <div className="space-y-6 w-full text-left">
@@ -103,7 +137,7 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
             Notification Preferences
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
-            Choose which notifications, alerts, and auditory chimes you receive for workspace events.
+            Choose which notifications and auditory chimes you receive for workspace events.
           </p>
         </div>
 
@@ -134,7 +168,7 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
           </div>
           <div className="min-w-0">
             <span className="text-xs font-bold text-text-primary block truncate">
-              {activeAlertsCount} of 3 Alerts Active
+              {activeAlertsCount} of {totalEventsCount} Events Active
             </span>
             <span className="text-[11px] text-text-secondary block truncate">In-app activity stream</span>
           </div>
@@ -148,7 +182,7 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
             <span className="text-xs font-bold text-text-primary block truncate">
               {soundEffects ? 'Audio Chimes Enabled' : 'Audio Chimes Muted'}
             </span>
-            <span className="text-[11px] text-text-secondary block truncate">Subtle task event sounds</span>
+            <span className="text-[11px] text-text-secondary block truncate">Personal event sound chimes</span>
           </div>
         </div>
 
@@ -157,178 +191,115 @@ export default function NotificationsTab({ workspace, setFormDirty }) {
             <Shield className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs font-bold text-text-primary block truncate">Strict Scope Protected</span>
-            <span className="text-[11px] text-text-secondary block truncate">Scoped to your permissions</span>
+            <span className="text-xs font-bold text-text-primary block truncate">Noise-Filtered Catalogue</span>
+            <span className="text-[11px] text-text-secondary block truncate">17 essential notification events</span>
           </div>
         </div>
       </div>
 
-      {/* Main 2-Column Responsive Layout */}
-      <form onSubmit={handleSave} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Card 1: Task & Activity Alerts */}
-          <div className="bg-surface border border-border rounded-xl p-6 shadow-xs flex flex-col justify-between space-y-4">
+      {/* Sound Preference Card - Optimistic Live Sync (No Save Required) */}
+      <div className="bg-surface border border-border rounded-xl p-5 shadow-xs">
+        <div className="border-b border-border pb-3 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+              <Volume2 className="w-4 h-4 text-primary" />
+              Notification Sound & Audio
+            </h3>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Audio feedback for real-time personal events (assignments, mentions, comments, due dates).
+            </p>
+          </div>
+        </div>
+
+        <div className="divide-y divide-border mt-1">
+          <div className="flex items-center justify-between py-4 gap-4">
             <div>
-              <div className="border-b border-border pb-3 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                    <Radio className="w-4 h-4 text-primary" />
-                    Task & Activity Alerts
-                  </h3>
-                  <p className="text-xs text-text-secondary mt-0.5">
-                    Real-time notifications sent to your in-app notification center.
-                  </p>
-                </div>
-              </div>
-
-              <div className="divide-y divide-border mt-1">
-                {/* Card Assignments */}
-                <div className="flex items-center justify-between py-4 gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-primary-tint text-primary shrink-0 mt-0.5">
-                      <UserCheck className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary">Card Assignments</p>
-                      <p className="text-[11px] text-text-secondary mt-0.5">
-                        Get alerted immediately when you are assigned or unassigned from any card.
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={notifyAssignments}
-                    onChange={(checked) => {
-                      setNotifyAssignments(checked);
-                      setFormDirty?.(true);
-                    }}
-                  />
-                </div>
-
-                {/* Mentions & Comments */}
-                <div className="flex items-center justify-between py-4 gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-info-tint text-info shrink-0 mt-0.5">
-                      <MessageSquare className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary">Mentions & Comments</p>
-                      <p className="text-[11px] text-text-secondary mt-0.5">
-                        Get alerted when someone @mentions you or comments on your cards.
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={notifyMentions}
-                    onChange={(checked) => {
-                      setNotifyMentions(checked);
-                      setFormDirty?.(true);
-                    }}
-                  />
-                </div>
-
-                {/* Due Date Reminders */}
-                <div className="flex items-center justify-between py-4 gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-warning-tint text-warning shrink-0 mt-0.5">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary">Due Date Alerts</p>
-                      <p className="text-[11px] text-text-secondary mt-0.5">
-                        Get reminder alerts 24 hours before your assigned tasks expire.
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={notifyDueDates}
-                    onChange={(checked) => {
-                      setNotifyDueDates(checked);
-                      setFormDirty?.(true);
-                    }}
-                  />
-                </div>
-              </div>
+              <p className="text-xs font-semibold text-text-primary">Play sound for incoming notifications</p>
+              <p className="text-[11px] text-text-secondary mt-0.5">
+                Instant sync across devices and open browser tabs.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={soundEffects}
+                onChange={handleSoundToggle}
+                aria-label="Notification sound toggle"
+              />
+              <span className={`text-xs font-bold ${soundEffects ? 'text-primary' : 'text-text-muted'}`}>
+                {soundEffects ? 'ON' : 'OFF'}
+              </span>
             </div>
           </div>
 
-          {/* Card 2: Audio, Sound & Device Preferences */}
-          <div className="bg-surface border border-border rounded-xl p-6 shadow-xs flex flex-col justify-between space-y-4">
+          <div className="py-3 flex items-center justify-between gap-4">
             <div>
-              <div className="border-b border-border pb-3 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                    <Volume2 className="w-4 h-4 text-primary" />
-                    Sound & Audio Preferences
-                  </h3>
-                  <p className="text-xs text-text-secondary mt-0.5">
-                    Audio cues and auditory notification feedback while in the workspace.
-                  </p>
-                </div>
-              </div>
+              <p className="text-xs font-semibold text-text-primary">Preview Chime</p>
+              <p className="text-[11px] text-text-secondary mt-0.5">
+                Test audio output to verify speaker levels.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleTestChime}
+              className="px-3 py-1.5 text-xs font-semibold text-text-secondary bg-surface-muted hover:text-text-primary hover:bg-border rounded-lg transition cursor-pointer flex items-center gap-1.5"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              Play Sample
+            </button>
+          </div>
+        </div>
+      </div>
 
-              <div className="divide-y divide-border mt-1">
-                {/* Audio Chimes Switch */}
-                <div className="flex items-center justify-between py-4 gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-surface-muted text-text-primary shrink-0 mt-0.5">
-                      <Volume2 className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary">Play sound for new notifications</p>
-                      <p className="text-[11px] text-text-secondary mt-0.5">
-                        Play subtle audio sound on incoming real-time notifications and assignments.
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={soundEffects}
-                    onChange={(checked) => {
-                      setSoundEffects(checked);
-                      localStorage.setItem('soundEffectsEnabled', String(checked));
-                      setFormDirty?.(true);
-                    }}
-                  />
-                </div>
+      {/* Main Events Form (Grouped as Workspace, Boards, Cards) */}
+      <form onSubmit={handleSave} className="space-y-6">
+        <div className="space-y-6">
+          {['Workspace', 'Boards', 'Cards'].map((catName) => {
+            const events = categories[catName] || [];
+            if (events.length === 0) return null;
 
-                {/* Sound Preview Action */}
-                <div className="py-4 flex items-center justify-between gap-4">
+            return (
+              <div key={catName} className="bg-surface border border-border rounded-xl p-5 shadow-xs">
+                <div className="border-b border-border pb-3 flex items-center gap-2">
+                  {categoryIcons[catName] || <Bell className="w-4 h-4 text-primary" />}
                   <div>
-                    <p className="text-xs font-semibold text-text-primary">Sound Test</p>
-                    <p className="text-[11px] text-text-secondary mt-0.5">
-                      Listen to a sample chime to calibrate your speaker volume.
+                    <h3 className="text-sm font-bold text-text-primary">{catName} Notifications</h3>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      Configure alerts for {catName.toLowerCase()} activities.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleTestChime}
-                    className="px-3 py-1.5 text-xs font-semibold text-text-secondary bg-surface-muted hover:text-text-primary hover:bg-border rounded-lg transition cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Volume2 className="w-3.5 h-3.5" />
-                    Play Sample
-                  </button>
                 </div>
 
-                {/* Scope & Privacy Notice */}
-                <div className="py-4 bg-surface-muted/40 rounded-xl p-3.5 mt-2 border border-border/60">
-                  <div className="flex items-start gap-2.5">
-                    <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary">Role-based Notification Security</p>
-                      <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">
-                        TaskFlow automatically filters notifications to ensure you only receive alerts for boards and cards you have permission to view.
-                      </p>
-                    </div>
-                  </div>
+                <div className="divide-y divide-border mt-1">
+                  {events.map((ev) => {
+                    const isChecked = eventStates[ev.eventType] !== false;
+                    return (
+                      <div key={ev.eventType} className="flex items-center justify-between py-3.5 gap-4">
+                        <div className="min-w-0 pr-2">
+                          <p className="text-xs font-semibold text-text-primary truncate">
+                            {ev.eventType}
+                          </p>
+                          <p className="text-[11px] text-text-secondary mt-0.5">
+                            {ev.template}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={isChecked}
+                          onChange={(checked) => handleToggleEvent(ev.eventType, checked)}
+                          aria-label={`Toggle notifications for ${ev.eventType}`}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
 
         {/* Save Bar */}
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <p className="text-xs text-text-secondary">
-            Preferences apply across all boards in this workspace.
+            Settings apply to your user profile across the workspace.
           </p>
           <Button
             type="submit"

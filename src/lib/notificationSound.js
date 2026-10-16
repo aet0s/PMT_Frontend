@@ -33,20 +33,12 @@ function getAudioContext() {
 
 /**
  * Plays a crisp, melodic bell chime (Slack / Apple style dual-tone notification chime).
- * Enabled by default unless explicitly disabled by user in settings ('soundEffectsEnabled' === 'false').
+ * Called by NotificationSoundContext preview or SocketProvider when sound is enabled.
  */
-export function playNotificationBellSound() {
+export function playNotificationBellSound({ enabled = true } = {}) {
   try {
     if (typeof window === 'undefined') return;
-
-    // Enabled by default unless explicitly disabled by user setting
-    const soundPref = localStorage.getItem('soundEffectsEnabled');
-    if (soundPref === 'false') return;
-
-    // Respect reduced motion / accessibility preferences
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
+    if (!enabled) return;
 
     const ctx = getAudioContext();
     if (!ctx) return;

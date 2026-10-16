@@ -216,6 +216,7 @@ export default function CardDetailModal({
             {/* Rich Text Description (Tiptap) */}
             <DescriptionEditor
               cardId={card.id}
+              cardTitle={card.title}
               initialValue={card.description}
               onSave={(description) => onUpdateCard(card.id, { description })}
             />
