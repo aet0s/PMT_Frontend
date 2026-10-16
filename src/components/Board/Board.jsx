@@ -572,14 +572,14 @@ export default function Board({
   const boardAssignees = useMemo(() => {
     const map = new Map();
     (board?.members || []).forEach((m) => {
-      map.set(Number(m.id), { id: Number(m.id), name: m.name, email: m.email });
+      map.set(Number(m.id), { id: Number(m.id), name: m.name, email: m.email, avatar_url: m.avatar_url || m.avatar });
     });
     (board?.lists || []).forEach((l) => {
       (l.cards || []).forEach((c) => {
         (c.members || []).forEach((m) => {
           const id = Number(m.id || m.user_id);
           if (id && !map.has(id)) {
-            map.set(id, { id, name: m.name, email: m.email });
+            map.set(id, { id, name: m.name, email: m.email, avatar_url: m.avatar_url || m.avatar });
           }
         });
       });
@@ -595,17 +595,17 @@ export default function Board({
         (c.assigners || []).forEach((a) => {
           const id = Number(a.id || a.user_id);
           if (id && !map.has(id)) {
-            map.set(id, { id, name: a.name, email: a.email });
+            map.set(id, { id, name: a.name, email: a.email, avatar_url: a.avatar_url || a.avatar });
           }
         });
         if (c.creator_id && c.creator_name && !map.has(Number(c.creator_id))) {
-          map.set(Number(c.creator_id), { id: Number(c.creator_id), name: c.creator_name, email: c.creator_email });
+          map.set(Number(c.creator_id), { id: Number(c.creator_id), name: c.creator_name, email: c.creator_email, avatar_url: c.creator_avatar || c.creator_avatar_url });
         }
       });
     });
     if (map.size === 0) {
       (board?.members || []).forEach((m) => {
-        map.set(Number(m.id), { id: Number(m.id), name: m.name, email: m.email });
+        map.set(Number(m.id), { id: Number(m.id), name: m.name, email: m.email, avatar_url: m.avatar_url || m.avatar });
       });
     }
     return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));

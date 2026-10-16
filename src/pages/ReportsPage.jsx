@@ -1,6 +1,6 @@
 // client/src/pages/ReportsPage.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BarChart3,
   TrendingUp,
@@ -72,7 +72,56 @@ export default function ReportsPage({ workspace }) {
   const [error, setError] = useState(null);
 
   // Active section view tab: 'overview' | 'team' | 'boards' | 'pipeline' | 'overdue'
-  const [activeTab, setActiveTab] = useState('overview');
+  const VALID_TABS = useMemo(() => ['overview', 'team', 'boards', 'pipeline', 'overdue'], []);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+  const initialTab = (urlTab && VALID_TABS.includes(urlTab))
+    ? urlTab
+    : (() => {
+        try {
+          const saved = localStorage.getItem('taskflow_reports_tab');
+          if (saved && ['overview', 'team', 'boards', 'pipeline', 'overdue'].includes(saved)) return saved;
+        } catch {
+          // ignore
+        }
+        return 'overview';
+      })();
+
+  const [activeTab, setActiveTabState] = useState(initialTab);
+
+  const setActiveTab = useCallback((tab) => {
+    if (!['overview', 'team', 'boards', 'pipeline', 'overdue'].includes(tab)) return;
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('taskflow_reports_tab', tab);
+    } catch {
+      // ignore
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Keep state and URL search params synchronized on back/forward navigation or refresh
+  useEffect(() => {
+    const currentTab = searchParams.get('tab');
+    if (currentTab && VALID_TABS.includes(currentTab)) {
+      if (currentTab !== activeTab) {
+        setActiveTabState(currentTab);
+        try {
+          localStorage.setItem('taskflow_reports_tab', currentTab);
+        } catch {}
+      }
+    } else {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', activeTab);
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, activeTab, setSearchParams, VALID_TABS]);
 
   // Search & Filter States
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -1682,7 +1731,7 @@ export default function ReportsPage({ workspace }) {
                                         {card.members && card.members.length > 0 && (
                                           <div className="flex items-center -space-x-1">
                                             {card.members.slice(0, 2).map((m) => (
-                                              <Avatar key={m.id} name={m.name} src={m.avatar_url} size="xs" />
+                                              <Avatar key={m.id} name={m.name} src={m.avatar_url || m.avatar} user={m} size="xs" />
                                             ))}
                                           </div>
                                         )}

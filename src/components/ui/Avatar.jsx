@@ -53,7 +53,16 @@ export function Avatar({
   const initials = getInitials(displayName);
   const pastelClass = PASTEL_PALETTE[getPaletteIndex(displayName)];
   
-  const rawUrl = src || avatarUrl || avatar_url || avatar || user?.avatar_url || user?.avatar;
+  const rawUrl =
+    src ||
+    avatarUrl ||
+    avatar_url ||
+    avatar ||
+    user?.avatar_url ||
+    user?.avatar ||
+    user?.user_avatar ||
+    user?.user_avatar_url ||
+    user?.author_avatar;
   const finalSrc = rawUrl
     ? (rawUrl.startsWith('http') || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')
         ? rawUrl

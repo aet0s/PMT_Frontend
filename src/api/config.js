@@ -57,12 +57,17 @@ export function getFileUrl(fileUrl = '') {
   if (/^https?:\/\//i.test(fileUrl) || fileUrl.startsWith('data:') || fileUrl.startsWith('blob:')) {
     return fileUrl;
   }
+  let path = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+  if (!path.startsWith('/api/files/') && !path.startsWith('/uploads/')) {
+    if (path.includes('/avatars/')) {
+      path = `/api/files${path}`;
+    }
+  }
   const base = (
     import.meta.env.VITE_API_URL ||
     import.meta.env.VITE_SERVER_URL ||
     import.meta.env.VITE_API_TARGET ||
     ''
   ).replace(/\/+$/, '');
-  const path = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
   return base ? `${base}${path}` : path;
 }

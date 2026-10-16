@@ -588,26 +588,32 @@ export default function ListView({
                               )}
                             </td>
                             <td className="py-3.5 px-4">
-                              <div className="flex items-center -space-x-1.5">
-                                {(card.assigners || []).length > 0 ? (
-                                  (card.assigners || []).map((u) => (
-                                    <Avatar key={u.id} name={u.name} src={u.avatar_url || u.avatar} user={u} size="xs" className="border border-primary/40" />
-                                  ))
-                                ) : (
-                                  <span className="text-text-muted text-[11px]">—</span>
-                                )}
-                              </div>
+                              {(card.assigners || []).length > 0 ? (
+                                <div className="flex flex-col gap-1 min-w-[110px]">
+                                  {(card.assigners || []).map((u) => (
+                                    <div key={u.id} className="flex items-center gap-1.5 min-w-0" title={u.name}>
+                                      <Avatar key={u.id} name={u.name} src={u.avatar_url || u.avatar} user={u} size="xs" className="border border-primary/40 shrink-0" />
+                                      <span className="text-xs text-text-primary font-medium truncate max-w-[120px]">{u.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-text-muted text-[11px]">—</span>
+                              )}
                             </td>
                             <td className="py-3.5 px-4">
-                              <div className="flex items-center -space-x-1.5">
-                                {(card.members || card.assigned_users || []).length > 0 ? (
-                                  (card.members || card.assigned_users || []).map((u) => (
-                                    <Avatar key={u.id} name={u.name} src={u.avatar_url || u.avatar} user={u} size="xs" />
-                                  ))
-                                ) : (
-                                  <span className="text-text-muted text-[11px]">—</span>
-                                )}
-                              </div>
+                              {(card.members || card.assigned_users || []).length > 0 ? (
+                                <div className="flex flex-col gap-1 min-w-[110px]">
+                                  {(card.members || card.assigned_users || []).map((u) => (
+                                    <div key={u.id} className="flex items-center gap-1.5 min-w-0" title={u.name}>
+                                      <Avatar key={u.id} name={u.name} src={u.avatar_url || u.avatar} user={u} size="xs" className="shrink-0" />
+                                      <span className="text-xs text-text-primary font-medium truncate max-w-[120px]">{u.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-text-muted text-[11px]">—</span>
+                              )}
                             </td>
                             <td className="py-3.5 px-4 text-right">
                               <span className="text-xs font-bold text-primary group-hover:translate-x-0.5 inline-flex items-center gap-0.5 transition-transform">
@@ -681,9 +687,12 @@ export default function ListView({
                             )}
                           </div>
 
-                          <div className="flex items-center -space-x-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
                             {(card.members || card.assigned_users || []).map((u) => (
-                              <Avatar key={u.id} name={u.name} src={u.avatar_url || u.avatar} user={u} size="xs" />
+                              <div key={u.id} className="flex items-center gap-1.5">
+                                <Avatar name={u.name} src={u.avatar_url || u.avatar} user={u} size="xs" />
+                                <span className="text-xs text-text-primary font-medium">{u.name}</span>
+                              </div>
                             ))}
                           </div>
                         </div>

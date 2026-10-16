@@ -84,6 +84,7 @@ export default function CommentsActivitySidebar({
     user_id: c.user_id,
     type: 'comment',
     user_name: c.author_name,
+    user_avatar: c.author_avatar || c.avatar_url || c.user_avatar,
     body: c.body,
     created_at: c.created_at
   }));
@@ -94,6 +95,7 @@ export default function CommentsActivitySidebar({
       id: `act-${a.id}`,
       type: 'activity',
       user_name: a.user_name,
+      user_avatar: a.user_avatar_url || a.user_avatar || a.avatar_url,
       card_title: a.card_title || card.title,
       action_type: a.action_type,
       meta_json: a.meta_json,
