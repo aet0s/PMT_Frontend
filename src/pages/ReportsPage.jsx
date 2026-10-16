@@ -34,6 +34,7 @@ import ProgressBar from '../components/ui/ProgressBar';
 import Select from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
+import { usePermissions } from '../context/PermissionContext';
 
 const TIMEFRAME_OPTIONS = [
   { id: 'all', label: 'All Time' },
@@ -45,6 +46,14 @@ const TIMEFRAME_OPTIONS = [
 export default function ReportsPage({ workspace }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { hasPermission, loading: permissionsLoading } = usePermissions();
+  const canViewReports = hasPermission('report.view_team') || hasPermission('report.view_all');
+
+  useEffect(() => {
+    if (!permissionsLoading && !canViewReports && workspace?.id) {
+      navigate(`/w/${workspace.id}/home`, { replace: true });
+    }
+  }, [permissionsLoading, canViewReports, workspace?.id, navigate]);
 
   // Safely connect to real-time socket events if available
   let socketContext = null;

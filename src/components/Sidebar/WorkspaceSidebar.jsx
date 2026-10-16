@@ -133,7 +133,7 @@ export default function WorkspaceSidebar({
   const canDeleteWs = hasPermission('workspace.delete');
   const canViewRoadmap = hasPermission('project.view') || hasPermission('task.view');
   const canViewSprint = hasPermission('project.view') || hasPermission('task.view');
-  const canViewReports = hasPermission('workspace.view');
+  const canViewReports = hasPermission('report.view_team') || hasPermission('report.view_all');
   const canViewIssues = hasPermission('task.view');
   const canViewActivity = hasPermission('activity.view');
   const canViewMembers = hasPermission('member.view');

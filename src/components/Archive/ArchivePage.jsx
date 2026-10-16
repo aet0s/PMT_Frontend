@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { formatDate, formatShortDate } from '../../lib/dateFormat';
 import { usePermissions } from '../../context/PermissionContext';
+import { useAuth } from '../../hooks/useAuth';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import Avatar from '../ui/Avatar';
@@ -381,11 +382,14 @@ export default function ArchivePage({
   onDeleteCard
 }) {
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
   const canDeleteWorkspace = hasPermission('workspace.delete');
   const canRestoreWorkspace = hasPermission('workspace.edit') || hasPermission('workspace.archive');
   const canDeleteBoard = hasPermission('project.delete');
   const canRestoreBoard = hasPermission('project.edit_settings') || hasPermission('project.archive');
-  const canDeleteCard = hasPermission('task.delete');
+  const canDeleteAnyCard = hasPermission('task.delete');
+  const canDeleteOwnCard = hasPermission('task.delete_own');
+  const canDeleteCard = (c) => Boolean(canDeleteAnyCard || (canDeleteOwnCard && c?.created_by && user?.id && Number(c.created_by) === Number(user.id)));
   const canRestoreCard = hasPermission('task.restore') || hasPermission('task.archive');
 
   // Top level active tab: 'cards' | 'boards' | 'workspaces'
@@ -1051,7 +1055,7 @@ export default function ArchivePage({
                               </button>
                             )}
 
-                            {canDeleteCard && onDeleteCard && (
+                            {canDeleteCard(card) && onDeleteCard && (
                               <button
                                 type="button"
                                 onClick={() => setCardToDelete(card)}
@@ -1286,7 +1290,7 @@ export default function ArchivePage({
                 <span className="font-semibold text-text-secondary">{inspectCard.list_name}</span>
               </div>
               <div className="flex items-center gap-2.5">
-                {canDeleteCard && onDeleteCard && (
+                {canDeleteCard(inspectCard) && onDeleteCard && (
                   <button
                     type="button"
                     onClick={() => {

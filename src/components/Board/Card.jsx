@@ -17,6 +17,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { usePermissions } from '../../context/PermissionContext';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function Card({
   card,
@@ -30,7 +31,9 @@ export default function Card({
   isRemoteDragging = false
 }) {
   const { hasPermission } = usePermissions();
-  const canDeleteCard = hasPermission('task.delete');
+  const { user } = useAuth();
+  const isCardCreator = Boolean(card?.created_by && user?.id && Number(card.created_by) === Number(user.id));
+  const canDeleteCard = hasPermission('task.delete') || (hasPermission('task.delete_own') && isCardCreator);
   const canCopyCard = hasPermission('task.duplicate') || hasPermission('task.create');
   const canArchiveCard = hasPermission('task.archive') || hasPermission('task.edit');
   const hasAnyCardActions = (onCopyCard && canCopyCard) || (onUpdateCard && canArchiveCard) || (onDeleteCard && canDeleteCard);

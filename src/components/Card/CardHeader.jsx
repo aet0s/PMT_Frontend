@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePermissions } from '../../context/PermissionContext';
+import { useAuth } from '../../hooks/useAuth';
 import { LayoutGrid, MoreHorizontal, X, Archive, Copy, Trash2, ChevronDown } from 'lucide-react';
 import { Menu, MenuItem, MenuGroup, MenuDivider } from '../ui/Menu';
 
@@ -13,10 +14,12 @@ export default function CardHeader({
   onClose
 }) {
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
+  const isCardCreator = Boolean(card?.created_by && user?.id && Number(card.created_by) === Number(user.id));
   const canMoveCard = hasPermission('task.move');
   const canEditCard = hasPermission('task.edit');
   const canCreateCard = hasPermission('task.create');
-  const canDeleteCard = hasPermission('task.delete');
+  const canDeleteCard = hasPermission('task.delete') || (hasPermission('task.delete_own') && isCardCreator);
 
   const currentList = boardLists.find((l) => l.id === card.list_id);
 
