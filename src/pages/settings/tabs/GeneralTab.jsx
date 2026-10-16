@@ -31,7 +31,7 @@ export default function GeneralTab({
   const toast = useToast();
   const { hasPermission, userRole } = usePermissions();
   const { socket, originId } = useSocket();
-  const canEdit = hasPermission('workspace.edit_settings');
+  const canEdit = hasPermission('workspace.edit');
   const canDelete = hasPermission('workspace.delete');
 
   const [name, setName] = useState(workspace?.name || '');

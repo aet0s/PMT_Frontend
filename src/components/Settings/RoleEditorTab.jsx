@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../api/client';
-import { Shield, Plus, Edit2, Trash2, CheckSquare, Square, Info, AlertTriangle, Copy, LayoutGrid, List, Check, X } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, CheckSquare, Square, Info, AlertTriangle, Copy, LayoutGrid, List, Check, X, Eye, UserCheck } from 'lucide-react';
 import Button from '../ui/Button';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { useSocket } from '../../context/SocketProvider';
+import {
+  groupPermissionsByModule,
+  getScopeBadge,
+  getDangerousBadge,
+  calculateEffectivePermissions,
+  SYSTEM_ROLE_METADATA
+} from '../../lib/roleEditorHelpers';
 
 export default function RoleEditorTab({ workspaceId, onToast }) {
   const { socket, originId } = useSocket();
@@ -20,6 +27,12 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [roleToDelete, setRoleToDelete] = useState(null);
+
+  // Effective Permissions Preview state
+  const [allPermissionsList, setAllPermissionsList] = useState([]);
+  const [selectedPreviewRoleId, setSelectedPreviewRoleId] = useState(null);
+  const [previewBoardMember, setPreviewBoardMember] = useState(true);
+  const [previewSearch, setPreviewSearch] = useState('');
 
   const fetchData = async () => {
     try {
@@ -39,8 +52,19 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
         }
         uniqueRoles.push(r);
       }
+      uniqueRoles.sort((a, b) => (b.rank || 0) - (a.rank || 0));
       setRoles(uniqueRoles);
-      setCategories(permsData.categories || []);
+      if (uniqueRoles.length > 0 && !selectedPreviewRoleId) {
+        setSelectedPreviewRoleId(uniqueRoles[0].id);
+      }
+
+      const rawPerms = permsData.permissions || [];
+      const cleanPerms = rawPerms.filter((p) => !p.planned);
+      setAllPermissionsList(cleanPerms);
+
+      // Clean module groups via pure helper function
+      const cleanCategories = groupPermissionsByModule(rawPerms);
+      setCategories(cleanCategories);
     } catch (err) {
       onToast?.(err.message || 'Failed to load roles and permissions', 'error');
     } finally {
@@ -230,7 +254,7 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
             Roles & Permissions Matrix
           </h3>
           <p className="text-xs text-text-secondary mt-1">
-            Enterprise RBAC system: 6 system roles with fine-grained capability evaluation.
+            Enterprise RBAC system: 8 system roles with fine-grained capability evaluation.
           </p>
         </div>
 
@@ -258,6 +282,17 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
             >
               <List className="w-3.5 h-3.5" />
               Role Cards
+            </button>
+            <button
+              onClick={() => setViewMode('preview')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition ${
+                viewMode === 'preview'
+                  ? 'bg-surface text-text-primary shadow-xs font-bold'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              Effective Preview
             </button>
           </div>
 
@@ -352,8 +387,17 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
                       return (
                         <tr key={perm.key} className="hover:bg-surface-muted/50 transition">
                           <td className="p-2.5 px-4 border-r border-border min-w-0">
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
                               <span className="font-mono text-text-primary text-xs truncate">{perm.key}</span>
+                              {perm.scope && (
+                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider shrink-0 ${
+                                  perm.scope === 'company'
+                                    ? 'bg-primary-tint text-primary-text border border-primary/20'
+                                    : 'bg-surface-muted text-text-secondary border border-border'
+                                }`}>
+                                  {perm.scope}
+                                </span>
+                              )}
                               {isDangerous && (
                                 <span className="px-1.5 py-0.2 bg-danger-tint text-danger-text border border-danger/20 rounded text-[9px] font-medium flex items-center gap-0.5 shrink-0">
                                   <AlertTriangle className="w-2.5 h-2.5" />
@@ -486,6 +530,218 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
           })}
         </div>
       )}
+
+      {/* EFFECTIVE PERMISSIONS PREVIEW VIEW */}
+      {viewMode === 'preview' && (() => {
+        const selectedRole = roles.find((r) => r.id === selectedPreviewRoleId) || roles[0];
+        if (!selectedRole) {
+          return (
+            <div className="p-8 text-center text-text-muted text-xs">
+              No roles available for preview.
+            </div>
+          );
+        }
+
+        const effective = calculateEffectivePermissions({
+          workspaceRole: selectedRole,
+          isBoardMember: previewBoardMember,
+          allCatalogPermissions: allPermissionsList
+        });
+
+        const roleMeta = SYSTEM_ROLE_METADATA[selectedRole.name] || {
+          name: selectedRole.name,
+          rank: selectedRole.rank || 30,
+          description: selectedRole.description || 'Custom organization role.'
+        };
+
+        const totalActive = allPermissionsList.length;
+        const grantedCount = effective.effectiveKeys.size;
+        const percentGranted = totalActive > 0 ? Math.round((grantedCount / totalActive) * 100) : 0;
+
+        return (
+          <div className="space-y-6">
+            {/* Control & Selector Bar */}
+            <div className="bg-surface border border-border rounded-2xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+                <div>
+                  <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                    Select Member Role
+                  </label>
+                  <select
+                    value={selectedPreviewRoleId || selectedRole.id}
+                    onChange={(e) => setSelectedPreviewRoleId(Number(e.target.value))}
+                    className="bg-surface border border-border rounded-lg px-3 py-1.5 text-xs font-semibold text-text-primary focus:outline-none focus:border-primary cursor-pointer min-w-[200px]"
+                  >
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} (Rank {r.rank || 0}) {r.is_system ? '• System' : '• Custom'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 sm:pt-4">
+                  <label className="flex items-center gap-2 text-xs font-medium text-text-primary cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={previewBoardMember}
+                      onChange={(e) => setPreviewBoardMember(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                    />
+                    <span>Target Board Member</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="w-full md:w-64">
+                <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                  Filter Permissions
+                </label>
+                <input
+                  type="text"
+                  value={previewSearch}
+                  onChange={(e) => setPreviewSearch(e.target.value)}
+                  placeholder="Filter by key or capability..."
+                  className="w-full bg-surface border border-border rounded-lg px-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            {/* Role Header Banner */}
+            <div className="bg-surface-muted border border-border rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary-tint text-primary border border-primary/20 flex items-center justify-center shrink-0">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-text-primary">{selectedRole.name}</h4>
+                    <span className="px-2 py-0.5 bg-primary-tint border border-primary/20 text-primary-text rounded-full text-[10px] font-semibold uppercase tracking-wider">
+                      Rank {selectedRole.rank || 0}
+                    </span>
+                    {selectedRole.is_system ? (
+                      <span className="px-2 py-0.5 bg-surface text-text-secondary border border-border rounded-full text-[10px] font-semibold uppercase tracking-wider">
+                        System Role
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-info-tint text-info-text border border-info/20 rounded-full text-[10px] font-semibold uppercase tracking-wider">
+                        Custom Role
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-secondary mt-1">{roleMeta.description}</p>
+                </div>
+              </div>
+
+              {/* Progress metric */}
+              <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+                <div className="text-right">
+                  <span className="text-xs font-bold text-text-primary">{grantedCount} / {totalActive} Active</span>
+                  <p className="text-[10px] text-text-secondary">{percentGranted}% Granted</p>
+                </div>
+                <div className="w-16 h-2 bg-surface border border-border rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${percentGranted}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Capabilities Grouped Breakdown */}
+            <div className="space-y-4">
+              {categories.map((cat) => {
+                const searchLower = previewSearch.toLowerCase().trim();
+                const filteredPerms = cat.permissions.filter((p) => {
+                  if (!searchLower) return true;
+                  return (
+                    p.key.toLowerCase().includes(searchLower) ||
+                    (p.label && p.label.toLowerCase().includes(searchLower)) ||
+                    (p.description && p.description.toLowerCase().includes(searchLower))
+                  );
+                });
+
+                if (filteredPerms.length === 0) return null;
+
+                const catGrantedCount = filteredPerms.filter((p) => effective.effectiveKeys.has(p.key)).length;
+
+                return (
+                  <div key={cat.module || cat.name} className="bg-surface border border-border rounded-2xl p-5 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between pb-3 border-b border-border">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                          {cat.label || cat.name} Module
+                        </span>
+                        <span className="text-[11px] text-text-secondary">
+                          ({catGrantedCount} / {filteredPerms.length} allowed)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                      {filteredPerms.map((perm) => {
+                        const isAllowed = effective.effectiveKeys.has(perm.key);
+                        const scopeBadge = getScopeBadge(perm.scope);
+                        const dangerousBadge = getDangerousBadge(perm);
+
+                        return (
+                          <div
+                            key={perm.key}
+                            className={`p-3 rounded-xl border flex items-start gap-3 transition ${
+                              isAllowed
+                                ? 'bg-surface border-border hover:border-border-strong'
+                                : 'bg-surface-muted/40 border-border/60 opacity-60'
+                            }`}
+                          >
+                            <div className="mt-0.5 shrink-0">
+                              {isAllowed ? (
+                                <div className="w-5 h-5 rounded-md bg-success-tint text-success-text border border-success/30 flex items-center justify-center">
+                                  <Check className="w-3.5 h-3.5" />
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-md bg-surface-muted text-text-muted border border-border flex items-center justify-center">
+                                  <X className="w-3.5 h-3.5" />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono text-xs font-semibold text-text-primary">
+                                  {perm.key}
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider border ${scopeBadge.className}`}
+                                  title={scopeBadge.description}
+                                >
+                                  {scopeBadge.label}
+                                </span>
+                                {dangerousBadge && (
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider border flex items-center gap-0.5 ${dangerousBadge.className}`}
+                                    title={dangerousBadge.tooltip}
+                                  >
+                                    <AlertTriangle className="w-2.5 h-2.5" />
+                                    Dangerous
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-text-secondary mt-1 leading-snug">
+                                {perm.description || perm.label}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Role Editor Modal */}
       {showModal && (

@@ -18,9 +18,9 @@ export default function QuickAddRow({
   const membersBtnRef = useRef(null);
   const assignersBtnRef = useRef(null);
 
-  const canAssignMembers = hasPermission('card.assign_members');
-  const canEditCard = hasPermission('card.edit');
-  const canManageAttachments = hasPermission('card.manage_attachments');
+  const canAssignMembers = hasPermission('task.assign');
+  const canEditCard = hasPermission('task.edit');
+  const canManageAttachments = hasPermission('attachment.upload');
 
   return (
     <div className="flex flex-wrap items-center gap-2 select-none">

@@ -12,7 +12,7 @@ export default function InvitationsTab({ workspace, onOpenInvite }) {
   const toast = useToast();
   const { hasPermission } = usePermissions();
   const { socket, originId } = useSocket();
-  const canInvite = hasPermission('workspace.invite_members');
+  const canInvite = hasPermission('member.invite');
 
   const [invitations, setInvitations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

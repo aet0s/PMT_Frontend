@@ -257,6 +257,12 @@ export async function apiFetch(url, options = {}, isRetry = false) {
       }
     }
 
+    if (response.status === 403 && data?.error?.code === 'TWO_FA_SETUP_REQUIRED') {
+      if (typeof window !== 'undefined' && window.location.pathname !== '/account/security') {
+        window.location.href = '/account/security';
+      }
+    }
+
     if (response.status === 403 && data?.error?.code === 'PERMISSION_DENIED') {
       if (typeof window !== 'undefined' && window.showToast) {
         window.showToast(data.error.message || "You don't have permission to do that", 'error');

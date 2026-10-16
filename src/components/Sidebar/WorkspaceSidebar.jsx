@@ -127,9 +127,9 @@ export default function WorkspaceSidebar({
   }, [isWsDropdownOpen, isWsActionsOpen, isMobileOpen, onCloseMobile]);
 
   const { hasPermission } = usePermissions();
-  const canCreateBoard = hasPermission('board.create') || hasPermission('project.create');
-  const canEditWs = hasPermission('workspace.edit_settings');
-  const canCreateWs = hasPermission('workspace.create') || hasPermission('workspace.edit_settings');
+  const canCreateBoard = hasPermission('project.create');
+  const canEditWs = hasPermission('workspace.edit');
+  const canCreateWs = hasPermission('workspace.create') || hasPermission('workspace.edit');
   const canDeleteWs = hasPermission('workspace.delete');
   const canViewRoadmap = hasPermission('project.view') || hasPermission('task.view');
   const canViewSprint = hasPermission('project.view') || hasPermission('task.view');

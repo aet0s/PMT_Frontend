@@ -55,7 +55,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
   const originId = socketContext?.originId;
 
   const canManage = hasPermission('member.assign_role') || hasPermission('member.remove') || userRole?.name === 'Owner' || userRole?.name === 'Admin';
-  const canInvite = hasPermission('member.invite') || hasPermission('workspace.invite_members') || userRole?.name === 'Owner' || userRole?.name === 'Admin';
+  const canInvite = hasPermission('member.invite') || userRole?.name === 'Owner' || userRole?.name === 'Admin';
 
   const [activeTab, setActiveTab] = useState('members'); // 'members' | 'pending'
   const [members, setMembers] = useState([]);

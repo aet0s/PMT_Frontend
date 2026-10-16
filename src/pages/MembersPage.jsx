@@ -27,7 +27,7 @@ export default function MembersPage({ workspace }) {
   const socket = socketContext?.socket;
   const originId = socketContext?.originId;
 
-  const canRemove = hasPermission('member.remove') || hasPermission('workspace.manage_members') || userRole?.name === 'Owner' || userRole?.name === 'Admin';
+  const canRemove = hasPermission('member.remove') || userRole?.name === 'Owner' || userRole?.name === 'Admin';
 
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState('');

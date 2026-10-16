@@ -19,7 +19,7 @@ export default function CommentsActivitySidebar({
 }) {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
-  const canComment = hasPermission('card.comment');
+  const canComment = hasPermission('comment.create');
 
   const [showDetails, setShowDetails] = useState(() =>
     Boolean(getTenantItem(user?.tenant_id, 'card_show_details', false))

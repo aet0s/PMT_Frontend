@@ -4,7 +4,7 @@ import { Check } from 'lucide-react';
 
 export default function CardTitle({ card, onUpdateTitle, onToggleComplete }) {
   const { hasPermission } = usePermissions();
-  const canEditCard = hasPermission('card.edit');
+  const canEditCard = hasPermission('task.edit');
 
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(card.title);

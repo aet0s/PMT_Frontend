@@ -444,10 +444,10 @@ export default function Board({
   };
 
   const { hasPermission } = usePermissions();
-  const canEditBoard = hasPermission('board.edit_settings') || hasPermission('project.edit_settings');
-  const canDeleteBoard = hasPermission('board.delete') || hasPermission('project.delete');
-  const canArchiveBoard = hasPermission('board.archive') || hasPermission('project.archive') || canEditBoard;
-  const canManageBoardMembers = hasPermission('board.manage_members') || hasPermission('project.manage_members');
+  const canEditBoard = hasPermission('project.edit_settings');
+  const canDeleteBoard = hasPermission('project.delete');
+  const canArchiveBoard = hasPermission('project.archive') || canEditBoard;
+  const canManageBoardMembers = hasPermission('project.manage_members');
   const canCreateList = hasPermission('list.create');
   const canViewActivity = hasPermission('activity.view');
 

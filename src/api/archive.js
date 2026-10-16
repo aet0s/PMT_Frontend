@@ -8,5 +8,5 @@ export async function getArchive(params = {}) {
     }
   });
   const qs = query.toString();
-  return apiFetch(`/api/archive${qs ? `?${qs}` : ''}`);
+  return apiFetch(qs ? `/api/archive?${qs}` : '/api/archive');
 }

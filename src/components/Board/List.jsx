@@ -45,7 +45,7 @@ export default function List({
   const { hasPermission } = usePermissions();
   const canEditList = hasPermission('list.edit');
   const canDeleteList = hasPermission('list.delete');
-  const canCreateCard = hasPermission('card.create');
+  const canCreateCard = hasPermission('task.create');
 
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState('');

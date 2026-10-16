@@ -13,10 +13,10 @@ export default function CardHeader({
   onClose
 }) {
   const { hasPermission } = usePermissions();
-  const canMoveCard = hasPermission('task.move') || hasPermission('card.move');
-  const canEditCard = hasPermission('task.edit') || hasPermission('card.edit');
-  const canCreateCard = hasPermission('task.create') || hasPermission('card.create');
-  const canDeleteCard = hasPermission('task.delete') || hasPermission('card.delete');
+  const canMoveCard = hasPermission('task.move');
+  const canEditCard = hasPermission('task.edit');
+  const canCreateCard = hasPermission('task.create');
+  const canDeleteCard = hasPermission('task.delete');
 
   const currentList = boardLists.find((l) => l.id === card.list_id);
 

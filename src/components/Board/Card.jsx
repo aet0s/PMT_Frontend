@@ -30,9 +30,9 @@ export default function Card({
   isRemoteDragging = false
 }) {
   const { hasPermission } = usePermissions();
-  const canDeleteCard = hasPermission('task.delete') || hasPermission('card.delete');
-  const canCopyCard = hasPermission('task.duplicate') || hasPermission('task.create') || hasPermission('card.create');
-  const canArchiveCard = hasPermission('task.archive') || hasPermission('task.edit') || hasPermission('card.edit');
+  const canDeleteCard = hasPermission('task.delete');
+  const canCopyCard = hasPermission('task.duplicate') || hasPermission('task.create');
+  const canArchiveCard = hasPermission('task.archive') || hasPermission('task.edit');
   const hasAnyCardActions = (onCopyCard && canCopyCard) || (onUpdateCard && canArchiveCard) || (onDeleteCard && canDeleteCard);
   const {
     attributes,

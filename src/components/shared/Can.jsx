@@ -9,7 +9,7 @@ import { usePermissions } from '../../context/PermissionContext';
  *   <DeleteButton />
  * </Can>
  */
-export function Can({ permission, I, projectId = null, fallback = null, children }) {
+export function Can({ permission, I, projectId = null, boardId = null, fallback = null, children }) {
   const { hasPermission, loading } = usePermissions();
 
   if (loading) {
@@ -18,7 +18,8 @@ export function Can({ permission, I, projectId = null, fallback = null, children
 
   const targetPerm = permission || I;
   const permissionsToCheck = Array.isArray(targetPerm) ? targetPerm : [targetPerm];
-  const allowed = permissionsToCheck.some((p) => hasPermission(p, projectId));
+  const targetBoardId = boardId || projectId;
+  const allowed = permissionsToCheck.some((p) => hasPermission(p, targetBoardId));
 
   if (!allowed) {
     return fallback;

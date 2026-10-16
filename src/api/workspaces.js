@@ -144,4 +144,14 @@ export async function getWorkspaceIssues(workspaceId, {
   return apiFetch(`/api/workspaces/${workspaceId}/issues${query}`);
 }
 
+export async function deactivateMember(workspaceId, userId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/members/${userId}/deactivate`, {
+    method: 'POST'
+  });
+}
 
+export async function reactivateMember(workspaceId, userId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/members/${userId}/reactivate`, {
+    method: 'POST'
+  });
+}

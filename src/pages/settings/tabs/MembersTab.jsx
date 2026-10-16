@@ -44,8 +44,8 @@ export default function MembersTab({ workspace, onOpenInvite }) {
   const toast = useToast();
   const { hasPermission } = usePermissions();
   const { socket, originId } = useSocket();
-  const canManageMembers = hasPermission('workspace.manage_members') || hasPermission('member.assign_role');
-  const canInvite = hasPermission('workspace.invite_members') || hasPermission('member.invite');
+  const canManageMembers = hasPermission('member.assign_role');
+  const canInvite = hasPermission('member.invite');
 
   const [activeTab, setActiveTab] = useState('members'); // 'members' | 'pending'
   const [members, setMembers] = useState([]);
