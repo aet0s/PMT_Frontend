@@ -321,10 +321,15 @@ export default function WorkspaceSidebar({
                     onMouseEnter={(e) => showTooltip(e, ws.name, isSelected ? 'Active' : null)}
                     onMouseLeave={hideTooltip}
                     aria-label={ws.name}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer overflow-hidden ${isSelected
-                      ? 'bg-white text-primary shadow-md font-black ring-2 ring-white/60'
-                      : 'bg-primary bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
-                      }`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer overflow-hidden ${
+                      wsIcon
+                        ? isSelected
+                          ? 'bg-white shadow-md ring-2 ring-white'
+                          : 'bg-white shadow-xs ring-2 ring-white/50 hover:ring-white active:scale-95'
+                        : isSelected
+                          ? 'bg-white text-primary shadow-md font-black ring-2 ring-white/60'
+                          : 'bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
+                    }`}
                   >
                     {wsIcon ? (
                       <img
@@ -403,7 +408,7 @@ export default function WorkspaceSidebar({
                       <img
                         src={getFileUrl(activeWorkspace.icon_url || activeWorkspace.settings?.icon_url)}
                         alt={activeWorkspace.name}
-                        className="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/50"
+                        className="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/50 bg-white"
                       />
                     ) : (
                       <span className="text-xl font-black text-primary shrink-0">#</span>
@@ -487,7 +492,7 @@ export default function WorkspaceSidebar({
                                 <img
                                   src={getFileUrl(wsIcon)}
                                   alt={ws.name}
-                                  className="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/40"
+                                  className="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/40 bg-white"
                                 />
                               ) : (
                                 <div className="w-5 h-5 rounded-md bg-primary-tint text-primary text-[10px] font-black flex items-center justify-center shrink-0">

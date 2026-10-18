@@ -8,6 +8,7 @@ import { useToast } from '../../../components/ui/Toast';
 import { useAuth } from '../../../hooks/useAuth';
 import { uploadAvatar } from '../../../api/auth';
 import { formatDate } from '../../../lib/dateFormat';
+import ImageCropModal from '../../../components/shared/ImageCropModal';
 
 export default function ProfileTab({ setFormDirty }) {
   const toast = useToast();
@@ -17,6 +18,8 @@ export default function ProfileTab({ setFormDirty }) {
   const [email, setEmail] = useState(user?.email || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [cropFile, setCropFile] = useState(null);
+  const [isCropOpen, setIsCropOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -48,7 +51,7 @@ export default function ProfileTab({ setFormDirty }) {
     }
   };
 
-  const handleAvatarFile = async (e) => {
+  const handleAvatarSelected = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -57,15 +60,23 @@ export default function ProfileTab({ setFormDirty }) {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.show('Image size exceeds 5MB limit', 'error');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.show('Image size exceeds 10MB limit', 'error');
       return;
     }
 
+    setCropFile(file);
+    setIsCropOpen(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCropConfirmed = async (croppedFile) => {
     setIsUploadingAvatar(true);
     try {
-      await uploadAvatar(file);
+      await uploadAvatar(croppedFile);
       await refreshUser();
+      setIsCropOpen(false);
+      setCropFile(null);
       toast.show('Profile picture updated successfully', 'success');
     } catch (err) {
       toast.show(err.message || 'Failed to upload photo', 'error');
@@ -119,7 +130,7 @@ export default function ProfileTab({ setFormDirty }) {
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={handleAvatarFile}
+                    onChange={handleAvatarSelected}
                     className="hidden"
                   />
                   <Button
@@ -251,6 +262,19 @@ export default function ProfileTab({ setFormDirty }) {
           </div>
         </div>
       </div>
+
+      <ImageCropModal
+        isOpen={isCropOpen}
+        onClose={() => {
+          setIsCropOpen(false);
+          setCropFile(null);
+        }}
+        imageFile={cropFile}
+        title="Crop Profile Photo"
+        description="Position and scale your photo to fit the circular profile picture."
+        onConfirm={handleCropConfirmed}
+        isProcessing={isUploadingAvatar}
+      />
     </div>
   );
 }

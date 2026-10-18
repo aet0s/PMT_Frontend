@@ -21,6 +21,7 @@ import { updateWorkspace, uploadWorkspaceIcon, removeWorkspaceIcon } from '../..
 import { getFileUrl } from '../../../api/config';
 import { usePermissions } from '../../../context/PermissionContext';
 import { useSocket } from '../../../context/SocketProvider';
+import ImageCropModal from '../../../components/shared/ImageCropModal';
 
 export default function GeneralTab({
   workspace,
@@ -39,6 +40,8 @@ export default function GeneralTab({
   const [name, setName] = useState(workspace?.name || '');
   const [description, setDescription] = useState(workspace?.description || '');
   const [currentIconUrl, setCurrentIconUrl] = useState(workspace?.icon_url || workspace?.settings?.icon_url || null);
+  const [cropFile, setCropFile] = useState(null);
+  const [isCropOpen, setIsCropOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingIcon, setIsUploadingIcon] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
@@ -57,7 +60,7 @@ export default function GeneralTab({
     setFormDirty?.(false);
   }, [workspace, setFormDirty]);
 
-  const handleIconUpload = async (e) => {
+  const handleIconSelected = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -66,26 +69,33 @@ export default function GeneralTab({
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.show('Image size exceeds 5MB limit', 'error');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.show('Image size exceeds 10MB limit', 'error');
       return;
     }
 
+    setCropFile(file);
+    setIsCropOpen(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCropConfirmed = async (croppedFile) => {
     setIsUploadingIcon(true);
     try {
-      const res = await uploadWorkspaceIcon(workspace.id, file);
+      const res = await uploadWorkspaceIcon(workspace.id, croppedFile);
       setCurrentIconUrl(res.icon_url);
       if (res.workspace) {
         onWorkspaceUpdated?.(res.workspace);
       } else {
         onWorkspaceUpdated?.({ ...workspace, icon_url: res.icon_url });
       }
+      setIsCropOpen(false);
+      setCropFile(null);
       toast.show('Workspace icon updated successfully', 'success');
     } catch (err) {
       toast.show(err.message || 'Failed to upload workspace icon', 'error');
     } finally {
       setIsUploadingIcon(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -228,7 +238,7 @@ export default function GeneralTab({
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={handleIconUpload}
+                    onChange={handleIconSelected}
                     className="hidden"
                   />
                   {canEdit && (
@@ -423,6 +433,19 @@ export default function GeneralTab({
         variant={confirmDialog.variant}
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <ImageCropModal
+        isOpen={isCropOpen}
+        onClose={() => {
+          setIsCropOpen(false);
+          setCropFile(null);
+        }}
+        imageFile={cropFile}
+        title="Crop & Fit Workspace Icon"
+        description="Position and scale your logo to fit perfectly inside the circular icon."
+        onConfirm={handleCropConfirmed}
+        isProcessing={isUploadingIcon}
       />
     </div>
   );
