@@ -83,7 +83,7 @@ export function SocketProvider({ children }) {
 
   // Fetch summary (total unread, by_board unread map, by_category map, mutes, preferences)
   const fetchSummary = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) return;
     try {
       const data = await getNotificationSummary();
       if (typeof data.unread_total === 'number') {
@@ -101,11 +101,11 @@ export function SocketProvider({ children }) {
     } catch (err) {
       console.warn('Failed to load notification summary:', err);
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Fetch top 10 notifications for quick bell access
   const fetchNotifications = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) return;
     try {
       const data = await apiFetch('/api/notifications?page=1&limit=10');
       setNotifications(data.notifications || []);
@@ -117,10 +117,10 @@ export function SocketProvider({ children }) {
     } catch (err) {
       console.error('Failed to load notifications:', err);
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user?.id) {
       if (socket) {
         socket.disconnect();
         setSocket(null);
@@ -143,6 +143,9 @@ export function SocketProvider({ children }) {
       withCredentials: true,
       autoConnect: true,
       reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 10000,
       transports: ['websocket', 'polling']
     });
 
@@ -220,7 +223,24 @@ export function SocketProvider({ children }) {
     return () => {
       socketInstance.disconnect();
     };
-  }, [user?.id, fetchNotifications, fetchSummary]);
+  }, [user?.id]);
+
+  // Reconnect / resume on tab visibility change (after idle / backgrounding)
+  useEffect(() => {
+    if (!socket) return;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (!socket.connected) {
+          socket.connect();
+        }
+        fetchSummary();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [socket, fetchSummary]);
 
   const markAsRead = async (id) => {
     try {
