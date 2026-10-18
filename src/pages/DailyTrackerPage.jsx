@@ -50,7 +50,7 @@ export default function DailyTrackerPage({
   const dateInputRef = useRef(null);
 
   // Filter States
-  const [mode, setMode] = useState('created'); // 'created' | 'active' | 'in_progress'
+  const [mode, setMode] = useState('active'); // 'active' | 'in_progress' | 'created'
   const [selectedDate, setSelectedDate] = useState(getTodayString());
   const [selectedWsId, setSelectedWsId] = useState(workspace?.id ? String(workspace.id) : 'all');
   const [selectedLabelId, setSelectedLabelId] = useState('all');
@@ -231,20 +231,6 @@ export default function DailyTrackerPage({
             <button
               type="button"
               onClick={() => {
-                setMode('created');
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                mode === 'created'
-                  ? 'bg-primary text-white shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-              }`}
-            >
-              Created Today
-            </button>
-            <button
-              type="button"
-              onClick={() => {
                 setMode('active');
                 setPage(1);
               }}
@@ -271,6 +257,20 @@ export default function DailyTrackerPage({
             >
               <Clock className="w-3.5 h-3.5" />
               <span>Ongoing (In Progress)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('created');
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                mode === 'created'
+                  ? 'bg-primary text-white shadow-xs'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+              }`}
+            >
+              Created Today
             </button>
           </div>
 
@@ -567,7 +567,13 @@ export default function DailyTrackerPage({
 
                         {/* 3. Daily Activity Pill */}
                         {c.activity_pill && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-primary-tint/70 text-primary border border-primary/25 shadow-2xs">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold shadow-2xs ${
+                              c.has_genuine_work
+                                ? 'bg-primary-tint/70 text-primary border border-primary/25'
+                                : 'bg-surface-muted text-text-muted border border-border/70'
+                            }`}
+                          >
                             <Sparkles className="w-3 h-3 shrink-0" />
                             <span>{c.activity_pill}</span>
                           </span>
