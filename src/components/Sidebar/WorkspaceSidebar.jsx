@@ -157,20 +157,26 @@ export default function WorkspaceSidebar({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isWsDropdownOpen, isWsActionsOpen, isMobileOpen, onCloseMobile]);
 
-  const { hasPermission } = usePermissions();
+  const { hasPermission, userRole } = usePermissions();
 
-  const canCreateBoard = hasPermission('project.create');
-  const canEditWs = hasPermission('workspace.edit');
-  const canCreateWs = hasPermission('workspace.create') || hasPermission('workspace.edit');
-  const canDeleteWs = hasPermission('workspace.delete');
-  const canViewRoadmap = hasPermission('project.view') || hasPermission('task.view');
-  const canViewSprint = hasPermission('project.view') || hasPermission('task.view');
-  const canViewIssues = hasPermission('task.view');
-  const canViewActivity = hasPermission('activity.view');
-  const canViewMembers = hasPermission('member.view');
-  const canViewReports = hasPermission('report.view_project') || hasPermission('role.view');
-  const canViewDailyTracker = hasPermission('daily_tracker.view');
-  const canViewSettings = hasPermission('workspace.edit') || hasPermission('role.view') || hasPermission('member.invite');
+  const isOwner =
+    (typeof userRole === 'string' ? userRole : userRole?.name)?.toLowerCase() === 'owner' ||
+    (typeof userRole === 'string' ? userRole : userRole?.name)?.toLowerCase() === 'super admin' ||
+    (activeWorkspace?.role_name || activeWorkspace?.role)?.toLowerCase() === 'owner' ||
+    (activeWorkspace?.role_name || activeWorkspace?.role)?.toLowerCase() === 'super admin';
+
+  const canCreateBoard = isOwner || hasPermission('project.create');
+  const canEditWs = isOwner || hasPermission('workspace.edit');
+  const canCreateWs = isOwner || hasPermission('workspace.create') || hasPermission('workspace.edit');
+  const canDeleteWs = isOwner || hasPermission('workspace.delete');
+  const canViewRoadmap = isOwner || hasPermission('project.view') || hasPermission('task.view');
+  const canViewSprint = isOwner || hasPermission('project.view') || hasPermission('task.view');
+  const canViewIssues = isOwner || hasPermission('task.view');
+  const canViewActivity = isOwner || hasPermission('activity.view');
+  const canViewMembers = isOwner || hasPermission('member.view');
+  const canViewReports = isOwner || hasPermission('report.view_project') || hasPermission('role.view');
+  const canViewDailyTracker = isOwner || hasPermission('daily_tracker.view');
+  const canViewSettings = isOwner || hasPermission('workspace.edit') || hasPermission('role.view') || hasPermission('member.invite');
 
   const openRenameDialog = () => {
     setWorkspaceRenameValue(activeWorkspace?.name || '');

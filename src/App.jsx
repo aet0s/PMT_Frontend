@@ -178,30 +178,28 @@ function AccountRedirect() {
   return <Navigate to={targetUrl} replace />;
 }
 
-// Redirect top-level /b/:boardId?card=xxx to /w/:workspaceId/p/:boardId/board?card=xxx
+// Redirect top-level /b/:boardId to canonical workspace board route
 function BoardRedirect() {
-  const { user } = useAuth();
   const { boardId } = useParams();
   const location = useLocation();
   const [targetUrl, setTargetUrl] = React.useState(null);
 
   useEffect(() => {
-    async function determineBoardUrl() {
-      if (!user || !boardId) return;
+    async function resolve() {
       try {
-        const board = await getBoard(boardId);
-        if (board && board.workspace_id) {
-          setTenantItem(user?.tenant_id, 'last_workspace_id', board.workspace_id);
-          setTargetUrl(`/w/${board.workspace_id}/p/${boardId}/board${location.search}${location.hash}`);
-        } else {
-          setTargetUrl('/404');
+        const res = await getBoard(boardId);
+        const wsId = res?.board?.workspace_id;
+        if (wsId) {
+          setTargetUrl(`/w/${wsId}/p/${boardId}/board${location.search}${location.hash}`);
+          return;
         }
-      } catch {
-        setTargetUrl('/404');
+      } catch (err) {
+        console.error('Failed to resolve board URL:', err);
       }
+      setTargetUrl('/404');
     }
-    determineBoardUrl();
-  }, [user, boardId, location.search, location.hash]);
+    resolve();
+  }, [boardId, location.search, location.hash]);
 
   if (!targetUrl) {
     return <LoadingScreen />;
@@ -316,18 +314,18 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: '/b/:boardId',
-        element: (
-          <ProtectedRoute>
-            <BoardRedirect />
-          </ProtectedRoute>
-        )
-      },
-      {
         path: '/w/:workspaceId/*',
         element: (
           <ProtectedRoute>
             <BoardPage />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/b/:boardId',
+        element: (
+          <ProtectedRoute>
+            <BoardRedirect />
           </ProtectedRoute>
         )
       },

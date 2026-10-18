@@ -60,6 +60,12 @@ export function PermissionProvider({
   }, [workspaceId]);
 
   useEffect(() => {
+    if (role) {
+      setUserRole(typeof role === 'string' ? { name: role } : role);
+    }
+  }, [role]);
+
+  useEffect(() => {
     fetchPermissions();
   }, [fetchPermissions]);
 

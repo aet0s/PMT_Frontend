@@ -50,9 +50,9 @@ export default function ReportsPage({ workspace }) {
   const canViewReports = hasPermission('activity.view') || hasPermission('project.view');
 
   const getBoardUrl = (boardId, cardId = null) => {
-    const wsId = workspace?.id || 'home';
-    const cardQuery = cardId ? `?card=${cardId}` : '';
-    return `/w/${wsId}/p/${boardId}/board${cardQuery}`;
+    const wsId = workspace?.id;
+    const base = wsId ? `/w/${wsId}/p/${boardId}/board` : `/b/${boardId}`;
+    return cardId ? `${base}?card=${cardId}` : base;
   };
 
   useEffect(() => {

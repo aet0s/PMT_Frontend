@@ -92,17 +92,18 @@ export default function DailyTrackerPage({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [detailedCard, setDetailedCard] = useState(null);
 
-  const targetWorkspaceId = (selectedWsId && selectedWsId !== 'all')
-    ? Number(selectedWsId)
-    : (workspace?.id || (workspaces[0] && workspaces[0].id) || 1);
+  const effectiveWorkspaceId =
+    selectedWsId && selectedWsId !== 'all'
+      ? Number(selectedWsId)
+      : Number(workspace?.id || (workspaces[0] && workspaces[0].id) || 1);
 
   const fetchTrackerData = useCallback(async () => {
-    if (!targetWorkspaceId || !canViewDailyTracker) return;
+    if (!effectiveWorkspaceId || !canViewDailyTracker) return;
     setLoading(true);
     setError(null);
 
     try {
-      const res = await getWorkspaceDailyTracker(targetWorkspaceId, {
+      const res = await getWorkspaceDailyTracker(effectiveWorkspaceId, {
         date: selectedDate,
         mode,
         workspaceId: selectedWsId === 'all' ? null : selectedWsId,
@@ -125,7 +126,7 @@ export default function DailyTrackerPage({
     } finally {
       setLoading(false);
     }
-  }, [targetWorkspaceId, canViewDailyTracker, selectedDate, mode, selectedWsId, selectedLabelId, selectedBoardId, searchQuery, page, limit]);
+  }, [effectiveWorkspaceId, canViewDailyTracker, selectedDate, mode, selectedWsId, selectedLabelId, selectedBoardId, searchQuery, page, limit]);
 
   // Initial fetch and dependency update
   useEffect(() => {
@@ -469,7 +470,7 @@ export default function DailyTrackerPage({
 
       {mainTab === 'people' ? (
         <DailyTrackerPeopleView
-          workspaceId={targetWorkspaceId}
+          workspaceId={effectiveWorkspaceId}
           selectedDate={selectedDate}
           onCardClick={handleCardClick}
         />

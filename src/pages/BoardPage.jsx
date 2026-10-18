@@ -1847,7 +1847,7 @@ export default function BoardPage() {
   };
 
   return (
-    <PermissionProvider workspaceId={activeWorkspace?.id}>
+    <PermissionProvider workspaceId={activeWorkspace?.id} role={activeWorkspace?.role_name || activeWorkspace?.role}>
       <div className="flex h-screen w-screen overflow-hidden bg-app text-text-primary select-none relative">
         {/* Workspace Sidebar */}
         <WorkspaceSidebar
