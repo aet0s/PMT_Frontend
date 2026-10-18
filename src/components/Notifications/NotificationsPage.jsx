@@ -405,35 +405,23 @@ export default function NotificationsPage({
 
   return (
     <div className="flex-1 h-screen bg-app flex flex-col overflow-hidden select-none">
-      {/* Top Header */}
-      <header className="h-16 px-6 bg-surface border-b border-border flex items-center justify-between shrink-0 z-10">
-        <div className="flex items-center gap-4">
+      {/* Notifications Action Toolbar */}
+      <div className="h-12 px-6 bg-surface/60 border-b border-border flex items-center justify-between shrink-0 z-10">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary bg-surface-muted hover:bg-border border border-border rounded-lg transition-all cursor-pointer shadow-xs group"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-text-secondary hover:text-text-primary bg-surface hover:bg-surface-muted border border-border rounded-lg transition-all cursor-pointer shadow-2xs group"
           >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Back to Board</span>
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back</span>
           </button>
 
-          <div className="h-5 w-px bg-border hidden sm:block" />
-
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary-tint text-primary-text border border-primary/20 flex items-center justify-center">
-              <Bell className="w-4 h-4" />
-            </div>
-            <div>
-              <h1 className="text-sm sm:text-base font-semibold text-text-primary tracking-tight flex items-center gap-2">
-                Notifications Hub
-                {globalUnreadCount > 0 && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-primary-tint text-primary-text border border-primary/20 rounded-full">
-                    {globalUnreadCount} unread
-                  </span>
-                )}
-              </h1>
-            </div>
-          </div>
+          {globalUnreadCount > 0 && (
+            <span className="px-2 py-0.5 text-[10px] font-bold bg-primary-tint text-primary-text border border-primary/20 rounded-full">
+              {globalUnreadCount} unread
+            </span>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -483,7 +471,7 @@ export default function NotificationsPage({
             <span className="hidden sm:inline">Clear read</span>
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Main Content Area */}
       <div

@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Archive,
-  ArrowLeft,
   Briefcase,
   FolderKanban,
   CreditCard,
@@ -617,34 +616,6 @@ export default function ArchivePage({
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app text-text-primary select-none text-left">
-      {/* Top Header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/80 bg-surface px-4 sm:px-6 lg:px-8 py-3.5 shrink-0 shadow-2xs">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-xl p-2 text-text-muted transition-colors hover:bg-surface-muted hover:text-text-primary cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center border border-border/60"
-            title="Back to board"
-            aria-label="Back to board"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-primary-tint text-primary flex items-center justify-center shrink-0 border border-primary/20">
-                <Archive className="h-4.5 w-4.5" />
-              </div>
-              <h1 className="truncate text-lg sm:text-xl font-extrabold text-text-primary tracking-tight">
-                Archive
-              </h1>
-            </div>
-            <p className="mt-0.5 text-xs text-text-secondary truncate hidden sm:block">
-              Progressively browse, filter, inspect, and restore archived cards, projects, and workspaces.
-            </p>
-          </div>
-        </div>
-      </header>
-
       {/* Main Container */}
       <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
         {/* Mode Navigation Tabs */}

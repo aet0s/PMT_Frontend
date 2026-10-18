@@ -31,7 +31,6 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import ProgressBar from '../components/ui/ProgressBar';
 import { Select } from '../components/ui/Select';
-import UserDropdown from '../components/ui/UserDropdown';
 import { getBoardBgClass, getBoardStyle } from '../lib/palettes';
 import { getTimeBasedGreeting, fetchServerGreeting, getCurrentServerDate } from '../lib/serverTime';
 
@@ -271,7 +270,6 @@ export default function WorkspaceHomePage({
                   Create Project
                 </Button>
               )}
-              <UserDropdown workspaceId={workspace?.id} />
             </div>
           </div>
         </div>

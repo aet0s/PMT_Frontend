@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../context/PermissionContext';
 import { useSocket } from '../../context/SocketProvider';
 import PromptDialog from '../shared/PromptDialog';
@@ -11,7 +10,6 @@ import {
   Plus,
   Briefcase,
   LayoutGrid,
-  LogOut,
   ChevronDown,
   FolderPlus,
   ChevronLeft,
@@ -21,9 +19,7 @@ import {
   Trash2,
   Pencil,
   Settings,
-  User,
   Bell,
-  BellOff,
   Home,
   Users,
   Activity,
@@ -35,13 +31,9 @@ import {
   CheckSquare,
   Rocket,
   MapPin,
-  Sparkles
+  Sparkles,
+  CalendarCheck
 } from 'lucide-react';
-import Avatar from '../ui/Avatar';
-import Switch from '../ui/Switch';
-import { Popover } from '../ui/Popover';
-import { useNotificationSound } from '../../context/NotificationSoundContext';
-import { useToast } from '../ui/Toast';
 
 export default function WorkspaceSidebar({
   isCollapsed = false,
@@ -65,8 +57,9 @@ export default function WorkspaceSidebar({
   onOpenProfile
 }) {
   const navigate = useNavigate();
-  const { user, logoutUser } = useAuth();
-  const { unreadCount, byBoardUnread } = useSocket();
+  const socketCtx = useSocket() || {};
+  const unreadCount = socketCtx.unreadCount || 0;
+  const byBoardUnread = socketCtx.byBoardUnread || {};
   const [isWsDropdownOpen, setIsWsDropdownOpen] = useState(false);
   const [isWsActionsOpen, setIsWsActionsOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
@@ -131,17 +124,6 @@ export default function WorkspaceSidebar({
   }, [isWsDropdownOpen, isWsActionsOpen, isMobileOpen, onCloseMobile]);
 
   const { hasPermission } = usePermissions();
-  const { enabled: soundEnabled, setEnabled: setSoundEnabled } = useNotificationSound();
-  const canManageSound = hasPermission('notification.manage_own');
-  const toast = useToast();
-
-  const handleSoundToggle = async (checked) => {
-    try {
-      await setSoundEnabled(checked);
-    } catch (err) {
-      toast.show(err.message || 'Failed to update sound setting', 'error');
-    }
-  };
 
   const canCreateBoard = hasPermission('project.create');
   const canEditWs = hasPermission('workspace.edit');
@@ -153,6 +135,7 @@ export default function WorkspaceSidebar({
   const canViewActivity = hasPermission('activity.view');
   const canViewMembers = hasPermission('member.view');
   const canViewReports = hasPermission('report.view_project') || hasPermission('role.view');
+  const canViewDailyTracker = hasPermission('daily_tracker.view');
   const canViewSettings = hasPermission('workspace.edit') || hasPermission('role.view') || hasPermission('member.invite');
 
   const openRenameDialog = () => {
@@ -188,6 +171,7 @@ export default function WorkspaceSidebar({
     (location.pathname.endsWith('/members') || location.pathname.endsWith('/workspace-members'));
   const isCompanyMembersActive =
     !location.pathname.includes('/settings') && location.pathname.endsWith('/company-members');
+  const isDailyTrackerActive = location.pathname.endsWith('/daily-tracker');
   const isSettingsActive = location.pathname.includes('/settings');
   const isAccountSettingsActive = location.pathname.includes('/account');
 
@@ -332,113 +316,6 @@ export default function WorkspaceSidebar({
                 </button>
               </div>
             )}
-          </div>
-
-          {/* User Profile Avatar Block at Bottom of Rail 1 */}
-          <div className="w-full flex flex-col items-center pt-2 mt-auto shrink-0 border-t border-white/20">
-            <Popover
-              placement="right-end"
-              offsetDistance={12}
-              trigger={({ isOpen }) => (
-                <button
-                  type="button"
-                  aria-label="User account menu"
-                  aria-haspopup="true"
-                  aria-expanded={isOpen}
-                  onMouseEnter={(e) => showTooltip(e, user?.name || 'My Profile')}
-                  onMouseLeave={hideTooltip}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center p-0 transition-all cursor-pointer focus:outline-none ${
-                    isOpen
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-primary shadow-lg scale-105'
-                      : 'hover:ring-2 hover:ring-white/60 hover:scale-105'
-                  }`}
-                >
-                  <Avatar
-                    name={user?.name || 'User'}
-                    src={user?.avatar_url || user?.avatar}
-                    user={user}
-                    size="sm"
-                    status="online"
-                  />
-                </button>
-              )}
-            >
-              {({ close }) => (
-                <div className="w-60 sm:w-64 bg-surface border border-border/80 rounded-2xl shadow-xl p-1.5 text-left select-none animate-sassy-dropdown">
-                  {/* User Info Header */}
-                  <div className="px-3 py-2.5 bg-surface-muted/50 rounded-xl mb-1 border border-border/40">
-                    <p className="text-xs font-bold text-text-primary truncate">{user?.name || 'User'}</p>
-                    <p className="text-[11px] text-text-muted truncate mt-0.5">{user?.email || ''}</p>
-                  </div>
-
-                  <div className="py-0.5 space-y-0.5">
-                    {/* My Profile */}
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        close();
-                        if (onCloseMobile) onCloseMobile();
-                        if (onOpenProfile) {
-                          onOpenProfile();
-                        } else if (activeWorkspace) {
-                          navigate(`/w/${activeWorkspace.id}/profile`);
-                        } else {
-                          navigate('/profile');
-                        }
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-text-primary hover:text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left group"
-                    >
-                      <User className="w-4 h-4 text-text-secondary group-hover:text-primary transition-colors shrink-0" />
-                      <span>My Profile</span>
-                    </button>
-
-                    {/* Notification Sound Toggle (Guarded by notification.manage_own) */}
-                    {canManageSound && (
-                      <div
-                        role="menuitem"
-                        title={soundEnabled ? 'Notification sound enabled' : 'Notification sound disabled'}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                          {soundEnabled ? (
-                            <Bell className="w-4 h-4 text-primary shrink-0" />
-                          ) : (
-                            <BellOff className="w-4 h-4 text-text-muted shrink-0" />
-                          )}
-                          <span className="truncate">Notification sound</span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`text-[10px] font-bold ${soundEnabled ? 'text-primary' : 'text-text-muted'}`}>
-                            {soundEnabled ? 'ON' : 'OFF'}
-                          </span>
-                          <Switch
-                            checked={soundEnabled}
-                            onChange={handleSoundToggle}
-                            aria-label="Toggle notification sound"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Log Out */}
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={async () => {
-                        close();
-                        if (onCloseMobile) onCloseMobile();
-                        await logoutUser();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-danger hover:bg-danger-tint transition-colors cursor-pointer text-left group"
-                    >
-                      <LogOut className="w-4 h-4 text-danger shrink-0" />
-                      <span>Log Out</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </Popover>
           </div>
         </div>
 
@@ -664,7 +541,7 @@ export default function WorkspaceSidebar({
               </NavLink>
             )}
 
-            {/* Setting */}
+            {/* Workspace setting */}
             {canViewSettings && (
               <NavLink
                 to={`/w/${activeWorkspace?.id}/settings/general`}
@@ -677,7 +554,7 @@ export default function WorkspaceSidebar({
                 }
               >
                 <Settings className="w-4.5 h-4.5 shrink-0" />
-                <span>Setting</span>
+                <span>Workspace setting</span>
               </NavLink>
             )}
           </nav>
@@ -756,6 +633,25 @@ export default function WorkspaceSidebar({
                 </NavLink>
               )}
 
+              {/* Daily Tracker */}
+              {canViewDailyTracker && (
+                <NavLink
+                  to={`/w/${activeWorkspace?.id}/daily-tracker`}
+                  onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                  className={() =>
+                    `w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${isDailyTrackerActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                    }`
+                  }
+                >
+                  <span className="flex items-center gap-2.5 truncate">
+                    <CalendarCheck className="w-4.5 h-4.5 text-primary shrink-0" />
+                    <span>Daily Tracker</span>
+                  </span>
+                </NavLink>
+              )}
+
               <NavLink
                 to={`/w/${activeWorkspace?.id}/notifications`}
                 onClick={() => { if (onCloseMobile) onCloseMobile(); }}
@@ -793,109 +689,8 @@ export default function WorkspaceSidebar({
             </div>
           </div>
 
-          {/* User Profile Bar & Settings in Rail 2 */}
+          {/* Settings in Rail 2 */}
           <div className="px-3 pb-3 shrink-0 space-y-1 border-t border-border/50 pt-2">
-            <Popover
-              placement="top-start"
-              offsetDistance={8}
-              trigger={({ isOpen }) => (
-                <button
-                  type="button"
-                  aria-label="User account menu"
-                  aria-haspopup="true"
-                  aria-expanded={isOpen}
-                  className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer select-none ${
-                    isOpen ? 'bg-surface-muted ring-1 ring-border' : 'hover:bg-surface-muted'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Avatar
-                      name={user?.name || 'User'}
-                      src={user?.avatar_url || user?.avatar}
-                      user={user}
-                      size="sm"
-                      status="online"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-text-primary truncate">{user?.name || 'User'}</p>
-                      <p className="text-[11px] text-text-muted truncate">{user?.email || ''}</p>
-                    </div>
-                  </div>
-                </button>
-              )}
-            >
-              {({ close }) => (
-                <div className="w-60 sm:w-64 bg-surface border border-border/80 rounded-2xl shadow-xl p-1.5 text-left select-none animate-sassy-dropdown">
-                  <div className="px-3 py-2.5 bg-surface-muted/50 rounded-xl mb-1 border border-border/40">
-                    <p className="text-xs font-bold text-text-primary truncate">{user?.name || 'User'}</p>
-                    <p className="text-[11px] text-text-muted truncate mt-0.5">{user?.email || ''}</p>
-                  </div>
-
-                  <div className="py-0.5 space-y-0.5">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        close();
-                        if (onCloseMobile) onCloseMobile();
-                        if (onOpenProfile) {
-                          onOpenProfile();
-                        } else if (activeWorkspace) {
-                          navigate(`/w/${activeWorkspace.id}/profile`);
-                        } else {
-                          navigate('/profile');
-                        }
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-text-primary hover:text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left group"
-                    >
-                      <User className="w-4 h-4 text-text-secondary group-hover:text-primary transition-colors shrink-0" />
-                      <span>My Profile</span>
-                    </button>
-
-                    {canManageSound && (
-                      <div
-                        role="menuitem"
-                        title={soundEnabled ? 'Notification sound enabled' : 'Notification sound disabled'}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                          {soundEnabled ? (
-                            <Bell className="w-4 h-4 text-primary shrink-0" />
-                          ) : (
-                            <BellOff className="w-4 h-4 text-text-muted shrink-0" />
-                          )}
-                          <span className="truncate">Notification sound</span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`text-[10px] font-bold ${soundEnabled ? 'text-primary' : 'text-text-muted'}`}>
-                            {soundEnabled ? 'ON' : 'OFF'}
-                          </span>
-                          <Switch
-                            checked={soundEnabled}
-                            onChange={handleSoundToggle}
-                            aria-label="Toggle notification sound"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={async () => {
-                        close();
-                        if (onCloseMobile) onCloseMobile();
-                        await logoutUser();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-danger hover:bg-danger-tint transition-colors cursor-pointer text-left group"
-                    >
-                      <LogOut className="w-4 h-4 text-danger shrink-0" />
-                      <span>Log Out</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </Popover>
 
             <NavLink
               to={`/w/${activeWorkspace?.id}/account`}

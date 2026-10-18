@@ -27,6 +27,8 @@ const ProfilePage = safeLazy(() => import('../pages/ProfilePage'), 'ProfilePage'
 const ListView = safeLazy(() => import('../components/Board/ListView'), 'ListView');
 const CalendarView = safeLazy(() => import('../components/Board/CalendarView'), 'CalendarView');
 const NotFoundPage = safeLazy(() => import('../pages/NotFoundPage'), 'NotFoundPage');
+const DailyTrackerPage = safeLazy(() => import('../pages/DailyTrackerPage'), 'DailyTrackerPage');
+import GlobalHeader from '../components/Navigation/GlobalHeader';
 
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, autoArchiveWorkspaceCards } from '../api/workspaces';
 import { getBoards, createBoard, getBoard, updateBoard, deleteBoard, addBoardMember, createBoardLabel, deleteBoardLabel } from '../api/boards';
@@ -84,8 +86,9 @@ export default function BoardPage() {
   const urlBoardId = isProjectRoute && pathParts[1] ? Number(pathParts[1]) : null;
   const currentView = isProjectRoute ? pathParts[2] || 'board' : 'board';
 
-  // Mobile sidebar drawer state
+  // Mobile sidebar drawer state & activity drawer state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
 
   // Keep a ref to activeBoardId to avoid stale closures in event handlers
   const activeBoardIdRef = useRef(urlBoardId);
@@ -483,9 +486,11 @@ export default function BoardPage() {
     }
   }, [subPath, activeWorkspace, boardData, currentView]);
 
-  // Handle Notification click navigation directly to card modal or board
-  const handleSelectNotificationCard = ({ cardId, boardId, workspaceId: notifWsId }) => {
-    const targetWsId = notifWsId || workspaceId;
+  // Handle Notification or Card click navigation directly to card modal or board
+  const handleSelectNotificationCard = (param = {}) => {
+    const cardId = param.cardId || param.id;
+    const boardId = param.boardId || param.board_id;
+    const targetWsId = param.workspaceId || param.workspace_id || param.notifWsId || workspaceId;
     if (boardId) {
       if (cardId) {
         navigate(`/w/${targetWsId}/p/${boardId}/board?card=${cardId}`);
@@ -1698,7 +1703,25 @@ export default function BoardPage() {
 
         {/* Main Content Area */}
         <main id="main-content" className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
-          {loadingWorkspaces ? (
+          {activeWorkspace && (
+            <GlobalHeader
+              workspace={activeWorkspace}
+              board={boardData}
+              boards={boards}
+              subPath={subPath}
+              onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+              onSelectNotificationCard={handleSelectNotificationCard}
+              onOpenAllNotifications={() => navigate(`/w/${workspaceId || activeWorkspace?.id}/notifications`)}
+              onUpdateBoard={handleUpdateBoard}
+              onArchiveBoard={handleArchiveCurrentBoard}
+              onDeleteBoard={handleDeleteCurrentBoard}
+              isActivityOpen={isActivityOpen}
+              onToggleActivity={() => setIsActivityOpen((prev) => !prev)}
+            />
+          )}
+
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+            {loadingWorkspaces ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
               <Spinner size="lg" />
               <p className="text-xs font-semibold text-text-secondary">Loading Workspace...</p>
@@ -1839,6 +1862,14 @@ export default function BoardPage() {
                 workspace={activeWorkspace}
                 workspaces={workspaces}
                 boards={boards}
+              />
+            </Suspense>
+          ) : subPath === 'daily-tracker' ? (
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
+              <DailyTrackerPage
+                workspace={activeWorkspace}
+                workspaces={workspaces}
+                onCardClick={handleSelectNotificationCard}
               />
             </Suspense>
           ) : subPath === 'activity' ? (
@@ -2046,6 +2077,8 @@ export default function BoardPage() {
                 onSelectNotificationCard={handleSelectNotificationCard}
                 onOpenAllNotifications={() => navigate(`/w/${workspaceId}/notifications`)}
                 onBoardSocketEvent={handleLiveBoardSocketEvent}
+                isActivityOpen={isActivityOpen}
+                onCloseActivity={() => setIsActivityOpen(false)}
               />
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-app">
@@ -2074,6 +2107,7 @@ export default function BoardPage() {
           ) : (
             <NotFoundPage />
           )}
+          </div>
         </main>
 
         <Suspense fallback={null}>

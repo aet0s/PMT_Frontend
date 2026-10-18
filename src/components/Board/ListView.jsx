@@ -24,7 +24,6 @@ import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { Select } from '../ui/Select';
 import Spinner from '../ui/Spinner';
-import UserDropdown from '../ui/UserDropdown';
 import { formatDate } from '../../lib/dateFormat';
 import { getWorkspaceIssues } from '../../api/workspaces';
 
@@ -303,69 +302,6 @@ export default function ListView({
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app select-none text-left">
-      {/* Issues Header (Boards, List, Calendar top filter pills removed as requested) */}
-      <header className="relative z-20 px-4 sm:px-6 lg:px-8 py-3.5 bg-app border-b border-border/80 flex flex-wrap items-center justify-between gap-4 shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          {onOpenMobileSidebar && (
-            <button
-              type="button"
-              onClick={onOpenMobileSidebar}
-              className="p-2 text-text-secondary hover:text-text-primary bg-surface hover:bg-surface-muted border border-border rounded-xl lg:hidden transition-colors cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              title="Open Navigation"
-              aria-label="Open Navigation"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-          )}
-
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-primary-tint text-primary flex items-center justify-center shrink-0 border border-primary/20">
-              <CheckSquare className="w-4.5 h-4.5" />
-            </div>
-            <div className="min-w-0">
-              <h1 tabIndex={-1} className="text-lg sm:text-xl font-extrabold text-text-primary tracking-tight truncate flex items-center gap-2">
-                Issues
-              </h1>
-            </div>
-            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-tint text-primary border border-primary/20 shrink-0">
-              {pagination.total} {pagination.total === 1 ? 'issue' : 'issues'}
-            </span>
-          </div>
-        </div>
-
-        {/* Right side: Global Keyword Search Input & User Dropdown */}
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <div className="relative w-full sm:w-72">
-            <label htmlFor="issues-search-input" className="sr-only">
-              Search issues by title, description, or ID
-            </label>
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-            <input
-              id="issues-search-input"
-              type="text"
-              placeholder="Search all issues by title, description, #ID..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 bg-surface border border-border rounded-xl text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-all shadow-xs"
-            />
-            {searchInput && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchInput('');
-                  setDebouncedSearch('');
-                }}
-                aria-label="Clear search text"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-0.5 rounded-md"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          <UserDropdown workspaceId={currentWsId} />
-        </div>
-      </header>
-
       {/* Rich Filter Toolbar */}
       <div className="px-4 sm:px-6 lg:px-8 py-3 bg-surface/80 border-b border-border/80 shrink-0">
         <div className="flex flex-wrap items-center gap-2.5">

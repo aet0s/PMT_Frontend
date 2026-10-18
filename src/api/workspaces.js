@@ -155,3 +155,30 @@ export async function reactivateMember(workspaceId, userId) {
     method: 'POST'
   });
 }
+
+export async function getWorkspaceDailyTracker(workspaceId, {
+  date,
+  mode = 'created',
+  workspaceId: filterWsId,
+  labelId,
+  boardId,
+  search,
+  sort,
+  page = 1,
+  limit = 20
+} = {}) {
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+  if (mode) params.set('mode', mode);
+  if (filterWsId) params.set('workspace_id', String(filterWsId));
+  if (labelId && labelId !== 'all') params.set('label_id', String(labelId));
+  if (boardId && boardId !== 'all') params.set('board_id', String(boardId));
+  if (search) params.set('search', search);
+  if (sort) params.set('sort', sort);
+  if (page) params.set('page', String(page));
+  if (limit) params.set('limit', String(limit));
+
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiFetch(`/api/workspaces/${workspaceId}/daily-tracker${query}`);
+}
+

@@ -23,7 +23,6 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import BoardActivityDrawer from './BoardActivityDrawer';
-import NotificationBell from '../Notifications/NotificationBell';
 import { PALETTES, getBoardBgClass } from '../../lib/palettes';
 import { useBoardSocket } from '../../hooks/useBoardSocket';
 import { useSocket } from '../../context/SocketProvider';
@@ -32,7 +31,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { matchesCardFilter } from '../../lib/filterCards';
 import { getTenantItem } from '../../lib/storage';
 import RightContextPanel from './RightContextPanel';
-import UserDropdown from '../ui/UserDropdown';
 import { getBoardWorkspaceMembers } from '../../api/boards';
 
 import {
@@ -86,7 +84,9 @@ export default function Board({
   onOpenMobileSidebar,
   onSelectNotificationCard,
   onOpenAllNotifications,
-  onBoardSocketEvent
+  onBoardSocketEvent,
+  isActivityOpen: externalActivityOpen,
+  onCloseActivity
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -293,7 +293,18 @@ export default function Board({
   );
 
   // UI Drawers & Modals
-  const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [localActivityOpen, setLocalActivityOpen] = useState(false);
+  const isActivityOpen = externalActivityOpen !== undefined ? externalActivityOpen : localActivityOpen;
+  const setIsActivityOpen = (val) => {
+    if (typeof val === 'function') {
+      const next = val(isActivityOpen);
+      if (!next && onCloseActivity) onCloseActivity();
+      setLocalActivityOpen(next);
+    } else {
+      if (!val && onCloseActivity) onCloseActivity();
+      setLocalActivityOpen(val);
+    }
+  };
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [memberEmailInput, setMemberEmailInput] = useState('');
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -502,13 +513,25 @@ export default function Board({
     {};
   const wipLimitEnabled = effectiveDefaults.wipLimitEnabled ?? true;
   const wipLimitMax = Number(effectiveDefaults.wipLimitMax || 5);
+  const defaultCardSort = effectiveDefaults.defaultCardSort || 'position';
 
   const sortCardsFn = useCallback(
     (cards) => {
       if (!cards || cards.length <= 1) return cards || [];
+      if (defaultCardSort === 'title') {
+        return [...cards].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      }
+      if (defaultCardSort === 'due_date') {
+        return [...cards].sort((a, b) => {
+          if (!a.due_date && !b.due_date) return (a.position || 0) - (b.position || 0);
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return new Date(a.due_date) - new Date(b.due_date);
+        });
+      }
       return [...cards].sort((a, b) => (a.position || 0) - (b.position || 0));
     },
-    []
+    [defaultCardSort]
   );
 
   const listsWithFilteredCards = (board.lists || []).map((l) => ({
@@ -842,230 +865,7 @@ export default function Board({
   const allBoardCards = (board.lists || []).flatMap((l) => l.cards || []);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-app text-text-primary select-none relative">
-      {/* Tier 1: Modern Minimal Header on the White Outer Shell (No hard bottom divider) */}
-      <header className="relative z-30 h-16 px-4 sm:px-6 lg:px-8 bg-app flex items-center justify-between shrink-0 select-none">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Mobile Sidebar Hamburger Toggle */}
-          <button
-            type="button"
-            onClick={onOpenMobileSidebar}
-            className="p-2 text-text-secondary hover:text-text-primary bg-surface hover:bg-surface-muted border border-border rounded-xl lg:hidden transition-colors cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
-            title="Open Menu"
-            aria-label="Open Menu"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-
-          {isEditingBoardTitle && canEditBoard ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                autoFocus
-                value={boardTitleInput}
-                onChange={(e) => setBoardTitleInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveRename();
-                  if (e.key === 'Escape') setIsEditingBoardTitle(false);
-                }}
-                className="text-base sm:text-lg font-bold text-text-primary bg-surface border border-primary rounded-xl px-2.5 py-1 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={handleSaveRename}
-                className="p-1.5 bg-primary hover:bg-primary-hover text-white rounded-xl cursor-pointer transition-colors"
-                title="Save board name"
-                aria-label="Save board name"
-              >
-                <Check className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div
-                className={`flex items-center gap-2 group min-w-0 ${canEditBoard ? 'cursor-pointer' : 'cursor-default'}`}
-                onClick={canEditBoard ? handleStartRename : undefined}
-                title={canEditBoard ? 'Click to rename board' : undefined}
-              >
-                <h2 className="text-lg sm:text-xl font-black text-text-primary tracking-tight truncate group-hover:text-primary transition-colors flex items-center gap-2">
-                  <span>{board.name}</span>
-                  <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-tint text-primary">
-                    Active Sprint
-                  </span>
-                </h2>
-                {canEditBoard && (
-                  <Pencil className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100 shrink-0" />
-                )}
-              </div>
-
-              {/* Quick Board Switcher Dropdown */}
-              {boards && boards.length > 1 && (
-                <div className="relative" ref={boardSwitcherRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsBoardSwitcherOpen((prev) => !prev)}
-                    className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-center ${
-                      isBoardSwitcherOpen
-                        ? 'bg-primary-tint text-primary border-primary/40'
-                        : 'bg-surface text-text-muted hover:text-text-primary hover:bg-surface-muted border-border shadow-2xs'
-                    }`}
-                    title="Switch Board"
-                    aria-label="Switch Board"
-                  >
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isBoardSwitcherOpen ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {isBoardSwitcherOpen && (
-                    <div className="absolute left-0 top-full mt-2 w-64 max-h-80 overflow-y-auto bg-surface border border-border/80 rounded-2xl shadow-xl z-50 p-1.5 space-y-1 animate-sassy-dropdown-left">
-                      <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-text-muted border-b border-border/60 mb-1 flex items-center justify-between">
-                        <span>Projects & Boards</span>
-                        <span>{boards.length}</span>
-                      </div>
-                      {boards.map((b) => {
-                        const isCurrent = Number(b.id) === Number(board.id);
-                        return (
-                          <button
-                            key={b.id}
-                            type="button"
-                            onClick={() => {
-                              setIsBoardSwitcherOpen(false);
-                              if (!isCurrent) {
-                                navigate(`/w/${workspaceId || workspace?.id}/p/${b.id}/board`);
-                              }
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-all cursor-pointer ${
-                              isCurrent
-                                ? 'bg-primary-tint text-primary font-bold'
-                                : 'text-text-primary hover:bg-surface-muted'
-                            }`}
-                          >
-                            <span className="truncate flex-1">{b.name}</span>
-                            {isCurrent && <Check className="w-3.5 h-3.5 text-primary shrink-0 ml-1.5" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Center: Global Pill Search & Quick Actions (Centered in Navbar) */}
-        <div className="flex-1 flex items-center justify-center gap-2 sm:gap-3 px-2 min-w-0">
-          {/* Pill Search input matching reference */}
-          <div className="relative hidden md:block w-56 lg:w-72 xl:w-80">
-            <label htmlFor="board-search-input" className="sr-only">
-              Search task, project, label
-            </label>
-            <input
-              id="board-search-input"
-              type="text"
-              placeholder="Search task, project, label ..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-4 pr-10 py-2 bg-surface-muted/60 border border-border/80 rounded-full text-text-primary placeholder:text-text-muted text-xs focus:outline-none focus:border-primary focus:bg-surface focus-visible:ring-2 focus-visible:ring-primary/20 transition-all min-h-[38px]"
-            />
-            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-          </div>
-
-          {/* Theme Palette Button */}
-          {canEditBoard && (
-            <button
-              ref={paletteButtonRef}
-              type="button"
-              onClick={() => setIsPaletteOpen(!isPaletteOpen)}
-              className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs"
-              title="Change Board Theme"
-              aria-label="Change Board Theme"
-            >
-              <Palette className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Notification Bell */}
-          <NotificationBell
-            onSelectNotificationCard={onSelectNotificationCard}
-            onOpenAllNotifications={onOpenAllNotifications}
-          />
-
-          {/* Activity Drawer Button */}
-          {canViewActivity && (
-            <button
-              type="button"
-              onClick={() => setIsActivityOpen(!isActivityOpen)}
-              aria-label="Activity log"
-              title="Activity log"
-              className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs"
-            >
-              <Activity className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Board Overflow Menu (Board actions) */}
-          {(canEditBoard || canDeleteBoard || canArchiveBoard) && (
-            <div className="relative" ref={boardMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsBoardMenuOpen((prev) => !prev)}
-                className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs"
-                title="Board actions"
-                aria-label="Board actions"
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
-
-              {isBoardMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 py-1.5 text-text-primary animate-sassy-dropdown">
-                  {canEditBoard && (
-                    <button
-                      type="button"
-                      onClick={handleStartRename}
-                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left"
-                    >
-                      <Pencil className="w-3.5 h-3.5 text-text-secondary" />
-                      Rename Board
-                    </button>
-                  )}
-                  {canArchiveBoard && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsBoardMenuOpen(false);
-                        if (onArchiveBoard) onArchiveBoard();
-                      }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-warning-text hover:bg-warning-tint transition-colors cursor-pointer text-left"
-                    >
-                      <Archive className="w-3.5 h-3.5 text-warning" />
-                      Archive Board
-                    </button>
-                  )}
-                  {canDeleteBoard && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsBoardMenuOpen(false);
-                        if (onDeleteBoard) onDeleteBoard();
-                      }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-danger-text hover:bg-danger-tint transition-colors cursor-pointer text-left"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-danger" />
-                      Delete Board
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Header Right: Top Right Corner User Dropdown */}
-        <div className="flex items-center gap-2.5 shrink-0 pl-2">
-          <UserDropdown workspaceId={workspaceId || workspace?.id} />
-        </div>
-      </header>
-
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-app text-text-primary select-none relative pt-2">
       {/* Main Workspace Body with Floating Inset Rounded Board & Right Context Area */}
       <div className="flex-1 flex overflow-hidden min-h-0 px-3 pb-3 sm:px-5 sm:pb-5 lg:px-6 lg:pb-6 gap-4 lg:gap-6 relative">
         {/* ======================================================== */}

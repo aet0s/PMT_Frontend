@@ -1,17 +1,14 @@
 // client/src/pages/AccountPage.jsx
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ShieldCheck,
   Shield,
   Laptop,
   Activity,
-  SlidersHorizontal,
-  ArrowLeft,
-  ChevronRight
+  SlidersHorizontal
 } from 'lucide-react';
 import Spinner from '../components/ui/Spinner';
-import UserDropdown from '../components/ui/UserDropdown';
 import { useUnsavedChanges } from '../lib/useUnsavedChanges';
 import { usePermissions } from '../context/PermissionContext';
 
@@ -103,42 +100,8 @@ export default function AccountPage({ tab: propTab, workspace }) {
     }
   };
 
-  const backUrl = isWorkspaceContext ? `/w/${activeWsId}/home` : (location.state?.from || '/');
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app select-none">
-      {/* Top Header with Breadcrumbs & Top-Right User Dropdown */}
-      <header className="h-14 px-6 border-b border-border bg-surface flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5 text-xs text-text-secondary">
-          <Link
-            to={backUrl}
-            className="flex items-center gap-1.5 font-semibold text-text-primary hover:text-primary transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </Link>
-          {workspace?.name && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-              <span className="font-semibold text-text-primary">{workspace.name}</span>
-            </>
-          )}
-          <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-          <span className="font-semibold text-text-primary">Settings</span>
-          {currentTab && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-              <span className="font-bold text-primary">{currentTab.label}</span>
-            </>
-          )}
-        </div>
-
-        {/* Top-Right Corner User Dropdown */}
-        <div className="flex items-center gap-3">
-          <UserDropdown workspaceId={activeWsId} />
-        </div>
-      </header>
-
       {/* Top Horizontal Tabs Navigation Bar */}
       <nav aria-label="Account Tabs" className="border-b border-border bg-surface shrink-0">
         <div className="px-6 md:px-8">

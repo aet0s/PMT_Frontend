@@ -1,14 +1,12 @@
 // client/src/pages/SettingsPage.jsx
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Briefcase,
   SlidersHorizontal,
   Bell,
   Database,
-  ShieldAlert,
-  ArrowLeft,
-  ChevronRight
+  ShieldAlert
 } from 'lucide-react';
 import { usePermissions } from '../context/PermissionContext';
 import { useToast } from '../components/ui/Toast';
@@ -131,31 +129,8 @@ export default function SettingsPage({
     navigate(`/w/${effectiveWsId}/settings/${newTabId}`);
   };
 
-  const backUrl = location.state?.from || `/w/${effectiveWsId}/home`;
-
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-app select-none">
-      {/* Top Header with Breadcrumbs and Back Link */}
-      <header className="h-14 px-6 border-b border-border bg-surface flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5 text-xs text-text-secondary">
-          <Link
-            to={backUrl}
-            className="flex items-center gap-1.5 font-semibold text-text-primary hover:text-primary transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-          <span className="font-medium truncate max-w-[160px] text-text-secondary">
-            {activeWorkspace?.name || 'Workspace'}
-          </span>
-          <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-          <span className="font-semibold text-text-primary">Settings</span>
-          <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
-          <span className="font-bold text-primary">{currentTab.label}</span>
-        </div>
-      </header>
-
       {/* Top Horizontal Tabs Navigation Bar */}
       <nav aria-label="Settings Tabs" className="border-b border-border bg-surface shrink-0">
         <div className="px-6 md:px-8">
