@@ -1,5 +1,4 @@
-// client/src/pages/settings/tabs/GeneralTab.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Briefcase,
   AlertTriangle,
@@ -11,13 +10,15 @@ import {
   Layers,
   Calendar,
   Lock,
-  Info
+  Info,
+  Camera
 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { useToast } from '../../../components/ui/Toast';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
-import { updateWorkspace } from '../../../api/workspaces';
+import { updateWorkspace, uploadWorkspaceIcon, removeWorkspaceIcon } from '../../../api/workspaces';
+import { getFileUrl } from '../../../api/config';
 import { usePermissions } from '../../../context/PermissionContext';
 import { useSocket } from '../../../context/SocketProvider';
 
@@ -34,9 +35,12 @@ export default function GeneralTab({
   const canEdit = hasPermission('workspace.edit');
   const canDelete = hasPermission('workspace.delete');
 
+  const fileInputRef = useRef(null);
   const [name, setName] = useState(workspace?.name || '');
   const [description, setDescription] = useState(workspace?.description || '');
+  const [currentIconUrl, setCurrentIconUrl] = useState(workspace?.icon_url || workspace?.settings?.icon_url || null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: '',
@@ -49,8 +53,59 @@ export default function GeneralTab({
   useEffect(() => {
     setName(workspace?.name || '');
     setDescription(workspace?.description || '');
+    setCurrentIconUrl(workspace?.icon_url || workspace?.settings?.icon_url || null);
     setFormDirty?.(false);
   }, [workspace, setFormDirty]);
+
+  const handleIconUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.show('Please select a valid image file (PNG, JPG, WebP, SVG)', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.show('Image size exceeds 5MB limit', 'error');
+      return;
+    }
+
+    setIsUploadingIcon(true);
+    try {
+      const res = await uploadWorkspaceIcon(workspace.id, file);
+      setCurrentIconUrl(res.icon_url);
+      if (res.workspace) {
+        onWorkspaceUpdated?.(res.workspace);
+      } else {
+        onWorkspaceUpdated?.({ ...workspace, icon_url: res.icon_url });
+      }
+      toast.show('Workspace icon updated successfully', 'success');
+    } catch (err) {
+      toast.show(err.message || 'Failed to upload workspace icon', 'error');
+    } finally {
+      setIsUploadingIcon(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveIcon = async () => {
+    setIsUploadingIcon(true);
+    try {
+      const res = await removeWorkspaceIcon(workspace.id);
+      setCurrentIconUrl(null);
+      if (res.workspace) {
+        onWorkspaceUpdated?.(res.workspace);
+      } else {
+        onWorkspaceUpdated?.({ ...workspace, icon_url: null });
+      }
+      toast.show('Workspace icon removed', 'success');
+    } catch (err) {
+      toast.show(err.message || 'Failed to remove workspace icon', 'error');
+    } finally {
+      setIsUploadingIcon(false);
+    }
+  };
 
   useEffect(() => {
     if (!socket || !workspace?.id) return;
@@ -148,6 +203,68 @@ export default function GeneralTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Settings & Danger Zone (2 cols) */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Workspace Icon Card */}
+          <div className="bg-surface border border-border rounded-xl p-6 shadow-xs space-y-4">
+            <h3 className="text-sm font-bold text-text-primary">Workspace Icon</h3>
+            <p className="text-xs text-text-secondary">
+              Upload a logo or avatar for this workspace. It appears in the sidebar, workspace switcher, and board views.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 pt-2">
+              <div className="w-16 h-16 rounded-2xl border-2 border-border/80 shadow-xs overflow-hidden flex items-center justify-center bg-primary-tint text-primary font-black text-xl shrink-0">
+                {currentIconUrl ? (
+                  <img
+                    src={getFileUrl(currentIconUrl)}
+                    alt={name || 'Workspace'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{(name || 'W').charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleIconUpload}
+                    className="hidden"
+                  />
+                  {canEdit && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        isLoading={isUploadingIcon}
+                        leftIcon={<Camera className="w-3.5 h-3.5" />}
+                      >
+                        Upload Icon
+                      </Button>
+                      {currentIconUrl && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRemoveIcon}
+                          disabled={isUploadingIcon}
+                          leftIcon={<Trash2 className="w-3.5 h-3.5 text-danger" />}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+                <p className="text-[11px] text-text-muted">
+                  Supports PNG, JPG, WebP or SVG. Recommended size: 256x256. Max file size: 5MB.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <form onSubmit={handleSave} className="space-y-5 bg-surface border border-border rounded-xl p-6 shadow-xs">
             <div className="border-b border-border pb-3">
               <h3 className="text-sm font-bold text-text-primary">Workspace Profile</h3>

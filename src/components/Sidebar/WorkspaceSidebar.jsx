@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '../../context/PermissionContext';
 import { useSocket } from '../../context/SocketProvider';
 import PromptDialog from '../shared/PromptDialog';
 import { getThemeDotClass } from '../../lib/palettes';
+import { getFileUrl } from '../../api/config';
 import {
   Trello,
   Plus,
@@ -32,7 +33,8 @@ import {
   Rocket,
   MapPin,
   Sparkles,
-  CalendarCheck
+  CalendarCheck,
+  Search
 } from 'lucide-react';
 
 export default function WorkspaceSidebar({
@@ -64,8 +66,38 @@ export default function WorkspaceSidebar({
   const [isWsActionsOpen, setIsWsActionsOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [workspaceRenameValue, setWorkspaceRenameValue] = useState('');
+  const [wsSearchQuery, setWsSearchQuery] = useState('');
   const menuRef = useRef(null);
+  const wsDropdownRef = useRef(null);
+  const [wsDropdownPos, setWsDropdownPos] = useState({ top: 0, left: 0, minWidth: 260 });
   const [railTooltip, setRailTooltip] = useState(null);
+
+  const filteredWorkspaces = useMemo(() => {
+    if (!wsSearchQuery.trim()) return workspaces;
+    const q = wsSearchQuery.trim().toLowerCase();
+    return workspaces.filter((w) => (w.name || '').toLowerCase().includes(q));
+  }, [workspaces, wsSearchQuery]);
+
+  // Keep portaled workspace dropdown positioned exactly below menuRef
+  useEffect(() => {
+    if (!isWsDropdownOpen) return;
+    const updateDropdownPos = () => {
+      if (!menuRef.current) return;
+      const rect = menuRef.current.getBoundingClientRect();
+      setWsDropdownPos({
+        top: Math.round(rect.bottom + 6),
+        left: Math.round(rect.left),
+        minWidth: Math.max(Math.round(rect.width), 260),
+      });
+    };
+    updateDropdownPos();
+    window.addEventListener('resize', updateDropdownPos);
+    window.addEventListener('scroll', updateDropdownPos, true);
+    return () => {
+      window.removeEventListener('resize', updateDropdownPos);
+      window.removeEventListener('scroll', updateDropdownPos, true);
+    };
+  }, [isWsDropdownOpen]);
 
   const showTooltip = (e, text, badge = null) => {
     if (!text) return;
@@ -97,7 +129,9 @@ export default function WorkspaceSidebar({
   // Close menus on outside click
   useEffect(() => {
     const handleOutsideClick = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      const clickedMenu = menuRef.current && menuRef.current.contains(event.target);
+      const clickedDropdown = wsDropdownRef.current && wsDropdownRef.current.contains(event.target);
+      if (!clickedMenu && !clickedDropdown) {
         setIsWsDropdownOpen(false);
         setIsWsActionsOpen(false);
       }
@@ -267,6 +301,7 @@ export default function WorkspaceSidebar({
           >
             {workspaces.map((ws) => {
               const isSelected = activeWorkspace?.id === ws.id;
+              const wsIcon = ws.icon_url || ws.settings?.icon_url;
               return (
                 <div key={ws.id} className="relative w-full flex items-center justify-center group shrink-0">
                   {/* Active selection capsule pill on far left edge */}
@@ -286,12 +321,27 @@ export default function WorkspaceSidebar({
                     onMouseEnter={(e) => showTooltip(e, ws.name, isSelected ? 'Active' : null)}
                     onMouseLeave={hideTooltip}
                     aria-label={ws.name}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer ${isSelected
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer overflow-hidden ${isSelected
                       ? 'bg-white text-primary shadow-md font-black ring-2 ring-white/60'
                       : 'bg-primary bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
                       }`}
                   >
-                    {ws.name.charAt(0).toUpperCase()}
+                    {wsIcon ? (
+                      <img
+                        src={getFileUrl(wsIcon)}
+                        alt={ws.name}
+                        className="w-full h-full object-cover rounded-full"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextElementSibling) {
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }
+                        }}
+                      />
+                    ) : null}
+                    <span className={wsIcon ? 'hidden' : 'flex items-center justify-center'}>
+                      {ws.name.charAt(0).toUpperCase()}
+                    </span>
                   </button>
                 </div>
               );
@@ -333,12 +383,31 @@ export default function WorkspaceSidebar({
             <div className="relative flex-1 min-w-0" ref={menuRef}>
               <button
                 type="button"
-                onClick={() => setIsWsDropdownOpen(!isWsDropdownOpen)}
+                onClick={() => {
+                  if (!isWsDropdownOpen && menuRef.current) {
+                    const rect = menuRef.current.getBoundingClientRect();
+                    setWsDropdownPos({
+                      top: Math.round(rect.bottom + 6),
+                      left: Math.round(rect.left),
+                      minWidth: Math.max(Math.round(rect.width), 260),
+                    });
+                  }
+                  setIsWsDropdownOpen(!isWsDropdownOpen);
+                  setWsSearchQuery('');
+                }}
                 className="w-full flex items-center justify-between gap-2 text-left group cursor-pointer focus:outline-none"
               >
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xl font-black text-primary shrink-0">#</span>
+                    {activeWorkspace?.icon_url || activeWorkspace?.settings?.icon_url ? (
+                      <img
+                        src={getFileUrl(activeWorkspace.icon_url || activeWorkspace.settings?.icon_url)}
+                        alt={activeWorkspace.name}
+                        className="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/50"
+                      />
+                    ) : (
+                      <span className="text-xl font-black text-primary shrink-0">#</span>
+                    )}
                     <span className="text-[15px] sm:text-base font-extrabold text-text-primary truncate tracking-tight group-hover:text-primary transition-colors">
                       {activeWorkspace?.name || 'Workspace'}
                     </span>
@@ -352,61 +421,111 @@ export default function WorkspaceSidebar({
                 <ChevronDown className={`w-4 h-4 text-text-muted transition-transform duration-200 shrink-0 ${isWsDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Workspace Switcher & Actions Dropdown with Sassy Animation */}
-              {isWsDropdownOpen && (
+              {/* Workspace Switcher & Actions Dropdown with Sassy Animation (Portaled to prevent sidebar overflow clipping) */}
+              {isWsDropdownOpen && typeof document !== 'undefined' && createPortal(
                 <div
+                  ref={wsDropdownRef}
                   role="listbox"
-                  className="absolute left-0 right-0 top-full mt-2 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 p-1.5 space-y-1 animate-sassy-dropdown-left"
+                  className="fixed bg-surface border border-border/80 rounded-2xl shadow-2xl z-[9999] p-2 space-y-1.5 animate-sassy-dropdown-left overflow-hidden min-w-[280px] w-max max-w-[min(480px,calc(100vw-2rem))]"
+                  style={{
+                    top: `${wsDropdownPos.top}px`,
+                    left: `${wsDropdownPos.left}px`,
+                    minWidth: `${wsDropdownPos.minWidth}px`,
+                  }}
                 >
-                  {workspaces.map((ws) => {
-                    const isSelected = activeWorkspace?.id === ws.id;
-                    return (
-                      <button
-                        key={ws.id}
-                        type="button"
-                        onClick={() => {
-                          onSelectWorkspace(ws);
-                          setIsWsDropdownOpen(false);
-                          if (onCloseMobile) onCloseMobile();
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-left transition-all cursor-pointer ${isSelected
-                          ? 'bg-primary-tint text-primary font-bold'
-                          : 'text-text-primary hover:bg-surface-muted'
-                          }`}
-                      >
-                        <span className="truncate">{ws.name}</span>
-                        {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
-                      </button>
-                    );
-                  })}
-                  {(canEditWs || canCreateWs) && (
-                    <div className="pt-1.5 mt-1 border-t border-border/60 flex flex-col gap-1">
-                      {canEditWs && (
+                  {/* Search bar inside dropdown */}
+                  <div className="px-1 pt-1 pb-1">
+                    <div className="relative flex items-center">
+                      <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={wsSearchQuery}
+                        onChange={(e) => setWsSearchQuery(e.target.value)}
+                        placeholder="Search workspaces..."
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full pl-8 pr-7 py-1.5 text-xs bg-surface-muted border border-border/60 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                      />
+                      {wsSearchQuery && (
                         <button
                           type="button"
-                          onClick={openRenameDialog}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-muted rounded-xl text-left transition-colors cursor-pointer"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                          <span>Rename</span>
-                        </button>
-                      )}
-                      {canCreateWs && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsWsDropdownOpen(false);
-                            onCreateWorkspaceClick();
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setWsSearchQuery('');
                           }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-bold text-primary hover:bg-primary-tint rounded-xl text-left transition-colors cursor-pointer"
+                          className="absolute right-2 p-0.5 text-text-muted hover:text-text-primary rounded-full hover:bg-surface transition-colors"
                         >
-                          <Plus className="w-4 h-4" />
-                          <span>New Workspace</span>
+                          <X className="w-3 h-3" />
                         </button>
                       )}
                     </div>
+                  </div>
+
+                  {/* Scrollable list showing full workspace names without text wrapping */}
+                  <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-0.5 pr-0.5">
+                    {filteredWorkspaces.length > 0 ? (
+                      filteredWorkspaces.map((ws) => {
+                        const isSelected = activeWorkspace?.id === ws.id;
+                        const wsIcon = ws.icon_url || ws.settings?.icon_url;
+                        return (
+                          <button
+                            key={ws.id}
+                            type="button"
+                            onClick={() => {
+                              onSelectWorkspace(ws);
+                              setIsWsDropdownOpen(false);
+                              setWsSearchQuery('');
+                              if (onCloseMobile) onCloseMobile();
+                            }}
+                            className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-left transition-all cursor-pointer ${isSelected
+                              ? 'bg-primary-tint text-primary font-bold'
+                              : 'text-text-primary hover:bg-surface-muted'
+                              }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {wsIcon ? (
+                                <img
+                                  src={getFileUrl(wsIcon)}
+                                  alt={ws.name}
+                                  className="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/40"
+                                />
+                              ) : (
+                                <div className="w-5 h-5 rounded-md bg-primary-tint text-primary text-[10px] font-black flex items-center justify-center shrink-0">
+                                  {ws.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="whitespace-nowrap font-medium text-xs sm:text-sm">
+                                {ws.name}
+                              </span>
+                            </div>
+                            {isSelected && <Check className="w-4 h-4 text-primary shrink-0 ml-3" />}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="px-3 py-4 text-xs text-text-muted text-center italic">
+                        No workspaces found
+                      </div>
+                    )}
+                  </div>
+
+                  {canCreateWs && (
+                    <div className="pt-1.5 mt-1 border-t border-border/60 flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsWsDropdownOpen(false);
+                          onCreateWorkspaceClick();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-bold text-primary hover:bg-primary-tint rounded-xl text-left transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        <Plus className="w-4 h-4 shrink-0" />
+                        <span>New Workspace</span>
+                      </button>
+                    </div>
                   )}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
 

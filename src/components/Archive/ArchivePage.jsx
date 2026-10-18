@@ -39,6 +39,7 @@ import Avatar from '../ui/Avatar';
 import { Modal } from '../ui/Modal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import Popover from '../ui/Popover';
+import { getFileUrl } from '../../api/config';
 
 // Theme-matched Calendar Date Selector with Day, Month, and Year Pickers
 function DateFilterPicker({ label, value, onChange, placeholder = 'Select date' }) {
@@ -1203,11 +1204,20 @@ export default function ArchivePage({
                     className="p-4 bg-surface border border-border/80 rounded-2xl shadow-xs flex flex-col justify-between gap-3"
                   >
                     <div>
-                      <div className="flex items-center justify-between text-xs text-text-muted mb-1">
+                      <div className="flex items-center justify-between text-xs text-text-muted mb-1.5">
                         <span className="font-semibold text-text-secondary">{ws.role || 'Member'}</span>
                         <span>{formatShortDate(ws.created_at)}</span>
                       </div>
-                      <h4 className="text-sm font-bold text-text-primary line-clamp-1">{ws.name}</h4>
+                      <div className="flex items-center gap-2">
+                        {ws.icon_url || ws.settings?.icon_url ? (
+                          <img
+                            src={getFileUrl(ws.icon_url || ws.settings?.icon_url)}
+                            alt=""
+                            className="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/50"
+                          />
+                        ) : null}
+                        <h4 className="text-sm font-bold text-text-primary line-clamp-1">{ws.name}</h4>
+                      </div>
                     </div>
 
                     <div className="pt-3 border-t border-border/60 flex items-center justify-between">

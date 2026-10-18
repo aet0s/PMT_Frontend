@@ -24,6 +24,21 @@ export async function deleteWorkspace(id) {
   });
 }
 
+export async function uploadWorkspaceIcon(workspaceId, file) {
+  const formData = new FormData();
+  formData.append('icon', file);
+  return apiFetch(`/api/workspaces/${workspaceId}/icon`, {
+    method: 'POST',
+    body: formData
+  });
+}
+
+export async function removeWorkspaceIcon(workspaceId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/icon`, {
+    method: 'DELETE'
+  });
+}
+
 export async function autoArchiveWorkspaceCards(workspaceId, days = 7) {
   return apiFetch(`/api/workspaces/${workspaceId}/auto-archive`, {
     method: 'POST',

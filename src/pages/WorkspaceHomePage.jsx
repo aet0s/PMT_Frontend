@@ -33,6 +33,7 @@ import ProgressBar from '../components/ui/ProgressBar';
 import { Select } from '../components/ui/Select';
 import { getBoardBgClass, getBoardStyle } from '../lib/palettes';
 import { getTimeBasedGreeting, fetchServerGreeting, getCurrentServerDate } from '../lib/serverTime';
+import { getFileUrl } from '../api/config';
 
 function formatBoardDate(dateStr) {
   if (!dateStr) return 'Recently';
@@ -236,7 +237,14 @@ export default function WorkspaceHomePage({
                   <Sparkles className="w-3.5 h-3.5" />
                   Workspace Overview
                 </span>
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-surface-muted border border-border text-text-secondary">
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-surface-muted border border-border text-text-secondary flex items-center gap-1.5">
+                  {(workspace?.icon_url || workspace?.settings?.icon_url) && (
+                    <img
+                      src={getFileUrl(workspace.icon_url || workspace.settings?.icon_url)}
+                      alt=""
+                      className="w-4 h-4 rounded-sm object-cover"
+                    />
+                  )}
                   {workspace?.name || 'TaskFlow Workspace'}
                 </span>
                 <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-success-tint text-success-text border border-success/20 flex items-center gap-1">
