@@ -43,6 +43,7 @@ import {
   getNotificationPreferences,
   updateNotificationPreferences
 } from '../../api/notifications';
+import { getBoards } from '../../api/boards';
 import { useSocket } from '../../context/SocketProvider';
 import { useToast } from '../ui/Toast';
 import { formatShortDate, formatRelativeTime, getServerNow } from '../../lib/dateFormat';
@@ -91,7 +92,7 @@ export default function NotificationsPage({
   onSelectNotificationCard,
   activeWorkspace,
   workspaces = [],
-  boards = []
+  boards: propBoards = []
 }) {
   const {
     unreadCount: globalUnreadCount,
@@ -120,6 +121,62 @@ export default function NotificationsPage({
   const [selectedBoardFilter, setSelectedBoardFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(activeWorkspace?.id || null);
+
+  // Dynamic Workspace Boards
+  const [workspaceBoards, setWorkspaceBoards] = useState(propBoards);
+  const [loadingBoards, setLoadingBoards] = useState(false);
+  const [showAllBoards, setShowAllBoards] = useState(false);
+
+  // When selected workspace changes, reset board filter and fetch that workspace's boards
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadWorkspaceBoards() {
+      if (selectedWorkspaceId && Number(selectedWorkspaceId) === Number(activeWorkspace?.id) && propBoards.length > 0) {
+        setWorkspaceBoards(propBoards);
+        return;
+      }
+
+      setLoadingBoards(true);
+      try {
+        const data = await getBoards(selectedWorkspaceId || null);
+        if (!isCancelled) {
+          setWorkspaceBoards(data.boards || []);
+        }
+      } catch (err) {
+        console.error('Failed to load boards for workspace filter:', err);
+        if (!isCancelled && (!selectedWorkspaceId || Number(selectedWorkspaceId) === Number(activeWorkspace?.id))) {
+          setWorkspaceBoards(propBoards);
+        }
+      } finally {
+        if (!isCancelled) setLoadingBoards(false);
+      }
+    }
+
+    loadWorkspaceBoards();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedWorkspaceId, activeWorkspace?.id, propBoards]);
+
+  const handleWorkspaceChange = (val) => {
+    const wsId = val ? Number(val) : null;
+    setSelectedWorkspaceId(wsId);
+    setSelectedBoardFilter('all');
+    setShowAllBoards(false);
+  };
+
+  const visibleBoards = useMemo(() => {
+    if (showAllBoards || workspaceBoards.length <= 10) {
+      return workspaceBoards;
+    }
+    const initialSlice = workspaceBoards.slice(0, 10);
+    if (selectedBoardFilter !== 'all' && !initialSlice.some((b) => String(b.id) === String(selectedBoardFilter))) {
+      const activeBoard = workspaceBoards.find((b) => String(b.id) === String(selectedBoardFilter));
+      if (activeBoard) return [...initialSlice, activeBoard];
+    }
+    return initialSlice;
+  }, [workspaceBoards, showAllBoards, selectedBoardFilter]);
 
   // Preferences Modal State
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -169,7 +226,7 @@ export default function NotificationsPage({
         boardId: selectedBoardFilter !== 'all' ? selectedBoardFilter : null
       });
       setNotifications(data.notifications || []);
-      setTotalCount(data.total_count ?? (data.counts?.all || 0));
+      setTotalCount(data.total_count ?? (data.counts?.all || (data.notifications || []).length));
       setHasMore(Boolean(data.has_more));
     } catch (err) {
       console.error('Failed to fetch notifications page:', err);
@@ -516,7 +573,7 @@ export default function NotificationsPage({
                   <Select
                     aria-label="Filter by workspace"
                     value={selectedWorkspaceId || ''}
-                    onChange={(val) => setSelectedWorkspaceId(val ? Number(val) : null)}
+                    onChange={handleWorkspaceChange}
                     size="sm"
                     options={[
                       { value: '', label: 'All Workspaces' },
@@ -528,13 +585,13 @@ export default function NotificationsPage({
             </div>
 
             {/* Filter Category Chips */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+            <div className="flex flex-wrap items-center gap-1.5 pb-1">
               {FILTER_TABS.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     activeFilter === tab.id
                       ? 'bg-primary text-white shadow-xs font-medium'
                       : 'bg-surface-muted text-text-secondary hover:text-text-primary hover:bg-border/60 border border-border font-medium'
@@ -546,8 +603,8 @@ export default function NotificationsPage({
             </div>
 
             {/* Per-Board Filter Chips */}
-            {boards.length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-border/60 scrollbar-thin">
+            {workspaceBoards.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
                 <span className="text-[11px] font-semibold text-text-secondary shrink-0 mr-1 flex items-center gap-1">
                   <Layout className="w-3 h-3 text-primary" />
                   Boards:
@@ -555,7 +612,7 @@ export default function NotificationsPage({
                 <button
                   type="button"
                   onClick={() => setSelectedBoardFilter('all')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium shrink-0 transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
                     selectedBoardFilter === 'all'
                       ? 'bg-primary-tint text-primary-text border border-primary/30 font-semibold'
                       : 'bg-surface text-text-secondary hover:text-text-primary border border-border'
@@ -563,30 +620,40 @@ export default function NotificationsPage({
                 >
                   All Boards
                 </button>
-                {boards.map((b) => {
+                {visibleBoards.map((b) => {
                   const bUnread = byBoardUnread?.[b.id] || byBoardUnread?.[String(b.id)] || 0;
                   const muted = isBoardMuted(b.id);
+                  const isSelected = selectedBoardFilter === String(b.id);
                   return (
                     <button
                       key={b.id}
                       type="button"
                       onClick={() => setSelectedBoardFilter(String(b.id))}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
-                        selectedBoardFilter === String(b.id)
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
                           ? 'bg-primary-tint text-primary-text border border-primary/30 font-semibold'
                           : 'bg-surface text-text-secondary hover:text-text-primary border border-border'
                       }`}
                     >
-                      <span>{b.name}</span>
+                      <span className="truncate max-w-[160px]">{b.name}</span>
                       {bUnread > 0 && (
-                        <span className="w-2 h-2 rounded-full bg-primary" />
+                        <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
                       )}
                       {muted && (
-                        <BellOff className="w-3 h-3 text-text-muted" title="Muted" />
+                        <BellOff className="w-3 h-3 text-text-muted shrink-0" title="Muted" />
                       )}
                     </button>
                   );
                 })}
+                {workspaceBoards.length > 10 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllBoards((prev) => !prev)}
+                    className="px-2 py-1 rounded-lg text-[11px] font-medium text-primary hover:bg-primary-tint border border-primary/20 transition-all cursor-pointer"
+                  >
+                    {showAllBoards ? 'Show less' : `+${workspaceBoards.length - 10} more`}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -610,7 +677,7 @@ export default function NotificationsPage({
           ) : (
             <div className="space-y-6">
               <div className="flex items-center justify-between px-1 text-xs text-text-secondary font-semibold">
-                <span>Showing {notifications.length} of {totalCount} notifications</span>
+                <span>Showing {notifications.length} of {Math.max(totalCount, notifications.length)} notifications</span>
                 {hasMore && (
                   <span className="text-primary font-medium">
                     Scroll down or click below to load more
