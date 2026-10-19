@@ -1378,14 +1378,14 @@ export default function ArchivePage({
                         </div>
                         <div className="space-y-1.5">
                           {(chk.items || []).map((item) => (
-                            <div key={item.id} className="flex items-center gap-2 text-xs">
+                            <div key={item.id} className="flex items-start gap-2 text-xs">
                               <input
                                 type="checkbox"
                                 checked={Boolean(item.is_checked)}
                                 readOnly
-                                className="w-3.5 h-3.5 rounded border-border text-primary cursor-default"
+                                className="w-3.5 h-3.5 mt-0.5 rounded border-border text-primary cursor-default shrink-0"
                               />
-                              <span className={`text-xs ${item.is_checked ? 'line-through text-text-muted' : 'text-text-primary'}`}>
+                              <span className={`text-xs break-words whitespace-normal leading-relaxed flex-1 ${item.is_checked ? 'line-through text-text-muted' : 'text-text-primary'}`}>
                                 {item.text || item.title || 'Untitled Item'}
                               </span>
                             </div>

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { usePermissions } from '../../context/PermissionContext';
-import { Tag, Calendar, CheckSquare, Paperclip, Users, UserCheck, Target, Brain } from 'lucide-react';
+import { Tag, Calendar, CheckSquare, Paperclip, Users, UserCheck, Clock } from 'lucide-react';
 
 export default function QuickAddRow({
   onOpenLabels,
@@ -9,11 +9,7 @@ export default function QuickAddRow({
   onOpenAttachment,
   onOpenMembers,
   onOpenAssigners,
-  isFocus = false,
-  isDeepWork = false,
-  onToggleFocus,
-  onToggleDeepWork,
-  focusLoading = false
+  onOpenCheckin
 }) {
   const { hasPermission } = usePermissions();
   const labelsBtnRef = useRef(null);
@@ -26,8 +22,6 @@ export default function QuickAddRow({
   const canAssignMembers = hasPermission('task.assign');
   const canEditCard = hasPermission('task.edit');
   const canManageAttachments = hasPermission('attachment.upload');
-  const canFocus = hasPermission('task.focus');
-  const canMarkDeepWork = hasPermission('task.mark_deep_work');
 
   return (
     <div className="flex flex-wrap items-center gap-2 select-none">
@@ -101,37 +95,16 @@ export default function QuickAddRow({
         </button>
       )}
 
-      {canFocus && onToggleFocus && (
+      {/* Requirement 3: Every card also has an 'Add update' button at any time */}
+      {onOpenCheckin && (
         <button
           type="button"
-          onClick={onToggleFocus}
-          disabled={focusLoading}
-          className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            isFocus && !isDeepWork
-              ? 'bg-amber-500/15 border-amber-500/50 text-amber-600 font-bold shadow-2xs'
-              : 'bg-surface-muted hover:bg-border text-text-primary border-border'
-          }`}
-          title={isFocus ? 'Remove from today\'s focus' : 'Set as today\'s focus task'}
+          onClick={onOpenCheckin}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+          title="Add a daily progress update on this card"
         >
-          <Target className="w-3.5 h-3.5 text-amber-500" />
-          <span>{isFocus && !isDeepWork ? 'Focused ✓' : 'Set Focus'}</span>
-        </button>
-      )}
-
-      {canMarkDeepWork && onToggleDeepWork && (
-        <button
-          type="button"
-          onClick={onToggleDeepWork}
-          disabled={focusLoading}
-          className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            isDeepWork
-              ? 'bg-purple-500/15 border-purple-500/50 text-purple-600 font-bold shadow-2xs'
-              : 'bg-surface-muted hover:bg-border text-text-primary border-border'
-          }`}
-          title={isDeepWork ? 'Remove deep-work designation' : 'Designate as Deep Work (Exemption from daily activity churn)'}
-        >
-          <Brain className="w-3.5 h-3.5 text-purple-500" />
-          <span>{isDeepWork ? 'Deep Work ✓' : 'Deep Work'}</span>
+          <Clock className="w-3.5 h-3.5" />
+          <span>Add update</span>
         </button>
       )}
     </div>

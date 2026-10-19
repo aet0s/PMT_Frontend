@@ -79,19 +79,21 @@ export default function ChecklistSection({
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-2 hover:bg-surface-muted rounded-lg group transition-colors"
+                  className="flex items-start justify-between p-2 hover:bg-surface-muted rounded-lg group transition-colors gap-2"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <CustomCheckbox
-                      checked={Boolean(item.is_checked)}
-                      onChange={(checked) => canEditChecklist && onUpdateChecklistItem(item.id, { is_checked: checked })}
-                      disabled={!canEditChecklist}
-                      size="sm"
-                    />
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="pt-0.5 shrink-0">
+                      <CustomCheckbox
+                        checked={Boolean(item.is_checked)}
+                        onChange={(checked) => canEditChecklist && onUpdateChecklistItem(item.id, { is_checked: checked })}
+                        disabled={!canEditChecklist}
+                        size="sm"
+                      />
+                    </div>
 
                     <span
                       onClick={() => canEditChecklist && onUpdateChecklistItem(item.id, { is_checked: !item.is_checked })}
-                      className={`text-xs select-none truncate transition-colors flex-1 ${canEditChecklist ? 'cursor-pointer' : 'cursor-default'} ${
+                      className={`text-xs select-none break-words whitespace-normal leading-relaxed flex-1 transition-colors ${canEditChecklist ? 'cursor-pointer' : 'cursor-default'} ${
                         item.is_checked ? 'line-through text-text-muted' : 'text-text-primary'
                       }`}
                     >
@@ -103,7 +105,7 @@ export default function ChecklistSection({
                     <button
                       type="button"
                       onClick={() => onDeleteChecklistItem(item.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger transition-opacity cursor-pointer"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger transition-opacity cursor-pointer shrink-0 mt-0.5"
                       title="Delete item"
                     >
                       <X className="w-3.5 h-3.5" />

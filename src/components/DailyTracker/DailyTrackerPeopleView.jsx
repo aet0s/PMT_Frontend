@@ -5,22 +5,24 @@ import {
   AlertCircle,
   Clock,
   CheckCircle2,
-  Brain,
-  MessageSquare,
-  HelpCircle,
-  FileCheck,
   Calendar,
-  Send,
   Link2,
   ExternalLink,
   Plus,
   Coffee,
-  Sparkles,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Info,
+  Check,
+  HelpCircle,
+  Paperclip,
+  CheckSquare,
+  MessageSquare,
+  Eye,
+  ShieldAlert
 } from 'lucide-react';
 import { getWorkspaceDailyTrackerPeople, createWorkspaceLeaveDay } from '../../api/workspaces';
-import { reviewCheckin, answerCheckinReview } from '../../api/cards';
+import { reviewCheckin } from '../../api/cards';
 import Avatar from '../ui/Avatar';
 import Badge from '../ui/Badge';
 import Spinner from '../ui/Spinner';
@@ -35,13 +37,15 @@ export default function DailyTrackerPeopleView({
 }) {
   const { hasPermission } = usePermissions();
   const canReview = hasPermission('checkin.review');
-  const canManageLeave = hasPermission('workspace.edit') || hasPermission('company.manage_security');
+  const canManageLeave = hasPermission('leave.approve') || hasPermission('workspace.edit');
 
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [filterState, setFilterState] = useState('all'); // 'all' | 'attention' | 'done' | 'idle' | 'leave'
+  const [cutoffPassed, setCutoffPassed] = useState(false);
+  const [filterState, setFilterState] = useState('all'); // 'all' | 'Blocked' | 'No update today' | 'Updated today' | 'No open tasks' | 'On leave'
   const [error, setError] = useState(null);
+  const [expandedPersonId, setExpandedPersonId] = useState(null);
+  const [ownerDetailsPersonId, setOwnerDetailsPersonId] = useState(null);
 
   // Leave modal state
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
@@ -50,8 +54,8 @@ export default function DailyTrackerPeopleView({
   const [savingLeave, setSavingLeave] = useState(false);
 
   // Review inline action state
-  const [activeReviewCardId, setActiveReviewCardId] = useState(null);
-  const [reviewAction, setReviewAction] = useState('ack');
+  const [activeReviewCheckinId, setActiveReviewCheckinId] = useState(null);
+  const [reviewAction, setReviewAction] = useState('seen'); // 'seen' | 'ask_proof'
   const [reviewNote, setReviewNote] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
@@ -65,7 +69,7 @@ export default function DailyTrackerPeopleView({
     try {
       const res = await getWorkspaceDailyTrackerPeople(workspaceId, { date: selectedDate });
       setPeople(res.people || []);
-      setSummary(res.summary || null);
+      setCutoffPassed(Boolean(res.cutoff_passed));
     } catch (err) {
       setError(err?.message || 'Failed to load people tracker');
     } finally {
@@ -77,7 +81,7 @@ export default function DailyTrackerPeopleView({
     fetchPeopleData();
   }, [fetchPeopleData]);
 
-  // Handle Owner Review
+  // Handle Owner Review: Seen or Ask for proof
   const handleReviewSubmit = async (checkinId) => {
     if (!checkinId || submittingReview) return;
     setSubmittingReview(true);
@@ -86,7 +90,7 @@ export default function DailyTrackerPeopleView({
         action: reviewAction,
         note: reviewNote.trim() || null
       });
-      setActiveReviewCardId(null);
+      setActiveReviewCheckinId(null);
       setReviewNote('');
       await fetchPeopleData();
     } catch (err) {
@@ -117,24 +121,24 @@ export default function DailyTrackerPeopleView({
     }
   };
 
-  // Filtered members list
+  // Exactly five states filter
   const filteredPeople = people.filter((p) => {
     if (filterState === 'all') return true;
-    if (filterState === 'attention') {
-      return ['Blocked', 'Focused-check-in-missing', 'Needs review'].includes(p.state);
-    }
-    if (filterState === 'done') {
-      return p.state === 'Focused-check-in-done';
-    }
-    if (filterState === 'idle') {
-      return p.state === 'Idle';
-    }
-    if (filterState === 'leave') {
-      return p.state === 'On leave';
-    }
-    return true;
+    return p.state === filterState;
   });
 
+  // State Counts for Pills
+  const counts = {
+    all: people.length,
+    'Blocked': people.filter(p => p.state === 'Blocked').length,
+    'No update today': people.filter(p => p.state === 'No update today').length,
+    'Updated today': people.filter(p => p.state === 'Updated today').length,
+    'No open tasks': people.filter(p => p.state === 'No open tasks').length,
+    'On leave': people.filter(p => p.state === 'On leave').length
+  };
+
+  // Exact 5 states badge rendering
+  // Requirement 9: green = updated, amber = no update today, red = blocked, grey = no tasks, purple = on leave
   const getStateBadge = (state) => {
     switch (state) {
       case 'Blocked':
@@ -144,45 +148,32 @@ export default function DailyTrackerPeopleView({
             Blocked
           </span>
         );
-      case 'Focused-check-in-missing':
+      case 'No update today':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-500 border border-amber-500/30">
             <Clock className="w-3.5 h-3.5" />
-            Check-in Missing
+            No update today
           </span>
         );
-      case 'Needs review':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-500 border border-blue-500/30">
-            <HelpCircle className="w-3.5 h-3.5" />
-            Needs Review
-          </span>
-        );
-      case 'Focused-check-in-done':
+      case 'Updated today':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/30">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            Check-in Done
-          </span>
-        );
-      case 'Active':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/30">
-            <Sparkles className="w-3.5 h-3.5" />
-            Active
+            Updated today
           </span>
         );
       case 'On leave':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-500 border border-purple-500/30">
             <Coffee className="w-3.5 h-3.5" />
-            On Leave
+            On leave
           </span>
         );
+      case 'No open tasks':
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-surface text-text-muted border border-border">
-            Idle
+            No open tasks
           </span>
         );
     }
@@ -190,10 +181,29 @@ export default function DailyTrackerPeopleView({
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app text-text-primary text-left">
-      {/* People Stats Bar */}
-      <div className="px-4 sm:px-6 py-3.5 bg-surface border-b border-border/60 shrink-0 flex items-center justify-between gap-4 flex-wrap">
-        {/* Quick Filter Pills */}
-        <div className="inline-flex p-1 bg-app border border-border/80 rounded-xl shadow-2xs gap-1">
+      {/* Help bar with exact role wording per Requirement 9 */}
+      <div className="px-4 sm:px-6 py-2.5 bg-surface border-b border-border/60 text-xs text-text-secondary flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-primary shrink-0" />
+          <span>
+            <strong className="text-text-primary">Owner/Admin:</strong> Open the People tab: <span className="text-emerald-500 font-bold">green = updated</span>, <span className="text-amber-500 font-bold">amber = no update today</span>, <span className="text-danger font-bold">red = blocked</span>, <span className="text-text-muted font-bold">grey = no tasks</span>.
+          </span>
+        </div>
+        {canManageLeave && (
+          <button
+            type="button"
+            onClick={() => setLeaveModalOpen(true)}
+            className="px-3 py-1 bg-surface-muted hover:bg-border text-xs font-bold rounded-lg border border-border transition-colors flex items-center gap-1.5 cursor-pointer text-text-primary shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5 text-primary" />
+            <span>Record Leave</span>
+          </button>
+        )}
+      </div>
+
+      {/* Filter Pills */}
+      <div className="px-4 sm:px-6 py-3 bg-surface border-b border-border/60 shrink-0 flex items-center justify-between gap-4 flex-wrap">
+        <div className="inline-flex p-1 bg-app border border-border/80 rounded-xl shadow-2xs gap-1 flex-wrap">
           <button
             type="button"
             onClick={() => setFilterState('all')}
@@ -203,66 +213,67 @@ export default function DailyTrackerPeopleView({
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            All Members ({summary?.total_members || people.length})
+            All Members ({counts.all})
           </button>
           <button
             type="button"
-            onClick={() => setFilterState('attention')}
+            onClick={() => setFilterState('Blocked')}
             className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              filterState === 'attention'
+              filterState === 'Blocked'
+                ? 'bg-danger text-white shadow-xs'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-danger" />
+            Blocked ({counts['Blocked']})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterState('No update today')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              filterState === 'No update today'
                 ? 'bg-amber-500 text-white shadow-xs'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-400" />
-            Attention Needed ({(summary?.blocked || 0) + (summary?.focused_checkin_missing || 0) + (summary?.needs_review || 0)})
+            No update today ({counts['No update today']})
           </button>
           <button
             type="button"
-            onClick={() => setFilterState('done')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              filterState === 'done'
+            onClick={() => setFilterState('Updated today')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              filterState === 'Updated today'
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            Check-in Done ({summary?.focused_checkin_done || 0})
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Updated today ({counts['Updated today']})
           </button>
           <button
             type="button"
-            onClick={() => setFilterState('idle')}
+            onClick={() => setFilterState('No open tasks')}
             className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              filterState === 'idle'
+              filterState === 'No open tasks'
                 ? 'bg-surface-muted text-text-primary shadow-xs'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            Idle ({summary?.idle || 0})
+            No open tasks ({counts['No open tasks']})
           </button>
           <button
             type="button"
-            onClick={() => setFilterState('leave')}
+            onClick={() => setFilterState('On leave')}
             className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              filterState === 'leave'
+              filterState === 'On leave'
                 ? 'bg-purple-600 text-white shadow-xs'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            On Leave ({summary?.on_leave || 0})
+            On leave ({counts['On leave']})
           </button>
         </div>
-
-        {/* Action Button: Log Leave */}
-        {canManageLeave && (
-          <button
-            type="button"
-            onClick={() => setLeaveModalOpen(true)}
-            className="px-3 py-1.5 bg-surface border border-border/80 hover:bg-surface-muted text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer text-text-primary"
-          >
-            <Plus className="w-3.5 h-3.5 text-primary" />
-            <span>Record Leave Day</span>
-          </button>
-        )}
       </div>
 
       {/* Main Content Area */}
@@ -270,7 +281,7 @@ export default function DailyTrackerPeopleView({
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-text-muted">
             <Spinner className="w-7 h-7 text-primary mb-3" />
-            <p className="text-xs">Computing daily focus & check-in states...</p>
+            <p className="text-xs">Computing daily updates & team states...</p>
           </div>
         ) : error ? (
           <div className="p-4 rounded-xl bg-danger-tint border border-danger/30 text-danger text-xs text-center">
@@ -287,9 +298,13 @@ export default function DailyTrackerPeopleView({
         ) : (
           <div className="grid grid-cols-1 gap-4 max-w-5xl mx-auto">
             {filteredPeople.map((person) => {
-              const latestCheckin = person.checkins?.[0] || null;
-              const hasCheckin = Boolean(latestCheckin);
+              const isExpanded = expandedPersonId === person.id;
+              const isOwnerDetailsOpen = ownerDetailsPersonId === person.id;
               const isBlocked = person.state === 'Blocked';
+              const checkins = person.evidence?.check_ins || [];
+              const completedCards = person.evidence?.completed_cards || [];
+              const visibleWarnings = person.visible_warnings || [];
+              const internalFlags = person.internal_flags || [];
 
               return (
                 <div
@@ -297,13 +312,18 @@ export default function DailyTrackerPeopleView({
                   className={`bg-surface border rounded-2xl p-4 sm:p-5 transition-all shadow-2xs ${
                     isBlocked
                       ? 'border-danger/40 ring-1 ring-danger/20'
-                      : person.state === 'Focused-check-in-missing'
-                      ? 'border-amber-500/30'
+                      : person.state === 'No update today'
+                      ? 'border-amber-500/30 ring-1 ring-amber-500/20'
+                      : person.state === 'Updated today'
+                      ? 'border-emerald-500/30'
                       : 'border-border/80'
                   }`}
                 >
-                  {/* Member Top Bar */}
-                  <div className="flex items-center justify-between gap-4 pb-3 border-b border-border/60 flex-wrap">
+                  {/* Person Card Top Header (Click to expand/collapse) */}
+                  <div
+                    onClick={() => setExpandedPersonId(isExpanded ? null : person.id)}
+                    className="flex items-center justify-between gap-4 pb-3 border-b border-border/60 flex-wrap cursor-pointer hover:opacity-95 transition-opacity"
+                  >
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar
                         src={person.avatar_url}
@@ -317,7 +337,7 @@ export default function DailyTrackerPeopleView({
                             {person.name}
                           </h3>
                           <Badge variant="subtle" size="sm">
-                            {person.role_name || 'Member'}
+                            {person.role || 'Member'}
                           </Badge>
                         </div>
                         <span className="text-[11px] text-text-muted truncate block">
@@ -328,215 +348,273 @@ export default function DailyTrackerPeopleView({
 
                     <div className="flex items-center gap-2">
                       {getStateBadge(person.state)}
+                      {isExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-text-muted" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-text-muted" />
+                      )}
                     </div>
                   </div>
 
-                  {/* Focus Tasks Section */}
-                  <div className="py-3.5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
-                        Active Focus Tasks ({person.focus_cards?.length || 0}/2)
-                      </span>
-                    </div>
-
-                    {person.focus_cards && person.focus_cards.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {person.focus_cards.map((fc) => (
-                          <div
-                            key={fc.id}
-                            className="p-3 rounded-xl bg-app border border-border/80 hover:border-primary/40 transition-colors flex flex-col justify-between gap-2"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <h4
-                                onClick={() => onCardClick && onCardClick({ id: fc.id })}
-                                className="text-xs font-bold text-text-primary hover:text-primary transition-colors cursor-pointer line-clamp-2"
-                              >
-                                {fc.title}
-                              </h4>
-                              {fc.deep_work ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 shrink-0">
-                                  <Brain className="w-3 h-3" />
-                                  <span>Deep Work</span>
-                                </span>
-                              ) : null}
-                            </div>
-
-                            <div className="flex items-center justify-between pt-1 text-[11px] text-text-muted">
-                              <span>Estimated: {fc.duration_hours || 4}h</span>
-                              <button
-                                type="button"
-                                onClick={() => setCheckinModalCard(fc)}
-                                className="px-2 py-0.5 rounded-md bg-primary/10 hover:bg-primary/20 text-primary font-bold text-[11px] transition-colors cursor-pointer"
-                              >
-                                Check-in
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-app/50 border border-dashed border-border rounded-xl text-center text-xs text-text-muted">
-                        No active focus card selected for today.
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Latest Check-in Breakdown */}
-                  {hasCheckin ? (
-                    <div className="mt-2 pt-3 border-t border-border/60 bg-app/60 rounded-xl p-3.5 space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>Today's Check-in Summary</span>
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-primary">
-                            {latestCheckin.progress_percent}% Complete
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Progress bar */}
-                      <div className="w-full bg-surface-muted rounded-full h-1.5 overflow-hidden">
+                  {/* Exactly Three Visible Warnings (Requirement 6) */}
+                  {visibleWarnings.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {visibleWarnings.map((warn, wIdx) => (
                         <div
-                          className="bg-primary h-1.5 rounded-full transition-all"
-                          style={{ width: `${Math.min(100, Math.max(0, latestCheckin.progress_percent))}%` }}
-                        />
-                      </div>
-
-                      {/* Accomplished ("Did") */}
-                      <div className="text-xs space-y-1">
-                        <span className="font-bold text-text-secondary block">Accomplished:</span>
-                        <p className="text-text-primary leading-relaxed bg-surface p-2.5 rounded-lg border border-border/60">
-                          {latestCheckin.did}
-                        </p>
-                      </div>
-
-                      {/* Next step */}
-                      <div className="text-xs space-y-1">
-                        <span className="font-bold text-text-secondary block">Next Step:</span>
-                        <p className="text-text-primary leading-relaxed bg-surface p-2.5 rounded-lg border border-border/60">
-                          {latestCheckin.next_step}
-                        </p>
-                      </div>
-
-                      {/* Blockers Callout */}
-                      {latestCheckin.blockers ? (
-                        <div className="p-2.5 rounded-lg bg-danger-tint border border-danger/30 text-danger text-xs space-y-1">
-                          <span className="font-bold flex items-center gap-1.5">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                            <span>Reported Blocker:</span>
-                          </span>
-                          <p className="leading-relaxed pl-5">{latestCheckin.blockers}</p>
+                          key={wIdx}
+                          className="px-3 py-1.5 rounded-xl bg-danger-tint border border-danger/30 text-danger text-xs font-semibold flex items-center gap-2"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{warn}</span>
                         </div>
-                      ) : null}
+                      ))}
+                    </div>
+                  )}
 
-                      {/* Attached Evidence Link */}
-                      {latestCheckin.evidence_url ? (
-                        <div className="flex items-center gap-2 text-xs">
-                          <Link2 className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <span className="font-bold text-text-secondary">Evidence:</span>
-                          <a
-                            href={latestCheckin.evidence_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline font-medium truncate flex items-center gap-1"
-                          >
-                            <span>{latestCheckin.evidence_url}</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
-                      ) : null}
+                  {/* Summary row */}
+                  <div className="pt-3 flex items-center justify-between text-xs text-text-secondary flex-wrap gap-2">
+                    <div className="flex items-center gap-4">
+                      <span>
+                        <strong className="text-text-primary">{person.open_cards_count || 0}</strong> open tasks
+                      </span>
+                      <span>
+                        <strong className="text-text-primary">{checkins.length}</strong> updates today
+                      </span>
+                      {completedCards.length > 0 && (
+                        <span>
+                          <strong className="text-success">{completedCards.length}</strong> completed today
+                        </span>
+                      )}
+                    </div>
 
-                      {/* Review Section */}
-                      {canReview && (
-                        <div className="pt-2 border-t border-border/60 space-y-2">
-                          {activeReviewCardId === latestCheckin.id ? (
-                            <div className="p-3 bg-surface rounded-xl border border-border space-y-2.5">
-                              <span className="text-xs font-bold text-text-primary block">
-                                Review Check-in Action
-                              </span>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <button
-                                  type="button"
-                                  onClick={() => setReviewAction('ack')}
-                                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
-                                    reviewAction === 'ack'
-                                      ? 'bg-emerald-600 text-white'
-                                      : 'bg-surface-muted text-text-secondary'
-                                  }`}
-                                >
-                                  Acknowledge
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setReviewAction('question')}
-                                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
-                                    reviewAction === 'question'
-                                      ? 'bg-blue-600 text-white'
-                                      : 'bg-surface-muted text-text-secondary'
-                                  }`}
-                                >
-                                  Ask Question
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setReviewAction('request_evidence')}
-                                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
-                                    reviewAction === 'request_evidence'
-                                      ? 'bg-amber-600 text-white'
-                                      : 'bg-surface-muted text-text-secondary'
-                                  }`}
-                                >
-                                  Request Evidence
-                                </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedPersonId(isExpanded ? null : person.id);
+                      }}
+                      className="text-primary hover:underline font-bold text-xs cursor-pointer flex items-center gap-1"
+                    >
+                      <span>{isExpanded ? 'Hide details' : "View today's updates & items"}</span>
+                    </button>
+                  </div>
+
+                  {/* Expanded Person Details */}
+                  {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-border/60 space-y-4">
+                      {/* 1. That Day's Updates */}
+                      <div className="space-y-2.5">
+                        <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
+                          <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                          <span>Today's Updates ({checkins.length})</span>
+                        </h4>
+
+                        {checkins.length === 0 ? (
+                          <div className="p-3 bg-app/50 border border-dashed border-border rounded-xl text-center text-xs text-text-muted">
+                            No updates submitted today.
+                          </div>
+                        ) : (
+                          checkins.map((ci) => (
+                            <div key={ci.id} className="p-3.5 bg-app border border-border/80 rounded-xl space-y-3">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-text-primary">
+                                  Task: {ci.card_title}
+                                </span>
+                                <span className="text-xs font-bold text-primary">
+                                  {ci.progress_pct ?? 0}% Progress
+                                </span>
                               </div>
-                              <input
-                                type="text"
-                                value={reviewNote}
-                                onChange={(e) => setReviewNote(e.target.value)}
-                                placeholder="Add note or instruction for the member..."
-                                className="w-full px-3 py-1.5 text-xs rounded-lg bg-app border border-border outline-none focus:border-primary text-text-primary"
-                              />
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveReviewCardId(null)}
-                                  className="px-3 py-1 text-xs font-semibold rounded-lg text-text-muted hover:text-text-primary"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleReviewSubmit(latestCheckin.id)}
-                                  disabled={submittingReview}
-                                  className="px-4 py-1 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover shadow-xs"
-                                >
-                                  {submittingReview ? 'Submitting...' : 'Submit Action'}
-                                </button>
+
+                              <div className="text-xs space-y-1">
+                                <span className="font-semibold text-text-secondary block">What I did:</span>
+                                <p className="bg-surface p-2.5 rounded-lg border border-border/60 text-text-primary leading-relaxed">
+                                  {ci.did}
+                                </p>
                               </div>
+
+                              <div className="text-xs space-y-1">
+                                <span className="font-semibold text-text-secondary block">Next step:</span>
+                                <p className="bg-surface p-2.5 rounded-lg border border-border/60 text-text-primary leading-relaxed">
+                                  {ci.next_step}
+                                </p>
+                              </div>
+
+                              {ci.blocker && (
+                                <div className="p-2.5 bg-danger-tint border border-danger/30 rounded-lg text-danger text-xs space-y-1">
+                                  <span className="font-bold flex items-center gap-1.5">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                    <span>Blocked:</span>
+                                  </span>
+                                  <p className="leading-relaxed pl-5">{ci.blocker}</p>
+                                </div>
+                              )}
+
+                              {ci.evidence_url && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <Link2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                                  <span className="font-bold text-text-secondary">Link:</span>
+                                  <a
+                                    href={ci.evidence_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:underline font-medium truncate flex items-center gap-1"
+                                  >
+                                    <span>{ci.evidence_url}</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                </div>
+                              )}
+
+                              {/* Owner Actions: Seen and Ask for proof (Requirement 5) */}
+                              {canReview && (
+                                <div className="pt-2 border-t border-border/60">
+                                  {activeReviewCheckinId === ci.id ? (
+                                    <div className="p-3 bg-surface rounded-xl border border-border space-y-2.5">
+                                      <span className="text-xs font-bold text-text-primary block">
+                                        Review Action: {reviewAction === 'seen' ? 'Mark as Seen' : 'Ask for proof'}
+                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setReviewAction('seen')}
+                                          className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                                            reviewAction === 'seen'
+                                              ? 'bg-emerald-600 text-white'
+                                              : 'bg-surface-muted text-text-secondary'
+                                          }`}
+                                        >
+                                          <Eye className="w-3.5 h-3.5" />
+                                          <span>Seen</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setReviewAction('ask_proof')}
+                                          className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                                            reviewAction === 'ask_proof'
+                                              ? 'bg-amber-600 text-white'
+                                              : 'bg-surface-muted text-text-secondary'
+                                          }`}
+                                        >
+                                          <HelpCircle className="w-3.5 h-3.5" />
+                                          <span>Ask for proof</span>
+                                        </button>
+                                      </div>
+                                      <input
+                                        type="text"
+                                        value={reviewNote}
+                                        onChange={(e) => setReviewNote(e.target.value)}
+                                        placeholder={reviewAction === 'seen' ? 'Optional acknowledgment note...' : 'Explain what proof or link is required...'}
+                                        className="w-full px-3 py-1.5 text-xs rounded-lg bg-app border border-border outline-none focus:border-primary text-text-primary"
+                                      />
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setActiveReviewCheckinId(null)}
+                                          className="px-3 py-1 text-xs font-semibold rounded-lg text-text-muted hover:text-text-primary"
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleReviewSubmit(ci.id)}
+                                          disabled={submittingReview}
+                                          className="px-4 py-1 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover shadow-xs cursor-pointer"
+                                        >
+                                          {submittingReview ? 'Submitting...' : 'Confirm'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-end gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveReviewCheckinId(ci.id);
+                                          setReviewAction('seen');
+                                        }}
+                                        className="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5 cursor-pointer"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        <span>Seen</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveReviewCheckinId(ci.id);
+                                          setReviewAction('ask_proof');
+                                        }}
+                                        className="px-3 py-1 text-xs font-bold rounded-lg bg-amber-500/10 text-amber-600 border border-amber-500/30 hover:bg-amber-500/20 transition-colors flex items-center gap-1.5 cursor-pointer"
+                                      >
+                                        <HelpCircle className="w-3.5 h-3.5" />
+                                        <span>Ask for proof</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] text-text-muted">
-                                {person.reviews?.length || 0} manager reviews recorded
+                          ))
+                        )}
+                      </div>
+
+                      {/* 2. Completed Items Today */}
+                      {completedCards.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
+                            <CheckSquare className="w-3.5 h-3.5 text-success" />
+                            <span>Completed Today ({completedCards.length})</span>
+                          </h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {completedCards.map((cc) => (
+                              <div key={cc.id} className="p-2.5 bg-app border border-border/80 rounded-xl space-y-1">
+                                <span className="text-xs font-bold text-text-primary block line-clamp-1">
+                                  {cc.title}
+                                </span>
+                                {cc.completion_note && (
+                                  <p className="text-[11px] text-text-secondary italic">
+                                    Result: "{cc.completion_note}"
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3. Owner "Details" Expander for internal computed flags (Requirement 6) */}
+                      {canReview && internalFlags.length > 0 && (
+                        <div className="pt-2 border-t border-border/60">
+                          <button
+                            type="button"
+                            onClick={() => setOwnerDetailsPersonId(isOwnerDetailsOpen ? null : person.id)}
+                            className="text-xs font-bold text-text-muted hover:text-text-primary flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Owner Details & Internal Flags ({internalFlags.length})</span>
+                            {isOwnerDetailsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+
+                          {isOwnerDetailsOpen && (
+                            <div className="mt-2 p-3 bg-app rounded-xl border border-border/80 space-y-1.5 text-xs text-text-secondary">
+                              <span className="font-semibold block text-[11px] text-text-muted uppercase tracking-wider">
+                                Computed Internal Flags:
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveReviewCardId(latestCheckin.id);
-                                  setReviewAction('ack');
-                                }}
-                                className="px-3 py-1 text-xs font-bold rounded-lg bg-surface border border-border/80 hover:bg-surface-muted text-text-primary transition-colors cursor-pointer"
-                              >
-                                Review / Feedback
-                              </button>
+                              <div className="flex flex-wrap gap-1.5">
+                                {internalFlags.map((flag, fIdx) => (
+                                  <span
+                                    key={fIdx}
+                                    className="px-2 py-0.5 rounded-md bg-surface border border-border text-[11px] font-mono text-text-primary"
+                                  >
+                                    {flag}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
                       )}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               );
             })}
@@ -565,7 +643,7 @@ export default function DailyTrackerPeopleView({
               <option value="">-- Choose member --</option>
               {people.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.role_name})
+                  {p.name} ({p.role})
                 </option>
               ))}
             </select>
@@ -591,7 +669,7 @@ export default function DailyTrackerPeopleView({
               type="text"
               value={leaveReason}
               onChange={(e) => setLeaveReason(e.target.value)}
-              placeholder="e.g. Vacation, Sick Leave, Family Emergency"
+              placeholder="e.g. Vacation, Sick Leave, Personal Leave"
               className="w-full px-3 py-2 text-xs rounded-xl bg-surface border border-border text-text-primary outline-none focus:border-primary"
             />
           </div>

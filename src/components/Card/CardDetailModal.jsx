@@ -16,8 +16,8 @@ import DatePicker from '../shared/DatePicker';
 import LabelPill from '../shared/LabelPill';
 import Avatar from '../shared/Avatar';
 import { formatShortDate } from '../../lib/dateFormat';
-import { CalendarRange, Calendar, Brain, Target } from 'lucide-react';
-import { setCardFocus, removeCardFocus, markCardDeepWork } from '../../api/cards';
+import { CalendarRange, Calendar } from 'lucide-react';
+import QuickCheckinModal from '../DailyTracker/QuickCheckinModal';
 import { useToast } from '../ui/Toast';
 
 export default function CardDetailModal({
@@ -55,42 +55,9 @@ export default function CardDetailModal({
   const [activePopover, setActivePopover] = useState(null);
   const [activeAnchorRef, setActiveAnchorRef] = useState(null);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
-  const [focusLoading, setFocusLoading] = useState(false);
+  const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
 
   if (!card) return null;
-
-  const handleToggleFocus = async () => {
-    setFocusLoading(true);
-    try {
-      if (card.is_focus) {
-        await removeCardFocus(card.id);
-        toast.success('Removed from focus');
-        onUpdateCard(card.id, { is_focus: false, is_deep_work: false });
-      } else {
-        await setCardFocus(card.id);
-        toast.success('Added to today\'s focus');
-        onUpdateCard(card.id, { is_focus: true });
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.error?.message || err.message || 'Could not update focus');
-    } finally {
-      setFocusLoading(false);
-    }
-  };
-
-  const handleToggleDeepWork = async () => {
-    setFocusLoading(true);
-    try {
-      const nextVal = !card.is_deep_work;
-      await markCardDeepWork(card.id, { deep_work: nextVal });
-      toast.success(nextVal ? 'Card marked as Deep Work' : 'Deep Work status removed');
-      onUpdateCard(card.id, { is_deep_work: nextVal, is_focus: nextVal ? true : card.is_focus });
-    } catch (err) {
-      toast.error(err.response?.data?.error?.message || err.message || 'Could not update deep work');
-    } finally {
-      setFocusLoading(false);
-    }
-  };
 
   const handleOpenDates = (anchorRef) => {
     setActiveAnchorRef(anchorRef);
@@ -189,24 +156,6 @@ export default function CardDetailModal({
               );
             })()}
 
-            {/* Focus & Deep Work Badges */}
-            {(card.is_deep_work || card.is_focus) && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {card.is_deep_work && (
-                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-purple-500/10 text-purple-600 border border-purple-500/30">
-                    <Brain className="w-3.5 h-3.5" />
-                    <span>Deep Work Task (Focus Exemption Active)</span>
-                  </div>
-                )}
-                {card.is_focus && !card.is_deep_work && (
-                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-600 border border-amber-500/30">
-                    <Target className="w-3.5 h-3.5" />
-                    <span>Daily Focus Task</span>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Card Title & Complete Checkbox */}
             <CardTitle
               card={card}
@@ -222,11 +171,7 @@ export default function CardDetailModal({
               onOpenAttachment={handleOpenAttachment}
               onOpenMembers={handleOpenMembers}
               onOpenAssigners={handleOpenAssigners}
-              isFocus={card.is_focus}
-              isDeepWork={card.is_deep_work}
-              onToggleFocus={handleToggleFocus}
-              onToggleDeepWork={handleToggleDeepWork}
-              focusLoading={focusLoading}
+              onOpenCheckin={() => setIsCheckinModalOpen(true)}
             />
 
             {/* Rendered Selected Labels, Assigners & Assignees */}
@@ -378,6 +323,18 @@ export default function CardDetailModal({
         currentBoardId={currentBoardId}
         onCopyCard={onCopyCard}
       />
+
+      {isCheckinModalOpen && (
+        <QuickCheckinModal
+          isOpen={isCheckinModalOpen}
+          onClose={() => setIsCheckinModalOpen(false)}
+          card={card}
+          onSuccess={() => {
+            setIsCheckinModalOpen(false);
+            toast.success('Check-in submitted');
+          }}
+        />
+      )}
     </Modal>
   );
 }

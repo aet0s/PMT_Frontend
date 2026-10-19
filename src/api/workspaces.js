@@ -214,4 +214,8 @@ export async function createWorkspaceLeaveDay(workspaceId, { user_id, date, reas
   });
 }
 
+export async function getWorkspacePendingCheckins(workspaceId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/checkins/pending`);
+}
+
 

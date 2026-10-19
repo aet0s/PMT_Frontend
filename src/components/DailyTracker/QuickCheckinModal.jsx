@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { createCardCheckin } from '../../api/cards';
-import { CheckCircle2, AlertTriangle, Link2, Sparkles, Brain, Clock } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Link2, Clock, AlertCircle } from 'lucide-react';
 
 export function countWords(str) {
   return String(str || '').trim().split(/\s+/).filter(Boolean).length;
@@ -16,8 +16,9 @@ export default function QuickCheckinModal({
 }) {
   const [did, setDid] = useState('');
   const [nextStep, setNextStep] = useState('');
-  const [blockers, setBlockers] = useState('');
-  const [progressPercent, setProgressPercent] = useState(card?.progress_percent || 50);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockerNote, setBlockerNote] = useState('');
+  const [progressPercent, setProgressPercent] = useState(card?.progress_pct ?? card?.progress_percent ?? 50);
   const [evidenceUrl, setEvidenceUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -28,9 +29,11 @@ export default function QuickCheckinModal({
   const didWords = countWords(did);
   const nextChars = nextStep.trim().length;
 
-  const isDidValid = didChars >= 40 && didWords >= 8;
+  // Requirement 3: what I did (min 30 characters, 6 words), next step (min 10 characters), a Blocked checkbox with a note
+  const isDidValid = didChars >= 30 && didWords >= 6;
   const isNextValid = nextChars >= 10;
-  const canSubmit = isDidValid && isNextValid && !submitting;
+  const isBlockerValid = !isBlocked || blockerNote.trim().length > 0;
+  const canSubmit = isDidValid && isNextValid && isBlockerValid && !submitting;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,10 +42,13 @@ export default function QuickCheckinModal({
     setError(null);
 
     try {
-      await createCardCheckin(card.id, {
+      await createCardCheckin(card.id || card.card_id, {
         did: did.trim(),
         next_step: nextStep.trim(),
-        blockers: blockers.trim() || null,
+        blocker: isBlocked ? blockerNote.trim() : null,
+        status: isBlocked ? 'blocked' : 'normal',
+        is_blocked: isBlocked,
+        progress_pct: Number(progressPercent),
         progress_percent: Number(progressPercent),
         evidence_url: evidenceUrl.trim() || null
       });
@@ -50,7 +56,7 @@ export default function QuickCheckinModal({
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      setError(err?.message || 'Failed to submit check-in');
+      setError(err?.response?.data?.error?.message || err?.message || 'Failed to submit check-in');
     } finally {
       setSubmitting(false);
     }
@@ -68,23 +74,16 @@ export default function QuickCheckinModal({
         <div className="p-3 bg-surface-muted border border-border/80 rounded-xl flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider block">
-              Active Focus Task
+              Task
             </span>
             <h4 className="text-sm font-bold text-text-primary truncate">
-              {card.title}
+              {card.title || card.card_title}
             </h4>
           </div>
-          {card.deep_work ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 shrink-0">
-              <Brain className="w-3 h-3" />
-              <span>Deep Work</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-surface text-text-secondary border border-border shrink-0">
-              <Clock className="w-3 h-3" />
-              <span>Standard Task</span>
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-surface text-text-secondary border border-border shrink-0">
+            <Clock className="w-3.5 h-3.5 text-primary" />
+            <span>Daily Update</span>
+          </span>
         </div>
 
         {error && (
@@ -94,30 +93,30 @@ export default function QuickCheckinModal({
           </div>
         )}
 
-        {/* 1. What did you accomplish today? */}
+        {/* 1. What did you accomplish today? (min 30 chars, 6 words) */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-text-primary">
               What did you accomplish today? <span className="text-danger">*</span>
             </label>
             <span className={`text-[11px] font-medium ${isDidValid ? 'text-success' : 'text-text-muted'}`}>
-              {didChars}/40 chars &bull; {didWords}/8 words
+              {didChars}/30 chars &bull; {didWords}/6 words
             </span>
           </div>
           <textarea
             value={did}
             onChange={(e) => setDid(e.target.value)}
-            placeholder="Describe specific engineering/design progress, test passes, architecture specs, or refactorings completed today..."
+            placeholder="Describe what you worked on, tested, built, or accomplished today (min 30 characters and 6 words)..."
             rows={3}
             className="w-full px-3 py-2 text-xs rounded-xl bg-surface border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none text-text-primary placeholder:text-text-muted"
           />
         </div>
 
-        {/* 2. What is your next concrete step? */}
+        {/* 2. What is your next concrete step? (min 10 chars) */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-text-primary">
-              What is your next concrete step? <span className="text-danger">*</span>
+              What is your next step? <span className="text-danger">*</span>
             </label>
             <span className={`text-[11px] font-medium ${isNextValid ? 'text-success' : 'text-text-muted'}`}>
               {nextChars}/10 chars
@@ -126,34 +125,48 @@ export default function QuickCheckinModal({
           <textarea
             value={nextStep}
             onChange={(e) => setNextStep(e.target.value)}
-            placeholder="e.g. Implement index migration, verify query plan, write unit tests..."
+            placeholder="e.g. Run integration tests, fix reviewer feedback, complete documentation..."
             rows={2}
             className="w-full px-3 py-2 text-xs rounded-xl bg-surface border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none text-text-primary placeholder:text-text-muted"
           />
         </div>
 
-        {/* 3. Blockers */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-text-primary flex items-center justify-between">
-            <span>Any blockers or dependencies? (Optional)</span>
-            {blockers.trim() && (
-              <span className="text-[11px] font-bold text-danger">⚠️ Will flag task as Blocked</span>
-            )}
+        {/* 3. Blocked Checkbox with Note */}
+        <div className="p-3 bg-surface-muted/50 border border-border/80 rounded-xl space-y-2.5">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isBlocked}
+              onChange={(e) => setIsBlocked(e.target.checked)}
+              className="w-4 h-4 rounded text-danger focus:ring-danger border-border cursor-pointer accent-danger"
+            />
+            <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+              <AlertCircle className={`w-3.5 h-3.5 ${isBlocked ? 'text-danger' : 'text-text-muted'}`} />
+              <span>I am blocked on this task</span>
+            </span>
           </label>
-          <input
-            type="text"
-            value={blockers}
-            onChange={(e) => setBlockers(e.target.value)}
-            placeholder="e.g. Awaiting security review or external API access key"
-            className="w-full px-3 py-2 text-xs rounded-xl bg-surface border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-text-primary placeholder:text-text-muted"
-          />
+
+          {isBlocked && (
+            <div className="space-y-1 pl-6">
+              <label className="text-[11px] font-semibold text-danger block">
+                Blocker details (required when checked) <span className="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                value={blockerNote}
+                onChange={(e) => setBlockerNote(e.target.value)}
+                placeholder="Explain what is blocking you (e.g. awaiting API credentials, design approval)..."
+                className="w-full px-3 py-1.5 text-xs rounded-lg bg-surface border border-danger/40 focus:border-danger outline-none text-text-primary placeholder:text-text-muted"
+              />
+            </div>
+          )}
         </div>
 
-        {/* 4. Progress percentage */}
+        {/* 4. Progress percentage (0 - 100) */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-text-primary">
-              Estimated Completion: <span className="text-primary">{progressPercent}%</span>
+              Progress: <span className="text-primary">{progressPercent}%</span>
             </label>
           </div>
           <input
@@ -167,17 +180,17 @@ export default function QuickCheckinModal({
           />
         </div>
 
-        {/* 5. Evidence URL */}
+        {/* 5. Optional Link / Evidence */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-text-primary flex items-center gap-1.5">
             <Link2 className="w-3.5 h-3.5 text-text-muted" />
-            <span>Evidence / Deliverable Link (PR, Commit, Benchmark, Doc)</span>
+            <span>Link / Evidence (optional)</span>
           </label>
           <input
             type="url"
             value={evidenceUrl}
             onChange={(e) => setEvidenceUrl(e.target.value)}
-            placeholder="https://github.com/... or https://example.com/spec.pdf"
+            placeholder="https://github.com/... or link to work done"
             className="w-full px-3 py-2 text-xs rounded-xl bg-surface border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-text-primary placeholder:text-text-muted"
           />
         </div>
@@ -201,7 +214,7 @@ export default function QuickCheckinModal({
             }`}
           >
             <CheckCircle2 className="w-4 h-4" />
-            <span>{submitting ? 'Submitting...' : 'Save Check-in'}</span>
+            <span>{submitting ? 'Submitting...' : 'Save Update'}</span>
           </button>
         </div>
       </form>

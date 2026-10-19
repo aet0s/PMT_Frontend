@@ -29,7 +29,7 @@ const CalendarView = safeLazy(() => import('../components/Board/CalendarView'), 
 const NotFoundPage = safeLazy(() => import('../pages/NotFoundPage'), 'NotFoundPage');
 const DailyTrackerPage = safeLazy(() => import('../pages/DailyTrackerPage'), 'DailyTrackerPage');
 import GlobalHeader from '../components/Navigation/GlobalHeader';
-import MyFocusStrip from '../components/DailyTracker/MyFocusStrip';
+import CheckinPopup from '../components/DailyTracker/CheckinPopup';
 
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, autoArchiveWorkspaceCards } from '../api/workspaces';
 import { getBoards, createBoard, getBoard, updateBoard, deleteBoard, addBoardMember, createBoardLabel, deleteBoardLabel } from '../api/boards';
@@ -1328,8 +1328,22 @@ export default function BoardPage() {
     try {
       await updateCard(cardId, { list_id: targetListId, position: newPosition });
     } catch (err) {
+      if (err?.response?.data?.error?.code === 'ONE_LINE_RESULT_REQUIRED') {
+        const note = window.prompt('This task was open for more than 2 working days. Please provide a one-line result (minimum 20 characters):');
+        if (note && note.trim().length >= 20) {
+          try {
+            await updateCard(cardId, { list_id: targetListId, position: newPosition, completion_note: note.trim() });
+            loadActiveBoard(activeBoardIdRef.current);
+            return;
+          } catch (retryErr) {
+            setBoardData(prevBoardData);
+            toast.error(retryErr?.response?.data?.error?.message || retryErr?.message || 'Failed to complete card');
+            return;
+          }
+        }
+      }
       setBoardData(prevBoardData);
-      toast.error(err?.message || 'Failed to move card');
+      toast.error(err?.response?.data?.error?.message || err?.message || 'Failed to move card');
     }
   };
 
@@ -2014,18 +2028,7 @@ export default function BoardPage() {
               </div>
             ) : (
               <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <MyFocusStrip
-                  workspaceId={activeWorkspace?.id || workspaceId}
-                  currentUserId={user?.id}
-                  onCardClick={(c) => {
-                    setSelectedCard(c);
-                    setSearchParams((prev) => {
-                      const next = new URLSearchParams(prev);
-                      next.set('card', String(c.id));
-                      return next;
-                    });
-                  }}
-                />
+                <CheckinPopup workspaceId={activeWorkspace?.id || workspaceId} />
                 {currentView === 'list' && boardData ? (
                   <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
                     <ListView

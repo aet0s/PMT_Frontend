@@ -121,26 +121,6 @@ export async function copyCard(cardId, { listId, title }) {
   });
 }
 
-export async function setCardFocus(cardId, { deep_work = false, duration_hours = 4 } = {}) {
-  return apiFetch(`/api/cards/${cardId}/focus`, {
-    method: 'POST',
-    body: JSON.stringify({ deep_work, duration_hours })
-  });
-}
-
-export async function removeCardFocus(cardId) {
-  return apiFetch(`/api/cards/${cardId}/focus`, {
-    method: 'DELETE'
-  });
-}
-
-export async function markCardDeepWork(cardId, { deep_work = true } = {}) {
-  return apiFetch(`/api/cards/${cardId}/focus/deep-work`, {
-    method: 'POST',
-    body: JSON.stringify({ deep_work })
-  });
-}
-
 export async function getCardCheckins(cardId, { date } = {}) {
   const query = date ? `?date=${encodeURIComponent(date)}` : '';
   return apiFetch(`/api/cards/${cardId}/checkins${query}`);

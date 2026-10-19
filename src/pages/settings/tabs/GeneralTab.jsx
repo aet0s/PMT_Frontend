@@ -416,11 +416,28 @@ export default function GeneralTab({
           <div className="bg-surface border border-border rounded-xl p-5 shadow-xs space-y-3">
             <h3 className="text-xs font-bold text-text-primary flex items-center gap-2">
               <Info className="w-4 h-4 text-primary" />
-              Governance & Policies
+              Daily Tracker Guide
             </h3>
-            <p className="text-[11px] text-text-secondary leading-relaxed">
-              Workspace settings apply to all boards and lists. Role permissions can be configured in the Profile & Settings menu to control member capabilities.
-            </p>
+            <div className="space-y-2 text-xs">
+              <div className="p-2.5 bg-app rounded-lg border border-border/80">
+                <span className="font-bold text-text-primary block text-[11px] mb-0.5">Team Member</span>
+                <p className="text-text-secondary text-[11px] leading-relaxed">
+                  "If your task takes more than a day, write a short update each day. A popup reminds you at 5 pm."
+                </p>
+              </div>
+              <div className="p-2.5 bg-app rounded-lg border border-border/80">
+                <span className="font-bold text-text-primary block text-[11px] mb-0.5">Team Lead/PM</span>
+                <p className="text-text-secondary text-[11px] leading-relaxed">
+                  "You see your team's updates, press Seen, or ask for proof, and approve leave."
+                </p>
+              </div>
+              <div className="p-2.5 bg-app rounded-lg border border-border/80">
+                <span className="font-bold text-text-primary block text-[11px] mb-0.5">Owner/Admin</span>
+                <p className="text-text-secondary text-[11px] leading-relaxed">
+                  "Open the People tab: green = updated, amber = no update today, red = blocked, grey = no tasks."
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

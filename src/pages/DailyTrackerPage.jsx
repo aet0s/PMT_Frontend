@@ -256,7 +256,7 @@ export default function DailyTrackerPage({
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>People & Daily Focus</span>
+                <span>People</span>
               </button>
             )}
           </div>
@@ -336,58 +336,59 @@ export default function DailyTrackerPage({
 
         {/* Row 2: Only show Tasks-specific controls when mainTab === 'tasks' */}
         {mainTab === 'tasks' && (
-          <div className="space-y-3 pt-1 border-t border-border/40">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 flex-wrap">
-              {/* Segmented Mode Switcher */}
-              <div className="inline-flex p-1 bg-surface border border-border/80 rounded-xl shadow-2xs self-start shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('active');
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    mode === 'active'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Active Today</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('in_progress');
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    mode === 'in_progress'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Ongoing (In Progress)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('created');
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    mode === 'created'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                  }`}
-                >
-                  Created Today
-                </button>
-              </div>
+          <div className="pt-2 border-t border-border/40 flex flex-wrap items-center justify-between gap-2.5">
+            {/* Segmented Mode Switcher */}
+            <div className="inline-flex p-1 bg-surface border border-border/80 rounded-xl shadow-2xs shrink-0 flex-wrap gap-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('active');
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  mode === 'active'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Active Today</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('in_progress');
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  mode === 'in_progress'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Ongoing (In Progress)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('created');
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mode === 'created'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`}
+              >
+                Created Today
+              </button>
+            </div>
 
+            {/* Search + Filter Dropdowns */}
+            <div className="flex items-center gap-2 flex-wrap flex-1 justify-end min-w-[280px]">
               {/* Quick Search */}
-              <div className="relative min-w-[200px] sm:w-64">
+              <div className="relative min-w-[160px] max-w-xs flex-1 sm:flex-initial">
                 <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
@@ -397,14 +398,12 @@ export default function DailyTrackerPage({
                     setSearchQuery(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full pl-8 pr-3 py-1.5 bg-surface border border-border/80 rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary shadow-2xs min-h-[36px]"
+                  className="w-full pl-8 pr-3 py-1.5 bg-surface border border-border/80 rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary shadow-2xs min-h-[34px]"
                 />
               </div>
-            </div>
 
-            {/* Filter Toolbar (Workspace, Label, Board) */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="min-w-[150px] max-w-[200px] flex-1 sm:flex-initial">
+              {/* Workspace Filter */}
+              <div className="min-w-[130px] max-w-[170px] flex-1 sm:flex-initial">
                 <Select
                   aria-label="Filter by workspace"
                   size="sm"
@@ -417,7 +416,8 @@ export default function DailyTrackerPage({
                 />
               </div>
 
-              <div className="min-w-[130px] max-w-[180px] flex-1 sm:flex-initial">
+              {/* Label Filter */}
+              <div className="min-w-[110px] max-w-[150px] flex-1 sm:flex-initial">
                 <Select
                   aria-label="Filter by label"
                   size="sm"
@@ -430,8 +430,9 @@ export default function DailyTrackerPage({
                 />
               </div>
 
+              {/* Board Filter */}
               {filterOptions.boards && filterOptions.boards.length > 0 && (
-                <div className="min-w-[130px] max-w-[180px] flex-1 sm:flex-initial">
+                <div className="min-w-[110px] max-w-[150px] flex-1 sm:flex-initial">
                   <Select
                     aria-label="Filter by board"
                     size="sm"
@@ -536,188 +537,193 @@ export default function DailyTrackerPage({
                 <div
                   key={c.id}
                   onClick={() => handleCardClick(c)}
-                  className="group p-3.5 sm:p-4 bg-surface hover:bg-surface-muted border border-border/80 hover:border-primary/40 rounded-2xl transition-all cursor-pointer shadow-2xs hover:shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3"
+                  className="group p-3.5 sm:p-4 bg-surface hover:bg-surface-muted/70 border border-border/80 hover:border-primary/40 rounded-2xl transition-all cursor-pointer shadow-2xs hover:shadow-xs flex flex-col gap-3"
                 >
-                  {/* Left: Status icon, Title, Workspace & Board/List path */}
-                  <div className="flex items-start md:items-center gap-3 min-w-0 flex-1">
-                    <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 md:mt-0 ${
-                        isCompleted
-                          ? 'bg-success-tint text-success border-success/30'
-                          : 'bg-primary-tint text-primary border-primary/20'
-                      }`}
-                      title={isCompleted ? 'Completed Task' : 'Active Task'}
-                    >
-                      {isCompleted ? <Check className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
+                  {/* Top Tier: Icon + Title + Breadcrumbs + Time & Action */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${
+                          isCompleted
+                            ? 'bg-success-tint text-success border-success/30'
+                            : 'bg-primary-tint text-primary border-primary/20'
+                        }`}
+                        title={isCompleted ? 'Completed Task' : 'Active Task'}
+                      >
+                        {isCompleted ? <Check className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        {/* Title + ID + Completed badge */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors leading-snug">
+                            {c.title}
+                          </h4>
+                          <span className="text-[11px] font-mono text-text-muted">#{c.id}</span>
+                          {isCompleted && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-tint text-success border border-success/20">
+                              Completed
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Origin breadcrumb badge: Workspace > Board > List */}
+                        <div className="flex items-center gap-1.5 text-[11px] text-text-muted mt-1 flex-wrap">
+                          {c.workspaceName && (
+                            <>
+                              <span className="font-semibold text-text-secondary truncate max-w-[140px]">
+                                {c.workspaceName}
+                              </span>
+                              <span>›</span>
+                            </>
+                          )}
+                          <span className="font-medium text-text-secondary truncate max-w-[140px]">
+                            {c.boardName || 'Project'}
+                          </span>
+                          <span>›</span>
+                          <span className="px-1.5 py-0.5 bg-surface-muted border border-border/60 rounded-md font-bold text-text-primary text-[10px]">
+                            {c.listName || 'List'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors truncate">
-                          {c.title}
-                        </h4>
-                        <span className="text-[11px] font-mono text-text-muted">#{c.id}</span>
-                        {isCompleted && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-tint text-success border border-success/20">
-                            Completed
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Origin breadcrumb badge: Workspace > Board > List */}
-                      <div className="flex items-center gap-1.5 text-[11px] text-text-muted mt-0.5 flex-wrap">
-                        {c.workspaceName && (
-                          <>
-                            <span className="font-semibold text-text-secondary truncate max-w-[140px]">
-                              {c.workspaceName}
-                            </span>
-                            <span>›</span>
-                          </>
-                        )}
-                        <span className="font-medium text-text-secondary truncate max-w-[140px]">
-                          {c.boardName || 'Project'}
-                        </span>
-                        <span>›</span>
-                        <span className="px-1.5 py-0.5 bg-surface-muted border border-border/60 rounded-md font-bold text-text-primary text-[10px]">
-                          {c.listName || 'List'}
-                        </span>
-                      </div>
-
-                      {/* Status / Activity Pills */}
-                      <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                        {/* 1. Inactivity Alert (>48h) */}
-                        {c.is_inactive && !isCompleted && (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-2xs"
-                            title={`No recorded activity for ${c.hours_since_activity || 48}+ hours`}
-                          >
-                            ⚠️ Inactive for {c.days_inactive} days
-                          </span>
-                        )}
-
-                        {/* 2. In Progress Duration Badge */}
-                        {!isCompleted && c.days_in_progress && (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-surface-muted border border-border/70 text-text-secondary shadow-2xs"
-                            title={c.last_activity_text || `In progress for ${c.days_in_progress} days`}
-                          >
-                            ⏳ In progress for {c.days_in_progress} {c.days_in_progress === 1 ? 'day' : 'days'}
-                            {c.last_activity_time && (
-                              <span className="font-normal text-text-muted text-[10px] ml-0.5">
-                                (Last activity: {c.last_activity_time})
-                              </span>
-                            )}
-                          </span>
-                        )}
-
-                        {/* 3. Daily Activity Pill */}
-                        {c.activity_pill && (
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold shadow-2xs ${
-                              c.has_genuine_work
-                                ? 'bg-primary-tint/70 text-primary border border-primary/25'
-                                : 'bg-surface-muted text-text-muted border border-border/70'
-                            }`}
-                          >
-                            <Sparkles className="w-3 h-3 shrink-0" />
-                            <span>{c.activity_pill}</span>
-                          </span>
-                        )}
-                      </div>
+                    {/* Top-Right: Created Time & Inspect Arrow */}
+                    <div className="flex items-center gap-2 shrink-0 text-text-muted text-[11px] font-medium pt-0.5">
+                      <Clock className="w-3.5 h-3.5 text-text-muted" />
+                      <span>{createdTimeStr}</span>
+                      <ArrowUpRight className="w-4 h-4 text-text-muted group-hover:text-primary transition-colors" />
                     </div>
                   </div>
 
-                  {/* Right: Assigner, Assignee, Labels, Created Time, Inspect arrow */}
-                  <div className="flex items-center gap-3 shrink-0 self-end md:self-auto flex-wrap">
-                    {/* Assigner badge with image & name */}
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span className="text-[11px] font-semibold text-text-muted">Assigner:</span>
-                      {c.assigners && c.assigners.length > 0 ? (
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {c.assigners.slice(0, 2).map((u) => (
-                            <div
-                              key={u.id}
-                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-surface-muted/70 border border-border/70 text-text-primary text-[11px] font-medium shadow-2xs"
-                              title={`Assigned by ${u.name || u.email}`}
-                            >
-                              <Avatar
-                                name={u.name || u.email}
-                                src={u.avatar_url}
-                                size="xs"
-                                className="w-4 h-4 border border-primary/40 shrink-0"
-                              />
-                              <span className="truncate max-w-[90px]">{u.name || u.email}</span>
-                            </div>
-                          ))}
-                          {c.assigners.length > 2 && (
-                            <span className="text-[10px] font-bold text-text-muted">+{c.assigners.length - 2}</span>
+                  {/* Bottom Tier: Status/Activity Pills on left, Assigner/Assignee/Labels on right */}
+                  <div className="border-t border-border/40 pt-2.5 flex flex-wrap items-center justify-between gap-2.5">
+                    {/* Status & Activity Pills */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {/* 1. Inactivity Alert (>48h) */}
+                      {c.is_inactive && !isCompleted && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-2xs"
+                          title={`No recorded activity for ${c.hours_since_activity || 48}+ hours`}
+                        >
+                          ⚠️ Inactive for {c.days_inactive} days
+                        </span>
+                      )}
+
+                      {/* 2. In Progress Duration Badge */}
+                      {!isCompleted && c.days_in_progress && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-surface-muted border border-border/70 text-text-secondary shadow-2xs"
+                          title={c.last_activity_text || `In progress for ${c.days_in_progress} days`}
+                        >
+                          ⏳ In progress for {c.days_in_progress} {c.days_in_progress === 1 ? 'day' : 'days'}
+                          {c.last_activity_time && (
+                            <span className="font-normal text-text-muted text-[10px] ml-0.5">
+                              (Last activity: {c.last_activity_time})
+                            </span>
                           )}
-                        </div>
-                      ) : (
-                        <span className="text-[11px] text-text-muted italic">None</span>
+                        </span>
+                      )}
+
+                      {/* 3. Daily Activity Pill */}
+                      {c.activity_pill && (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold shadow-2xs ${
+                            c.has_genuine_work
+                              ? 'bg-primary-tint/70 text-primary border border-primary/25'
+                              : 'bg-surface-muted text-text-muted border border-border/70'
+                          }`}
+                        >
+                          <Sparkles className="w-3 h-3 shrink-0" />
+                          <span>{c.activity_pill}</span>
+                        </span>
                       )}
                     </div>
 
-                    {/* Assignee badge with image & name */}
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span className="text-[11px] font-semibold text-text-muted">Assignee:</span>
-                      {c.members && c.members.length > 0 ? (
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {c.members.slice(0, 2).map((u) => (
-                            <div
-                              key={u.id}
-                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-surface-muted/70 border border-border/70 text-text-primary text-[11px] font-medium shadow-2xs"
-                              title={`Assigned to ${u.name || u.email}`}
-                            >
-                              <Avatar
-                                name={u.name || u.email}
-                                src={u.avatar_url}
-                                size="xs"
-                                className="w-4 h-4 shrink-0"
-                              />
-                              <span className="truncate max-w-[90px]">{u.name || u.email}</span>
-                            </div>
-                          ))}
-                          {c.members.length > 2 && (
-                            <span className="text-[10px] font-bold text-text-muted">+{c.members.length - 2}</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[11px] text-text-muted italic">Unassigned</span>
-                      )}
-                    </div>
-
-                    {/* Labels */}
-                    {c.labels && c.labels.length > 0 && (
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {c.labels.slice(0, 2).map((lbl) => (
-                          <span
-                            key={lbl.id || lbl.name}
-                            className="px-2 py-0.5 rounded-full text-[10px] font-bold shadow-2xs"
-                            style={{
-                              backgroundColor: lbl.color ? `${lbl.color}20` : 'var(--color-surface-muted)',
-                              color: lbl.color || 'inherit',
-                              border: `1px solid ${lbl.color ? `${lbl.color}40` : 'var(--color-border)'}`
-                            }}
-                          >
-                            {lbl.name}
-                          </span>
-                        ))}
-                        {c.labels.length > 2 && (
-                          <span className="text-[10px] font-bold text-text-muted">
-                            +{c.labels.length - 2}
-                          </span>
+                    {/* Metadata: Assigner, Assignee, Labels */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {/* Assigner badge */}
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-[11px] font-semibold text-text-muted">Assigner:</span>
+                        {c.assigners && c.assigners.length > 0 ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {c.assigners.slice(0, 2).map((u) => (
+                              <div
+                                key={u.id}
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-surface-muted/70 border border-border/70 text-text-primary text-[11px] font-medium shadow-2xs"
+                                title={`Assigned by ${u.name || u.email}`}
+                              >
+                                <Avatar
+                                  name={u.name || u.email}
+                                  src={u.avatar_url}
+                                  size="xs"
+                                  className="w-4 h-4 border border-primary/40 shrink-0"
+                                />
+                                <span className="truncate max-w-[110px]">{u.name || u.email}</span>
+                              </div>
+                            ))}
+                            {c.assigners.length > 2 && (
+                              <span className="text-[10px] font-bold text-text-muted">+{c.assigners.length - 2}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-text-muted italic">None</span>
                         )}
                       </div>
-                    )}
 
-                    {/* Time Added */}
-                    <div className="text-[11px] font-medium text-text-muted flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-text-muted" />
-                      <span>{createdTimeStr}</span>
+                      {/* Assignee badge */}
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-[11px] font-semibold text-text-muted">Assignee:</span>
+                        {c.members && c.members.length > 0 ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {c.members.slice(0, 2).map((u) => (
+                              <div
+                                key={u.id}
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-surface-muted/70 border border-border/70 text-text-primary text-[11px] font-medium shadow-2xs"
+                                title={`Assigned to ${u.name || u.email}`}
+                              >
+                                <Avatar
+                                  name={u.name || u.email}
+                                  src={u.avatar_url}
+                                  size="xs"
+                                  className="w-4 h-4 shrink-0"
+                                />
+                                <span className="truncate max-w-[110px]">{u.name || u.email}</span>
+                              </div>
+                            ))}
+                            {c.members.length > 2 && (
+                              <span className="text-[10px] font-bold text-text-muted">+{c.members.length - 2}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-text-muted italic">Unassigned</span>
+                        )}
+                      </div>
+
+                      {/* Labels */}
+                      {c.labels && c.labels.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {c.labels.slice(0, 3).map((lbl) => (
+                            <span
+                              key={lbl.id || lbl.name}
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold shadow-2xs"
+                              style={{
+                                backgroundColor: lbl.color ? `${lbl.color}20` : 'var(--color-surface-muted)',
+                                color: lbl.color || 'inherit',
+                                border: `1px solid ${lbl.color ? `${lbl.color}40` : 'var(--color-border)'}`
+                              }}
+                            >
+                              {lbl.name}
+                            </span>
+                          ))}
+                          {c.labels.length > 3 && (
+                            <span className="text-[10px] font-bold text-text-muted">
+                              +{c.labels.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-
-                    <ArrowUpRight className="w-4 h-4 text-text-muted group-hover:text-primary transition-colors ml-1 hidden md:block" />
                   </div>
                 </div>
               );
