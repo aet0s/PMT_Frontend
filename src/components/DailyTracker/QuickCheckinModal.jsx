@@ -46,7 +46,7 @@ export default function QuickCheckinModal({
         did: did.trim(),
         next_step: nextStep.trim(),
         blocker: isBlocked ? blockerNote.trim() : null,
-        status: isBlocked ? 'blocked' : 'normal',
+        status: isBlocked ? 'blocked' : 'on_track',
         is_blocked: isBlocked,
         progress_pct: Number(progressPercent),
         progress_percent: Number(progressPercent),
