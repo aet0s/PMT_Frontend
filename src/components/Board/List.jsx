@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { usePermissions } from '../../context/PermissionContext';
 import Card from './Card';
 import Button from '../ui/Button';
-import { Plus, MoreHorizontal, Trash2, Edit3, X, AlertTriangle, SlidersHorizontal } from 'lucide-react';
+import { Plus, MoreHorizontal, Trash2, Edit3, X, AlertTriangle, SlidersHorizontal, CheckCircle2 } from 'lucide-react';
 import { getListStatusConfig } from '../../lib/listStatusColors';
 
 export default function List({
@@ -312,6 +312,30 @@ export default function List({
                           </div>
                         </div>
                       )}
+
+                      {/* Done Column Toggle Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onUpdateList(list.id, { is_done_list: !list.is_done_list });
+                        }}
+                        className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left mt-1 border-t border-border/40 pt-1.5"
+                        title={list.is_done_list ? 'Unmark as Done column' : 'Mark as Done column'}
+                      >
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-text-secondary" />
+                          <span>Done Column</span>
+                        </div>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
+                            list.is_done_list
+                              ? 'bg-emerald-600 text-white shadow-2xs'
+                              : 'bg-surface-muted text-text-muted border border-border/80'
+                          }`}
+                        >
+                          {list.is_done_list ? 'ON' : 'OFF'}
+                        </span>
+                      </button>
                     </div>
                   )}
 

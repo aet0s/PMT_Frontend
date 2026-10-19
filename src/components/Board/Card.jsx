@@ -15,7 +15,9 @@ import {
   MoreHorizontal,
   Copy,
   Archive,
-  Trash2
+  Trash2,
+  Brain,
+  Target
 } from 'lucide-react';
 import { usePermissions } from '../../context/PermissionContext';
 import { useAuth } from '../../hooks/useAuth';
@@ -167,6 +169,18 @@ export default function Card({
           <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
             Task #{taskNumber ?? card.task_number ?? 1}
           </span>
+          {card.is_deep_work && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 border border-purple-500/20 shadow-2xs">
+              <Brain className="w-3 h-3" />
+              <span>Deep Work</span>
+            </span>
+          )}
+          {card.is_focus && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20 shadow-2xs">
+              <Target className="w-3 h-3" />
+              <span>Focus</span>
+            </span>
+          )}
           {card.labels && card.labels.length > 0 &&
             card.labels.map((l) => (
               <LabelPill key={l.id} name={l.name} color={l.color} size="sm" />

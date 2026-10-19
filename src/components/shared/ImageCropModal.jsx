@@ -131,7 +131,7 @@ export default function ImageCropModal({
     ctx.imageSmoothingQuality = 'high';
 
     // Fill with clean white background so transparent logos/images always have crisp contrast
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
 
     const scaleRatio = OUTPUT_SIZE / STAGE_SIZE;

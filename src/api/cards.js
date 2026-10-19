@@ -121,3 +121,57 @@ export async function copyCard(cardId, { listId, title }) {
   });
 }
 
+export async function setCardFocus(cardId, { deep_work = false, duration_hours = 4 } = {}) {
+  return apiFetch(`/api/cards/${cardId}/focus`, {
+    method: 'POST',
+    body: JSON.stringify({ deep_work, duration_hours })
+  });
+}
+
+export async function removeCardFocus(cardId) {
+  return apiFetch(`/api/cards/${cardId}/focus`, {
+    method: 'DELETE'
+  });
+}
+
+export async function markCardDeepWork(cardId, { deep_work = true } = {}) {
+  return apiFetch(`/api/cards/${cardId}/focus/deep-work`, {
+    method: 'POST',
+    body: JSON.stringify({ deep_work })
+  });
+}
+
+export async function getCardCheckins(cardId, { date } = {}) {
+  const query = date ? `?date=${encodeURIComponent(date)}` : '';
+  return apiFetch(`/api/cards/${cardId}/checkins${query}`);
+}
+
+export async function createCardCheckin(cardId, checkinData) {
+  return apiFetch(`/api/cards/${cardId}/checkins`, {
+    method: 'POST',
+    body: JSON.stringify(checkinData)
+  });
+}
+
+export async function updateCardCheckin(cardId, checkinId, checkinData) {
+  return apiFetch(`/api/cards/${cardId}/checkins/${checkinId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(checkinData)
+  });
+}
+
+export async function reviewCheckin(checkinId, { action, note }) {
+  return apiFetch(`/api/checkins/${checkinId}/review`, {
+    method: 'POST',
+    body: JSON.stringify({ action, note })
+  });
+}
+
+export async function answerCheckinReview(reviewId, { answer_note, evidence_url, attachment_id }) {
+  return apiFetch(`/api/checkin-reviews/${reviewId}/answer`, {
+    method: 'POST',
+    body: JSON.stringify({ answer_note, evidence_url, attachment_id })
+  });
+}
+
+

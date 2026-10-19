@@ -29,6 +29,7 @@ const CalendarView = safeLazy(() => import('../components/Board/CalendarView'), 
 const NotFoundPage = safeLazy(() => import('../pages/NotFoundPage'), 'NotFoundPage');
 const DailyTrackerPage = safeLazy(() => import('../pages/DailyTrackerPage'), 'DailyTrackerPage');
 import GlobalHeader from '../components/Navigation/GlobalHeader';
+import MyFocusStrip from '../components/DailyTracker/MyFocusStrip';
 
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, autoArchiveWorkspaceCards } from '../api/workspaces';
 import { getBoards, createBoard, getBoard, updateBoard, deleteBoard, addBoardMember, createBoardLabel, deleteBoardLabel } from '../api/boards';
@@ -2011,106 +2012,122 @@ export default function BoardPage() {
                 <Spinner size="lg" />
                 <p className="text-xs font-semibold text-text-secondary">Loading Project...</p>
               </div>
-            ) : currentView === 'list' && boardData ? (
-              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
-                <ListView
-                  board={boardData}
-                  boards={boards}
-                  workspace={activeWorkspace}
-                  onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-                  onCardClick={(c) => {
-                    setSelectedCard(c);
-                    setSearchParams((prev) => {
-                      const next = new URLSearchParams(prev);
-                      next.set('card', String(c.id));
-                      return next;
-                    });
-                  }}
-                />
-              </Suspense>
-            ) : currentView === 'calendar' && boardData ? (
-              <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
-                <CalendarView
-                  board={boardData}
-                  onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-                  onCardClick={(c) => {
-                    setSelectedCard(c);
-                    setSearchParams((prev) => {
-                      const next = new URLSearchParams(prev);
-                      next.set('card', String(c.id));
-                      return next;
-                    });
-                  }}
-                />
-              </Suspense>
-            ) : boardData ? (
-              <Board
-                board={boardData}
-                boards={boards}
-                workspace={activeWorkspace}
-                projectDefaults={
-                  activeWorkspace?.settings?.workspace_defaults ||
-                  activeWorkspace?.settings?.project_defaults ||
-                  getTenantItem(`ws_defaults_${activeWorkspace?.id}`, 'settings', null)
-                }
-                onUpdateBoard={handleUpdateBoard}
-                onArchiveBoard={handleArchiveCurrentBoard}
-                onDeleteBoard={handleDeleteCurrentBoard}
-                onCreateList={handleCreateList}
-                onUpdateList={handleUpdateList}
-                onDeleteList={handleDeleteList}
-                onCardClick={(c) => {
-                  setSelectedCard(c);
-                  setSearchParams((prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set('card', String(c.id));
-                    return next;
-                  });
-                }}
-                onCreateCard={handleCreateCard}
-                onUpdateCard={handleUpdateCard}
-                onDeleteCard={handleDeleteCard}
-                onCopyCard={handleCopyCard}
-                onUpdateCardPosition={handleUpdateCardPosition}
-                onUpdateListPosition={handleUpdateListPosition}
-                onAddBoardMember={handleAddBoardMember}
-                onInviteClick={() => {
-                  setSearchParams((prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set('modal', 'invite');
-                    return next;
-                  });
-                }}
-                onRefreshBoard={() => loadActiveBoard(urlBoardId, true)}
-                onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-                onSelectNotificationCard={handleSelectNotificationCard}
-                onOpenAllNotifications={() => navigate(`/w/${workspaceId}/notifications`)}
-                onBoardSocketEvent={handleLiveBoardSocketEvent}
-                isActivityOpen={isActivityOpen}
-                onCloseActivity={() => setIsActivityOpen(false)}
-              />
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-app">
-                <div className="w-16 h-16 rounded-2xl bg-primary-tint text-primary border border-primary/20 flex items-center justify-center mb-6 shadow-xs">
-                  <LayoutGrid className="w-8 h-8" />
-                </div>
-                <h2 className="text-2xl font-bold text-text-primary mb-2">No Board Selected</h2>
-                <p className="text-text-secondary max-w-sm mb-6 text-sm">
-                  Select a board from the sidebar or create a new board to get started.
-                </p>
-                <button
-                  onClick={() => {
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <MyFocusStrip
+                  workspaceId={activeWorkspace?.id || workspaceId}
+                  currentUserId={user?.id}
+                  onCardClick={(c) => {
+                    setSelectedCard(c);
                     setSearchParams((prev) => {
                       const next = new URLSearchParams(prev);
-                      next.set('modal', 'create-project');
+                      next.set('card', String(c.id));
                       return next;
                     });
                   }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-sm rounded-lg shadow-xs transition-all cursor-pointer min-h-[44px]"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Create New Board
-                </button>
+                />
+                {currentView === 'list' && boardData ? (
+                  <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
+                    <ListView
+                      board={boardData}
+                      boards={boards}
+                      workspace={activeWorkspace}
+                      onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+                      onCardClick={(c) => {
+                        setSelectedCard(c);
+                        setSearchParams((prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.set('card', String(c.id));
+                          return next;
+                        });
+                      }}
+                    />
+                  </Suspense>
+                ) : currentView === 'calendar' && boardData ? (
+                  <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
+                    <CalendarView
+                      board={boardData}
+                      onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+                      onCardClick={(c) => {
+                        setSelectedCard(c);
+                        setSearchParams((prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.set('card', String(c.id));
+                          return next;
+                        });
+                      }}
+                    />
+                  </Suspense>
+                ) : boardData ? (
+                  <Board
+                    board={boardData}
+                    boards={boards}
+                    workspace={activeWorkspace}
+                    projectDefaults={
+                      activeWorkspace?.settings?.workspace_defaults ||
+                      activeWorkspace?.settings?.project_defaults ||
+                      getTenantItem(`ws_defaults_${activeWorkspace?.id}`, 'settings', null)
+                    }
+                    onUpdateBoard={handleUpdateBoard}
+                    onArchiveBoard={handleArchiveCurrentBoard}
+                    onDeleteBoard={handleDeleteCurrentBoard}
+                    onCreateList={handleCreateList}
+                    onUpdateList={handleUpdateList}
+                    onDeleteList={handleDeleteList}
+                    onCardClick={(c) => {
+                      setSelectedCard(c);
+                      setSearchParams((prev) => {
+                        const next = new URLSearchParams(prev);
+                        next.set('card', String(c.id));
+                        return next;
+                      });
+                    }}
+                    onCreateCard={handleCreateCard}
+                    onUpdateCard={handleUpdateCard}
+                    onDeleteCard={handleDeleteCard}
+                    onCopyCard={handleCopyCard}
+                    onUpdateCardPosition={handleUpdateCardPosition}
+                    onUpdateListPosition={handleUpdateListPosition}
+                    onAddBoardMember={handleAddBoardMember}
+                    onInviteClick={() => {
+                      setSearchParams((prev) => {
+                        const next = new URLSearchParams(prev);
+                        next.set('modal', 'invite');
+                        return next;
+                      });
+                    }}
+                    onRefreshBoard={() => loadActiveBoard(urlBoardId, true)}
+                    onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+                    onSelectNotificationCard={handleSelectNotificationCard}
+                    onOpenAllNotifications={() => navigate(`/w/${workspaceId}/notifications`)}
+                    onBoardSocketEvent={handleLiveBoardSocketEvent}
+                    isActivityOpen={isActivityOpen}
+                    onCloseActivity={() => setIsActivityOpen(false)}
+                  />
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-app">
+                    <div className="w-16 h-16 rounded-2xl bg-primary-tint text-primary border border-primary/20 flex items-center justify-center mb-6 shadow-xs">
+                      <LayoutGrid className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-text-primary mb-2">No Board Selected</h2>
+                    <p className="text-text-secondary max-w-sm mb-6 text-sm">
+                      Select a board from the sidebar or create a new board to get started.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSearchParams((prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.set('modal', 'create-project');
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-sm rounded-lg shadow-xs transition-all cursor-pointer min-h-[44px]"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Create New Board
+                    </button>
+                  </div>
+                )}
               </div>
             )
           ) : (

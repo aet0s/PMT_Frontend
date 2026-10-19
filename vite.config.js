@@ -42,7 +42,7 @@ function cspPlugin(apiUrl, isProd) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiTarget = env.VITE_API_URL || env.VITE_API_TARGET || env.VITE_SERVER_URL || 'http://localhost:5000';
+  const apiTarget = 'http://127.0.0.1:5000';
   const isProd = mode === 'production';
 
   return {

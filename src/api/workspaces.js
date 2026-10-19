@@ -197,3 +197,21 @@ export async function getWorkspaceDailyTracker(workspaceId, {
   return apiFetch(`/api/workspaces/${workspaceId}/daily-tracker${query}`);
 }
 
+export async function getWorkspaceDailyTrackerPeople(workspaceId, { date } = {}) {
+  const query = date ? `?date=${encodeURIComponent(date)}` : '';
+  return apiFetch(`/api/workspaces/${workspaceId}/daily-tracker/people${query}`);
+}
+
+export async function getWorkspaceLeaveDays(workspaceId, { date } = {}) {
+  const query = date ? `?date=${encodeURIComponent(date)}` : '';
+  return apiFetch(`/api/workspaces/${workspaceId}/leave-days${query}`);
+}
+
+export async function createWorkspaceLeaveDay(workspaceId, { user_id, date, reason }) {
+  return apiFetch(`/api/workspaces/${workspaceId}/leave-days`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id, date, reason })
+  });
+}
+
+

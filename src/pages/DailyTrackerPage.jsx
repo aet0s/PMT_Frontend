@@ -19,7 +19,8 @@ import {
   ArrowUpRight,
   CheckSquare,
   User,
-  UserCheck
+  UserCheck,
+  Users
 } from 'lucide-react';
 import { format, parseISO, addDays, subDays, isToday, isYesterday } from 'date-fns';
 import { getWorkspaceDailyTracker } from '../api/workspaces';
@@ -30,6 +31,7 @@ import Spinner from '../components/ui/Spinner';
 import Select from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
 import { usePermissions } from '../context/PermissionContext';
+import DailyTrackerPeopleView from '../components/DailyTracker/DailyTrackerPeopleView';
 
 function getTodayString() {
   const d = new Date();
@@ -46,8 +48,12 @@ export default function DailyTrackerPage({
 }) {
   const { hasPermission } = usePermissions();
   const canViewDailyTracker = hasPermission('daily_tracker.view');
+  const canViewPeople = hasPermission('daily_tracker.view_people');
 
   const dateInputRef = useRef(null);
+
+  // Tab State: 'tasks' (card stream) | 'people' (member focus & check-ins)
+  const [mainTab, setMainTab] = useState('tasks');
 
   // Filter States
   const [mode, setMode] = useState('active'); // 'active' | 'in_progress' | 'created'
@@ -222,56 +228,37 @@ export default function DailyTrackerPage({
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app text-text-primary select-none text-left">
-      {/* Top Controls Bar (Clean layout without 4 indicators) */}
-      <div className="px-4 sm:px-6 lg:px-8 py-4 bg-app border-b border-border/60 shrink-0 space-y-3.5">
-        {/* Row 1: Segmented Mode Switcher (Left) & Date Navigation / Presets (Right) */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 flex-wrap">
-          {/* Segmented Mode Switcher */}
+      {/* Top Controls Bar */}
+      <div className="px-4 sm:px-6 lg:px-8 py-3.5 bg-app border-b border-border/60 shrink-0 space-y-3">
+        {/* Navigation / Tab Switcher Bar & Date Controls */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-wrap">
           <div className="inline-flex p-1 bg-surface border border-border/80 rounded-xl shadow-2xs self-start shrink-0">
             <button
               type="button"
-              onClick={() => {
-                setMode('active');
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                mode === 'active'
+              onClick={() => setMainTab('tasks')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                mainTab === 'tasks'
                   ? 'bg-primary text-white shadow-xs'
                   : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Active Today</span>
+              <Layers className="w-3.5 h-3.5" />
+              <span>Tasks & Activity</span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('in_progress');
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                mode === 'in_progress'
-                  ? 'bg-primary text-white shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>Ongoing (In Progress)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('created');
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                mode === 'created'
-                  ? 'bg-primary text-white shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-              }`}
-            >
-              Created Today
-            </button>
+            {canViewPeople && (
+              <button
+                type="button"
+                onClick={() => setMainTab('people')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mainTab === 'people'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>People & Daily Focus</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -347,73 +334,131 @@ export default function DailyTrackerPage({
           </div>
         </div>
 
-        {/* Row 2: Filter Toolbar with Global Select Components (Workspace, Label, Board, Search) */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-0.5">
-          <div className="flex items-center gap-2 flex-wrap flex-1">
-            {/* Workspace Filter */}
-            <div className="min-w-[150px] max-w-[200px] flex-1 sm:flex-initial">
-              <Select
-                aria-label="Filter by workspace"
-                size="sm"
-                value={selectedWsId}
-                onChange={(val) => {
-                  setSelectedWsId(val || 'all');
-                  setPage(1);
-                }}
-                options={workspaceOptions}
-              />
-            </div>
-
-            {/* Label Filter */}
-            <div className="min-w-[130px] max-w-[180px] flex-1 sm:flex-initial">
-              <Select
-                aria-label="Filter by label"
-                size="sm"
-                value={selectedLabelId}
-                onChange={(val) => {
-                  setSelectedLabelId(val || 'all');
-                  setPage(1);
-                }}
-                options={labelOptions}
-              />
-            </div>
-
-            {/* Board Filter */}
-            {filterOptions.boards && filterOptions.boards.length > 0 && (
-              <div className="min-w-[130px] max-w-[180px] flex-1 sm:flex-initial">
-                <Select
-                  aria-label="Filter by board"
-                  size="sm"
-                  value={selectedBoardId}
-                  onChange={(val) => {
-                    setSelectedBoardId(val || 'all');
+        {/* Row 2: Only show Tasks-specific controls when mainTab === 'tasks' */}
+        {mainTab === 'tasks' && (
+          <div className="space-y-3 pt-1 border-t border-border/40">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 flex-wrap">
+              {/* Segmented Mode Switcher */}
+              <div className="inline-flex p-1 bg-surface border border-border/80 rounded-xl shadow-2xs self-start shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('active');
                     setPage(1);
                   }}
-                  options={boardOptions}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    mode === 'active'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Active Today</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('in_progress');
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    mode === 'in_progress'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Ongoing (In Progress)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('created');
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    mode === 'created'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`}
+                >
+                  Created Today
+                </button>
+              </div>
+
+              {/* Quick Search */}
+              <div className="relative min-w-[200px] sm:w-64">
+                <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search daily cards..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full pl-8 pr-3 py-1.5 bg-surface border border-border/80 rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary shadow-2xs min-h-[36px]"
                 />
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Quick Search */}
-          <div className="relative min-w-[200px] sm:w-64">
-            <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search daily cards..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-              className="w-full pl-8 pr-3 py-1.5 bg-surface border border-border/80 rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary shadow-2xs min-h-[36px]"
-            />
+            {/* Filter Toolbar (Workspace, Label, Board) */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="min-w-[150px] max-w-[200px] flex-1 sm:flex-initial">
+                <Select
+                  aria-label="Filter by workspace"
+                  size="sm"
+                  value={selectedWsId}
+                  onChange={(val) => {
+                    setSelectedWsId(val || 'all');
+                    setPage(1);
+                  }}
+                  options={workspaceOptions}
+                />
+              </div>
+
+              <div className="min-w-[130px] max-w-[180px] flex-1 sm:flex-initial">
+                <Select
+                  aria-label="Filter by label"
+                  size="sm"
+                  value={selectedLabelId}
+                  onChange={(val) => {
+                    setSelectedLabelId(val || 'all');
+                    setPage(1);
+                  }}
+                  options={labelOptions}
+                />
+              </div>
+
+              {filterOptions.boards && filterOptions.boards.length > 0 && (
+                <div className="min-w-[130px] max-w-[180px] flex-1 sm:flex-initial">
+                  <Select
+                    aria-label="Filter by board"
+                    size="sm"
+                    value={selectedBoardId}
+                    onChange={(val) => {
+                      setSelectedBoardId(val || 'all');
+                      setPage(1);
+                    }}
+                    options={boardOptions}
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Main Cards List Area - Overflow hidden when empty to avoid scrollbar */}
-      <div className={`flex-1 ${cards.length > 0 ? 'overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-3' : 'overflow-hidden flex flex-col items-center justify-center p-4'}`}>
+      {mainTab === 'people' ? (
+        <DailyTrackerPeopleView
+          workspaceId={effectiveWorkspaceId}
+          selectedDate={selectedDate}
+          onCardClick={handleCardClick}
+        />
+      ) : (
+        <>
+          {/* Main Cards List Area - Overflow hidden when empty to avoid scrollbar */}
+          <div className={`flex-1 ${cards.length > 0 ? 'overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-3' : 'overflow-hidden flex flex-col items-center justify-center p-4'}`}>
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center p-16 space-y-3 text-center">
             <Spinner size="lg" />
@@ -842,47 +887,52 @@ export default function DailyTrackerPage({
         </Modal>
       )}
 
+        </>
+      )}
+
       {/* Footer: Server-Side Pagination Bar */}
-      <div className="px-4 sm:px-6 lg:px-8 py-3 bg-surface border-t border-border/80 flex items-center justify-between shrink-0 text-xs font-semibold text-text-secondary select-none">
-        <div>
-          {pagination.total > 0 ? (
-            <span>
-              Showing <span className="font-bold text-text-primary">{(page - 1) * limit + 1}</span> -{' '}
-              <span className="font-bold text-text-primary">{Math.min(page * limit, pagination.total)}</span> of{' '}
-              <span className="font-bold text-text-primary">{pagination.total}</span> cards made
+      {mainTab === 'tasks' && (
+        <div className="px-4 sm:px-6 lg:px-8 py-3 bg-surface border-t border-border/80 flex items-center justify-between shrink-0 text-xs font-semibold text-text-secondary select-none">
+          <div>
+            {pagination.total > 0 ? (
+              <span>
+                Showing <span className="font-bold text-text-primary">{(page - 1) * limit + 1}</span> -{' '}
+                <span className="font-bold text-text-primary">{Math.min(page * limit, pagination.total)}</span> of{' '}
+                <span className="font-bold text-text-primary">{pagination.total}</span> cards made
+              </span>
+            ) : (
+              <span>0 cards</span>
+            )}
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || loading}
+              className="p-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-text-primary disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs"
+              title="Previous Page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <span className="px-3 py-1 rounded-lg bg-surface-muted border border-border/60 text-text-primary font-bold text-xs">
+              {page} / {Math.max(1, pagination.totalPages)}
             </span>
-          ) : (
-            <span>0 cards</span>
-          )}
+
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+              disabled={page >= pagination.totalPages || loading}
+              className="p-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-text-primary disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs"
+              title="Next Page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-
-        {/* Pagination Controls */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1 || loading}
-            className="p-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-text-primary disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs"
-            title="Previous Page"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          <span className="px-3 py-1 rounded-lg bg-surface-muted border border-border/60 text-text-primary font-bold text-xs">
-            {page} / {Math.max(1, pagination.totalPages)}
-          </span>
-
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-            disabled={page >= pagination.totalPages || loading}
-            className="p-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-text-primary disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs"
-            title="Next Page"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

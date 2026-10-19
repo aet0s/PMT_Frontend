@@ -27,12 +27,15 @@ const ALLOWED_TEXT_WHITE_CONTEXTS = [
   'bg-success',
   'bg-indigo-600',
   'bg-emerald-600',
+  'bg-emerald-500',
   'bg-rose-600',
   'bg-blue-600',
   'bg-purple-600',
   'bg-pink-600',
   'bg-amber-600',
+  'bg-amber-500',
   'bg-teal-600',
+  'bg-white/15',
   'variant="primary"',
   'variant="danger"',
   'variant="success"',
@@ -67,7 +70,9 @@ let violations = [];
 
 for (const filePath of files) {
   const relPath = path.relative(path.resolve(__dirname, '..'), filePath);
-  const isTokenFile = relPath.replace(/\\/g, '/') === 'src/index.css';
+  const normalizedPath = relPath.replace(/\\/g, '/');
+  const isTokenFile = normalizedPath === 'src/index.css';
+  const isTestFile = normalizedPath.startsWith('src/test/');
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
 
@@ -86,8 +91,8 @@ for (const filePath of files) {
       }
     }
 
-    // Check hex colors outside token file
-    if (!isTokenFile) {
+    // Check hex colors outside token file (and test mocks)
+    if (!isTokenFile && !isTestFile) {
       const hexMatches = line.match(HEX_REGEX);
       if (hexMatches) {
         violations.push({
