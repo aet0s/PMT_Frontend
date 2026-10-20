@@ -2,7 +2,7 @@
  * Filter card logic for board search and filtering
  */
 import { isSameDay, startOfWeek, endOfWeek, addDays } from 'date-fns';
-import { parseSafeDate } from './dateFormat';
+import { parseSafeDate, getServerNow } from './dateFormat';
 
 export function matchesCardFilter(card, {
   searchQuery = '',
@@ -78,7 +78,7 @@ export function matchesCardFilter(card, {
       if (!card.due_date) return false;
       const due = parseSafeDate(card.due_date);
       if (!due) return false;
-      const now = new Date();
+      const now = getServerNow();
 
       if (filterDueDate === 'overdue' && (due >= now || card.is_complete)) return false;
       if (filterDueDate === 'soon') {

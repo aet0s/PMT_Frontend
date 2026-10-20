@@ -1,3 +1,6 @@
+import { useState, useEffect } from 'react';
+import { getApiUrl } from '../api/config';
+
 // client/src/lib/serverTime.js
 
 /**
@@ -50,16 +53,29 @@ export function getTimeBasedGreeting(date = new Date()) {
  * Initialized to 0 and calibrated whenever an API response with Date/serverTime is received.
  */
 let serverTimeOffsetMs = 0;
+let isSynced = false;
 
 /**
  * Updates the client-to-server time offset using a server timestamp (ISO string or epoch ms).
+ * Dispatches 'server-time-updated' custom event to trigger UI re-renders.
  * @param {string|number|Date} serverTimestamp
  */
 export function setServerTimeSync(serverTimestamp) {
   try {
-    const serverDate = new Date(serverTimestamp);
-    if (!isNaN(serverDate.getTime())) {
-      serverTimeOffsetMs = serverDate.getTime() - Date.now();
+    const sTime = typeof serverTimestamp === 'number'
+      ? serverTimestamp
+      : new Date(serverTimestamp).getTime();
+    if (!isNaN(sTime)) {
+      serverTimeOffsetMs = sTime - Date.now();
+      isSynced = true;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('server-time-updated', {
+          detail: {
+            offset: serverTimeOffsetMs,
+            now: getCurrentServerDate()
+          }
+        }));
+      }
     }
   } catch (err) {
     console.warn('Failed to parse server timestamp for sync:', err);
@@ -76,17 +92,70 @@ export function getCurrentServerDate() {
   return new Date(Date.now() + serverTimeOffsetMs);
 }
 
+export function getServerNow() {
+  return getCurrentServerDate();
+}
+
+/**
+ * React hook that returns the current synchronized server Date.
+ * Re-renders whenever server time is calibrated or when the clock advances.
+ * @returns {Date}
+ */
+export function useServerNow() {
+  const [now, setNow] = useState(() => getCurrentServerDate());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setNow(getCurrentServerDate());
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('server-time-updated', handleUpdate);
+    }
+
+    const interval = setInterval(() => {
+      setNow(getCurrentServerDate());
+    }, 30000);
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('server-time-updated', handleUpdate);
+      }
+      clearInterval(interval);
+    };
+  }, []);
+
+  return now;
+}
+
 /**
  * Fetches server time from /api/time to synchronize client and server time.
  * Returns the server greeting or falls back to client-calculated IST greeting.
  */
+export async function syncServerTime() {
+  try {
+    const res = await fetch(getApiUrl('/api/time'), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data?.server_time_ms) {
+      setServerTimeSync(data.server_time_ms);
+    } else if (data?.serverTime || data?.server_time) {
+      setServerTimeSync(data.serverTime || data.server_time);
+    }
+  } catch {
+    // Graceful fallback
+  }
+}
+
 export async function fetchServerGreeting() {
   try {
-    const res = await fetch('/api/time');
+    const res = await fetch(getApiUrl('/api/time'), { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (data.serverTime) {
-      setServerTimeSync(data.serverTime);
+    if (data.server_time_ms) {
+      setServerTimeSync(data.server_time_ms);
+    } else if (data.serverTime || data.server_time) {
+      setServerTimeSync(data.serverTime || data.server_time);
     }
     if (data.greeting) {
       return data.greeting;
@@ -96,3 +165,9 @@ export async function fetchServerGreeting() {
   }
   return getTimeBasedGreeting(getCurrentServerDate());
 }
+
+// Automatically sync on initial script evaluation
+if (typeof window !== 'undefined') {
+  syncServerTime();
+}
+

@@ -1,39 +1,19 @@
 import { format, formatDistanceToNow, isValid } from 'date-fns';
-import { getApiUrl } from '../api/config';
+import {
+  setServerTimeSync,
+  getCurrentServerDate,
+  getServerNow,
+  useServerNow,
+  syncServerTime
+} from './serverTime';
 
-let serverTimeOffset = 0;
-let hasSyncedServerTime = false;
+export { getServerNow, useServerNow, syncServerTime };
 
 export function updateServerTime(serverDateOrMs) {
   if (!serverDateOrMs) return;
-  const sTime = typeof serverDateOrMs === 'number'
-    ? serverDateOrMs
-    : new Date(serverDateOrMs).getTime();
-  if (!isNaN(sTime)) {
-    serverTimeOffset = sTime - Date.now();
-    hasSyncedServerTime = true;
-  }
+  setServerTimeSync(serverDateOrMs);
 }
 
-export function getServerNow() {
-  return new Date(Date.now() + serverTimeOffset);
-}
-
-export async function syncServerTime() {
-  try {
-    const res = await fetch(getApiUrl('/api/time'), { cache: 'no-store' });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.server_time_ms) {
-        updateServerTime(data.server_time_ms);
-      } else if (data?.server_time) {
-        updateServerTime(data.server_time);
-      }
-    }
-  } catch (e) {
-    // Graceful fallback
-  }
-}
 
 /**
  * Parse date safely handling MySQL string dates ('YYYY-MM-DD HH:MM:SS') and timezone offsets

@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import LabelPill from '../shared/LabelPill';
 import Avatar from '../ui/Avatar';
 import { Menu, MenuItem, MenuDivider } from '../ui/Menu';
-import { formatShortDate } from '../../lib/dateFormat';
+import { formatShortDate, getServerNow } from '../../lib/dateFormat';
 import {
   Calendar,
   CheckSquare,
@@ -91,7 +91,7 @@ export default function Card({
   let dueDateStatus = null;
   if (card.due_date) {
     const due = new Date(card.due_date);
-    const now = new Date();
+    const now = getServerNow();
     const isOverdue = due < now && !card.is_complete;
     const isDueSoon = due - now < 24 * 60 * 60 * 1000 && due >= now && !card.is_complete;
 

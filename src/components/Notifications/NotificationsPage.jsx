@@ -45,7 +45,7 @@ import {
 } from '../../api/notifications';
 import { useSocket } from '../../context/SocketProvider';
 import { useToast } from '../ui/Toast';
-import { formatShortDate, formatRelativeTime } from '../../lib/dateFormat';
+import { formatShortDate, formatRelativeTime, getServerNow } from '../../lib/dateFormat';
 
 const FILTER_TABS = [
   { id: 'all', label: 'All' },
@@ -63,7 +63,7 @@ const PAGE_SIZE = 20;
 function getDayGroupLabel(dateString) {
   if (!dateString) return 'Earlier';
   const date = new Date(dateString);
-  const now = new Date();
+  const now = getServerNow();
 
   const isToday =
     date.getDate() === now.getDate() &&

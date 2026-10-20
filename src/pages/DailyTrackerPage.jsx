@@ -32,9 +32,10 @@ import Select from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
 import { usePermissions } from '../context/PermissionContext';
 import DailyTrackerPeopleView from '../components/DailyTracker/DailyTrackerPeopleView';
+import { getServerNow } from '../lib/dateFormat';
 
 function getTodayString() {
-  const d = new Date();
+  const d = getServerNow();
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -57,7 +58,20 @@ export default function DailyTrackerPage({
 
   // Filter States
   const [mode, setMode] = useState('active'); // 'active' | 'in_progress' | 'created'
-  const [selectedDate, setSelectedDate] = useState(getTodayString());
+  const [selectedDate, setSelectedDate] = useState(getTodayString);
+  const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false);
+
+  useEffect(() => {
+    const onSync = () => {
+      if (!hasUserSelectedDate) {
+        setSelectedDate(getTodayString());
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('server-time-updated', onSync);
+      return () => window.removeEventListener('server-time-updated', onSync);
+    }
+  }, [hasUserSelectedDate]);
   const [selectedWsId, setSelectedWsId] = useState(workspace?.id ? String(workspace.id) : 'all');
   const [selectedLabelId, setSelectedLabelId] = useState('all');
   const [selectedBoardId, setSelectedBoardId] = useState('all');
@@ -324,7 +338,8 @@ export default function DailyTrackerPage({
             <button
               type="button"
               onClick={() => {
-                const y = subDays(new Date(), 1);
+                setHasUserSelectedDate(true);
+                const y = subDays(getServerNow(), 1);
                 handleDateChange(format(y, 'yyyy-MM-dd'));
               }}
               className="px-3 py-1.5 bg-surface text-text-secondary hover:text-text-primary border border-border/80 hover:bg-surface-muted rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"

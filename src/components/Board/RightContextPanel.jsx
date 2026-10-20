@@ -28,7 +28,7 @@ import {
 import Avatar from '../ui/Avatar';
 import Modal from '../ui/Modal';
 import Select from '../ui/Select';
-import { formatShortDate } from '../../lib/dateFormat';
+import { formatShortDate, getServerNow, useServerNow } from '../../lib/dateFormat';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -44,8 +44,17 @@ export default function RightContextPanel({
   onOpenAllNotifications,
   className = ''
 }) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const serverNow = useServerNow();
+  const [currentMonth, setCurrentMonth] = useState(() => getServerNow());
+  const [selectedDate, setSelectedDate] = useState(() => getServerNow());
+  const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false);
+
+  useEffect(() => {
+    if (!hasUserSelectedDate) {
+      setCurrentMonth(serverNow);
+      setSelectedDate(serverNow);
+    }
+  }, [serverNow, hasUserSelectedDate]);
 
   // Month & Year picker dropdown state
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
@@ -62,7 +71,7 @@ export default function RightContextPanel({
     setIsAllTasksModalOpen(false);
   }, []);
 
-  const today = useMemo(() => new Date(), []);
+  const today = serverNow;
   const greetingName = user?.name ? user.name.split(' ')[0] : 'Team';
   const todayFormatted = format(today, 'EEEE, do MMM yyyy');
 
@@ -113,9 +122,10 @@ export default function RightContextPanel({
   };
 
   const handleJumpToToday = () => {
-    const now = new Date();
+    const now = getServerNow();
     setCurrentMonth(now);
     setSelectedDate(now);
+    setHasUserSelectedDate(false);
     setIsMonthPickerOpen(false);
   };
 
@@ -159,7 +169,7 @@ export default function RightContextPanel({
 
   // Task statistics
   const taskStats = useMemo(() => {
-    const now = new Date();
+    const now = getServerNow();
     let upcomingCount = 0;
     let overdueCount = 0;
     let completedCount = 0;
@@ -235,7 +245,7 @@ export default function RightContextPanel({
 
   // Task statistics within the active date scope for modal pills
   const modalTaskStats = useMemo(() => {
-    const now = new Date();
+    const now = getServerNow();
     let total = 0;
     let upcomingCount = 0;
     let overdueCount = 0;
@@ -267,7 +277,7 @@ export default function RightContextPanel({
 
   // Filtered tasks for the "View All" modal
   const filteredModalTasks = useMemo(() => {
-    const now = new Date();
+    const now = getServerNow();
     return [...cards]
       .filter((c) => {
         // Date filter
@@ -512,7 +522,10 @@ export default function RightContextPanel({
               <button
                 key={idx}
                 type="button"
-                onClick={() => setSelectedDate(d)}
+                onClick={() => {
+                  setSelectedDate(d);
+                  setHasUserSelectedDate(true);
+                }}
                 aria-label={`${format(d, 'MMMM d, yyyy')}${hasTasks ? ' has tasks' : ''}`}
                 className={`relative h-7 w-7 mx-auto rounded-full flex items-center justify-center font-medium cursor-pointer select-none transition-all duration-150 ease-out active:scale-90 ${isToday && isSelected
                     ? 'bg-primary text-white font-bold shadow-xs ring-2 ring-primary ring-offset-2 ring-offset-surface scale-105 animate-calendar-date-select'
@@ -800,7 +813,7 @@ export default function RightContextPanel({
                 <div className="flex-1 min-h-[340px] max-h-[50vh] overflow-y-auto pr-1 space-y-2">
                   {filteredModalTasks.map((card) => {
                     const isDone = card.is_complete;
-                    const now = new Date();
+                    const now = getServerNow();
                     const isOverdue = !isDone && card.due_date && new Date(card.due_date) < now;
                     const listName = listNamesById[card.list_id] || 'Board';
                     const dueStr = card.due_date ? formatShortDate(card.due_date) : 'No due date';
