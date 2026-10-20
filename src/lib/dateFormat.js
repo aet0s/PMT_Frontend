@@ -1,17 +1,38 @@
 import { format, formatDistanceToNow, isValid } from 'date-fns';
+import { getApiUrl } from '../api/config';
 
 let serverTimeOffset = 0;
+let hasSyncedServerTime = false;
 
-export function updateServerTime(serverDateHeader) {
-  if (!serverDateHeader) return;
-  const sTime = new Date(serverDateHeader).getTime();
+export function updateServerTime(serverDateOrMs) {
+  if (!serverDateOrMs) return;
+  const sTime = typeof serverDateOrMs === 'number'
+    ? serverDateOrMs
+    : new Date(serverDateOrMs).getTime();
   if (!isNaN(sTime)) {
     serverTimeOffset = sTime - Date.now();
+    hasSyncedServerTime = true;
   }
 }
 
 export function getServerNow() {
   return new Date(Date.now() + serverTimeOffset);
+}
+
+export async function syncServerTime() {
+  try {
+    const res = await fetch(getApiUrl('/api/time'), { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.server_time_ms) {
+        updateServerTime(data.server_time_ms);
+      } else if (data?.server_time) {
+        updateServerTime(data.server_time);
+      }
+    }
+  } catch (e) {
+    // Graceful fallback
+  }
 }
 
 /**
@@ -60,7 +81,7 @@ export function formatDate(date) {
 export function formatShortDate(date) {
   const d = parseSafeDate(date);
   if (!d) return '';
-  const isCurrentYear = d.getFullYear() === new Date().getFullYear();
+  const isCurrentYear = d.getFullYear() === getServerNow().getFullYear();
   return format(d, isCurrentYear ? 'd MMM' : 'd MMM yy');
 }
 

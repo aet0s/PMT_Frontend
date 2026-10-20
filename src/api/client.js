@@ -226,6 +226,10 @@ export async function apiFetch(url, options = {}, isRetry = false) {
     data = null;
   }
 
+  if (data?.server_time || data?.server_time_ms) {
+    updateServerTime(data.server_time_ms || data.server_time);
+  }
+
   if (response.ok && data?.token && typeof window !== 'undefined') {
     sessionStorage.setItem('pm_token', data.token);
     localStorage.setItem('pm_token', data.token);

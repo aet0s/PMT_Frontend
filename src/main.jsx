@@ -2,6 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
+import { syncServerTime } from './lib/dateFormat';
+
+// Synchronize server time immediately on application startup
+syncServerTime();
 
 // Automatically reload page when a dynamically imported chunk fails to load due to a new deployment
 if (typeof window !== 'undefined') {
