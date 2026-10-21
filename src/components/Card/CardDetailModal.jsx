@@ -16,8 +16,9 @@ import DatePicker from '../shared/DatePicker';
 import LabelPill from '../shared/LabelPill';
 import Avatar from '../shared/Avatar';
 import { formatShortDate } from '../../lib/dateFormat';
-import { CalendarRange, Calendar, ShieldAlert } from 'lucide-react';
+import { CalendarRange, Calendar, ShieldAlert, CheckCircle2, ExternalLink } from 'lucide-react';
 import QuickCheckinModal from '../DailyTracker/QuickCheckinModal';
+import TaskCompletionModal from './TaskCompletionModal';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../context/PermissionContext';
@@ -60,6 +61,7 @@ export default function CardDetailModal({
   const [activeAnchorRef, setActiveAnchorRef] = useState(null);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
 
   if (!card) return null;
 
@@ -182,6 +184,47 @@ export default function CardDetailModal({
               onUpdateTitle={(title) => onUpdateCard(card.id, { title })}
               onToggleComplete={(is_complete) => onUpdateCard(card.id, { is_complete })}
             />
+
+            {/* Task Completion Outcome Banner */}
+            {(card.is_complete || card.completion_note) && (
+              <div className="p-3.5 bg-success-tint/25 border border-success/40 rounded-xl space-y-1.5 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-success-text uppercase tracking-wider">
+                    <CheckCircle2 className="w-4 h-4 text-success stroke-[2.5]" />
+                    <span>Completion Outcome</span>
+                  </div>
+                  {canModifyCard && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCompletionModalOpen(true)}
+                      className="text-xs text-primary font-bold hover:underline cursor-pointer"
+                    >
+                      {card.completion_note ? 'Edit Outcome' : 'Add Outcome Note'}
+                    </button>
+                  )}
+                </div>
+                {card.completion_note ? (
+                  <p className="text-sm font-medium text-text-primary leading-relaxed break-words">
+                    {card.completion_note}
+                  </p>
+                ) : (
+                  <p className="text-xs text-text-muted italic">
+                    No outcome summary recorded.
+                  </p>
+                )}
+                {card.completion_evidence_url && (
+                  <a
+                    href={card.completion_evidence_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline break-all pt-0.5"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>{card.completion_evidence_url}</span>
+                  </a>
+                )}
+              </div>
+            )}
 
             {/* Quick Add Row */}
             <QuickAddRow
@@ -355,6 +398,23 @@ export default function CardDetailModal({
           onSuccess={() => {
             setIsCheckinModalOpen(false);
             toast.success('Check-in submitted');
+          }}
+        />
+      )}
+
+      {isCompletionModalOpen && (
+        <TaskCompletionModal
+          isOpen={isCompletionModalOpen}
+          onClose={() => setIsCompletionModalOpen(false)}
+          card={card}
+          onSubmit={async ({ completion_note, completion_evidence_url }) => {
+            await onUpdateCard(card.id, {
+              is_complete: true,
+              completion_note,
+              completion_evidence_url
+            });
+            setIsCompletionModalOpen(false);
+            toast.success('Completion outcome updated');
           }}
         />
       )}

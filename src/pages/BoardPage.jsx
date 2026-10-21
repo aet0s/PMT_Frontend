@@ -10,6 +10,7 @@ import { getTenantItem, setTenantItem, removeTenantItem } from '../lib/storage';
 import { safeLazy } from '../lib/safeLazy';
 
 const CardDetailModal = safeLazy(() => import('../components/Card/CardDetailModal'), 'CardDetailModal');
+const TaskCompletionModal = safeLazy(() => import('../components/Card/TaskCompletionModal'), 'TaskCompletionModal');
 const CreateBoardModal = safeLazy(() => import('../components/Board/CreateBoardModal'), 'CreateBoardModal');
 const CreateWorkspaceModal = safeLazy(() => import('../components/Sidebar/CreateWorkspaceModal'), 'CreateWorkspaceModal');
 const ArchivePage = safeLazy(() => import('../components/Archive/ArchivePage'), 'ArchivePage');
@@ -91,6 +92,9 @@ export default function BoardPage() {
   // Mobile sidebar drawer state & activity drawer state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
+
+  // Task Completion Outcome Modal state (for tasks open > 2 working days)
+  const [completionModalState, setCompletionModalState] = useState(null);
 
   // Keep a ref to activeBoardId to avoid stale closures in event handlers
   const activeBoardIdRef = useRef(urlBoardId);
@@ -1358,19 +1362,37 @@ export default function BoardPage() {
     try {
       await updateCard(cardId, { list_id: targetListId, position: newPosition });
     } catch (err) {
-      if (err?.response?.data?.error?.code === 'ONE_LINE_RESULT_REQUIRED') {
-        const note = window.prompt('This task was open for more than 2 working days. Please provide a one-line result (minimum 20 characters):');
-        if (note && note.trim().length >= 20) {
-          try {
-            await updateCard(cardId, { list_id: targetListId, position: newPosition, completion_note: note.trim() });
-            loadActiveBoard(activeBoardIdRef.current);
-            return;
-          } catch (retryErr) {
-            setBoardData(prevBoardData);
-            toast.error(retryErr?.response?.data?.error?.message || retryErr?.message || 'Failed to complete card');
-            return;
+      const isCompletionNoteErr =
+        err?.code === 'ONE_LINE_RESULT_REQUIRED' ||
+        err?.response?.data?.error?.code === 'ONE_LINE_RESULT_REQUIRED' ||
+        err?.message?.includes('at least 20 characters');
+
+      if (isCompletionNoteErr) {
+        setBoardData(prevBoardData);
+        const cardObj = (prevBoardData?.lists || [])
+          .flatMap((l) => l.cards || [])
+          .find((c) => c.id === cardId);
+
+        setCompletionModalState({
+          card: cardObj || { id: cardId },
+          onSubmit: async ({ completion_note, completion_evidence_url }) => {
+            try {
+              await updateCard(cardId, {
+                list_id: targetListId,
+                position: newPosition,
+                completion_note,
+                completion_evidence_url
+              });
+              loadActiveBoard(activeBoardIdRef.current);
+              setCompletionModalState(null);
+              toast.success('Task marked as complete');
+            } catch (retryErr) {
+              setBoardData(prevBoardData);
+              toast.error(retryErr?.message || 'Failed to complete card');
+            }
           }
-        }
+        });
+        return;
       }
       setBoardData(prevBoardData);
       toast.error(err?.response?.data?.error?.message || err?.message || 'Failed to move card');
@@ -1427,6 +1449,49 @@ export default function BoardPage() {
         });
       }
     } catch (err) {
+      const isCompletionNoteErr =
+        err?.code === 'ONE_LINE_RESULT_REQUIRED' ||
+        err?.response?.data?.error?.code === 'ONE_LINE_RESULT_REQUIRED' ||
+        err?.message?.includes('at least 20 characters');
+
+      if (isCompletionNoteErr && updates.is_complete) {
+        setSelectedCard(prevSelectedCard);
+        setBoardData(prevBoardData);
+
+        const cardObj =
+          prevSelectedCard?.id === cardId
+            ? prevSelectedCard
+            : (prevBoardData?.lists || [])
+                .flatMap((l) => l.cards || [])
+                .find((c) => c.id === cardId);
+
+        setCompletionModalState({
+          card: cardObj || { id: cardId },
+          onSubmit: async ({ completion_note, completion_evidence_url }) => {
+            try {
+              await updateCard(cardId, {
+                ...updates,
+                completion_note,
+                completion_evidence_url
+              });
+              loadActiveBoard(activeBoardIdRef.current);
+              setSelectedCard((prev) =>
+                prev && prev.id === cardId
+                  ? { ...prev, ...updates, completion_note, completion_evidence_url }
+                  : prev
+              );
+              setCompletionModalState(null);
+              toast.success('Task marked as completed');
+            } catch (retryErr) {
+              setSelectedCard(prevSelectedCard);
+              setBoardData(prevBoardData);
+              toast.error(retryErr?.message || 'Failed to complete card');
+            }
+          }
+        });
+        return;
+      }
+
       setSelectedCard(prevSelectedCard);
       setBoardData(prevBoardData);
       toast.error(err?.message || 'Failed to update card');
@@ -2389,6 +2454,16 @@ export default function BoardPage() {
                 if (activeWorkspace) loadBoards(activeWorkspace.id);
                 if (activeBoardIdRef.current) loadActiveBoard(activeBoardIdRef.current);
               }}
+            />
+          )}
+
+          {/* Task Completion Modal (for cards open > 2 working days) */}
+          {completionModalState && (
+            <TaskCompletionModal
+              isOpen={Boolean(completionModalState)}
+              onClose={() => setCompletionModalState(null)}
+              card={completionModalState.card}
+              onSubmit={completionModalState.onSubmit}
             />
           )}
         </Suspense>
