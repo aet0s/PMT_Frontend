@@ -18,6 +18,7 @@ import { UnsavedChangesProvider } from './context/UnsavedChangesContext';
 import Spinner from './components/ui/Spinner';
 import { getTenantItem, setTenantItem, removeTenantItem } from './lib/storage';
 import { getWorkspaces } from './api/workspaces';
+import { getBoard } from './api/boards';
 import { safeLazy } from './lib/safeLazy';
 
 const LoginPage = safeLazy(() => import('./pages/LoginPage'), 'LoginPage');
@@ -177,6 +178,38 @@ function AccountRedirect() {
   return <Navigate to={targetUrl} replace />;
 }
 
+// Redirect top-level /b/:boardId?card=xxx to /w/:workspaceId/p/:boardId/board?card=xxx
+function BoardRedirect() {
+  const { user } = useAuth();
+  const { boardId } = useParams();
+  const location = useLocation();
+  const [targetUrl, setTargetUrl] = React.useState(null);
+
+  useEffect(() => {
+    async function determineBoardUrl() {
+      if (!user || !boardId) return;
+      try {
+        const board = await getBoard(boardId);
+        if (board && board.workspace_id) {
+          setTenantItem(user?.tenant_id, 'last_workspace_id', board.workspace_id);
+          setTargetUrl(`/w/${board.workspace_id}/p/${boardId}/board${location.search}${location.hash}`);
+        } else {
+          setTargetUrl('/404');
+        }
+      } catch {
+        setTargetUrl('/404');
+      }
+    }
+    determineBoardUrl();
+  }, [user, boardId, location.search, location.hash]);
+
+  if (!targetUrl) {
+    return <LoadingScreen />;
+  }
+
+  return <Navigate to={targetUrl} replace />;
+}
+
 // Root layout providing unsaved changes guard, navigation manager, and suspense outlet
 function RootLayout() {
   return (
@@ -279,6 +312,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <AccountRedirect />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/b/:boardId',
+        element: (
+          <ProtectedRoute>
+            <BoardRedirect />
           </ProtectedRoute>
         )
       },

@@ -362,12 +362,26 @@ export default function NotificationsPage({
     }
   };
 
+  // Client-side filtering as safety net for all filter categories
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter((item) => {
+      const type = (item.event_type || item.type || '').toLowerCase();
+      if (activeFilter === 'unread') return !item.is_read;
+      if (activeFilter === 'mentions') return type === 'comment.mention' || type === 'mention' || item.priority === 1;
+      if (activeFilter === 'cards') return type.startsWith('card.') || (!type.startsWith('comment.') && !type.startsWith('checklist.') && !type.startsWith('board.') && Boolean(item.card_id));
+      if (activeFilter === 'comments') return type.startsWith('comment');
+      if (activeFilter === 'checklists') return type.startsWith('checklist');
+      if (activeFilter === 'boards') return type.startsWith('board') || (Boolean(item.board_id) && !item.card_id);
+      return true;
+    });
+  }, [notifications, activeFilter]);
+
   // Group notifications by Day, then sub-grouped by Board
   const groupedNotifications = useMemo(() => {
     const groups = [];
     const dayBuckets = {};
 
-    notifications.forEach((item) => {
+    filteredNotifications.forEach((item) => {
       const dayLabel = getDayGroupLabel(item.created_at);
       if (!dayBuckets[dayLabel]) {
         dayBuckets[dayLabel] = [];
@@ -585,7 +599,7 @@ export default function NotificationsPage({
               <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
               <p className="text-xs font-semibold text-text-secondary">Loading notifications...</p>
             </div>
-          ) : notifications.length === 0 ? (
+          ) : filteredNotifications.length === 0 ? (
             <div className="p-12 bg-surface border border-border rounded-xl text-center space-y-3">
               <Inbox className="w-12 h-12 text-text-secondary mx-auto opacity-50" />
               <h3 className="text-sm font-bold text-text-primary">No notifications found</h3>
@@ -598,7 +612,7 @@ export default function NotificationsPage({
           ) : (
             <div className="space-y-6">
               <div className="flex items-center justify-between px-1 text-xs text-text-secondary font-semibold">
-                <span>Showing {notifications.length} of {totalCount} notifications</span>
+                <span>Showing {filteredNotifications.length} of {totalCount} notifications</span>
                 {hasMore && (
                   <span className="text-primary font-medium">
                     Scroll down or click below to load more

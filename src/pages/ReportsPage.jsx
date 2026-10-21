@@ -49,6 +49,12 @@ export default function ReportsPage({ workspace }) {
   const { hasPermission, loading: permissionsLoading } = usePermissions();
   const canViewReports = hasPermission('activity.view') || hasPermission('project.view');
 
+  const getBoardUrl = (boardId, cardId = null) => {
+    const wsId = workspace?.id || 'home';
+    const cardQuery = cardId ? `?card=${cardId}` : '';
+    return `/w/${wsId}/p/${boardId}/board${cardQuery}`;
+  };
+
   useEffect(() => {
     if (!permissionsLoading && !canViewReports && workspace?.id) {
       navigate(`/w/${workspace.id}/home`, { replace: true });
@@ -867,7 +873,7 @@ export default function ReportsPage({ workspace }) {
                               />
                               <button
                                 type="button"
-                                onClick={() => navigate(`/b/${b.id}`)}
+                                onClick={() => navigate(getBoardUrl(b.id))}
                                 className="text-xs sm:text-sm font-semibold text-text-primary hover:text-primary transition-colors truncate flex items-center gap-1 group"
                               >
                                 <span>{b.name}</span>
@@ -1166,7 +1172,7 @@ export default function ReportsPage({ workspace }) {
                             )}
                             <button
                               type="button"
-                              onClick={() => navigate(`/b/${task.board_id}?card=${task.id}`)}
+                              onClick={() => navigate(getBoardUrl(task.board_id, task.id))}
                               className="text-xs font-semibold text-primary hover:text-primary-hover flex items-center gap-1 mt-1"
                             >
                               <span>Open</span>
@@ -1560,7 +1566,7 @@ export default function ReportsPage({ workspace }) {
                             </span>
                             <button
                               type="button"
-                              onClick={() => navigate(`/b/${b.id}`)}
+                              onClick={() => navigate(getBoardUrl(b.id))}
                               className="font-semibold text-primary hover:text-primary-hover flex items-center gap-1"
                             >
                               <span>Open Board</span>
@@ -1703,7 +1709,7 @@ export default function ReportsPage({ workspace }) {
                                   s.cards.map((card) => (
                                     <div
                                       key={card.id}
-                                      onClick={() => navigate(`/b/${card.board_id}?card=${card.id}`)}
+                                      onClick={() => navigate(getBoardUrl(card.board_id, card.id))}
                                       className="p-2.5 bg-surface border border-border rounded-lg hover:border-primary/50 transition-all cursor-pointer group shadow-2xs"
                                     >
                                       <div className="flex items-start justify-between gap-2">
@@ -1748,7 +1754,7 @@ export default function ReportsPage({ workspace }) {
                               </span>
                               <button
                                 type="button"
-                                onClick={() => navigate(`/b/${s.board_id}`)}
+                                onClick={() => navigate(getBoardUrl(s.board_id))}
                                 className="font-semibold text-primary hover:underline"
                               >
                                 Board →
@@ -1852,7 +1858,7 @@ export default function ReportsPage({ workspace }) {
                               <Button
                                 variant="primary"
                                 size="sm"
-                                onClick={() => navigate(`/b/${task.board_id}?card=${task.id}`)}
+                                onClick={() => navigate(getBoardUrl(task.board_id, task.id))}
                                 rightIcon={<ExternalLink className="w-3 h-3" />}
                               >
                                 Open Card
@@ -2173,7 +2179,7 @@ export default function ReportsPage({ workspace }) {
                             type="button"
                             onClick={() => {
                               setSelectedMemberDossier(null);
-                              navigate(`/b/${task.board_id}?card=${task.id}`);
+                              navigate(getBoardUrl(task.board_id, task.id));
                             }}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover transition-colors cursor-pointer"
                           >

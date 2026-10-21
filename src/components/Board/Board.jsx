@@ -1199,6 +1199,23 @@ export default function Board({
                   Reset
                 </button>
               )}
+
+              {/* Calendar Sidebar Toggle Button (Always visible on all screen sizes) */}
+              <button
+                type="button"
+                onClick={() => setIsRightPanelOpen((prev) => !prev)}
+                aria-expanded={isRightPanelOpen}
+                aria-label="Toggle calendar sidebar"
+                title={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
+                className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${
+                  isRightPanelOpen
+                    ? 'bg-primary text-white border-primary shadow-xs'
+                    : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Calendar</span>
+              </button>
             </div>
           </div>
 
@@ -1557,7 +1574,7 @@ export default function Board({
         onClick={() => setIsRightPanelOpen((prev) => !prev)}
         title={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
         aria-label={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
-        className="hidden xl:flex absolute -right-4.5 top-1/2 -translate-y-1/2 z-40 items-center justify-center w-9 h-9 rounded-full bg-surface border border-border shadow-md hover:shadow-lg hover:border-primary/60 hover:bg-surface-muted text-text-secondary hover:text-primary transition-all duration-200 cursor-pointer group hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="flex absolute -right-3.5 sm:-right-4.5 top-1/2 -translate-y-1/2 z-40 items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-surface border border-border shadow-md hover:shadow-lg hover:border-primary/60 hover:bg-surface-muted text-text-secondary hover:text-primary transition-all duration-200 cursor-pointer group hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         {isRightPanelOpen ? (
           <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -1567,7 +1584,7 @@ export default function Board({
       </button>
     </div>
 
-      {/* Right Context Panel (Calendar & Upcoming Tasks) */}
+      {/* 1. Desktop In-Flow Right Context Panel (When >= 1280px / xl) */}
       <div
         className={`hidden xl:flex flex-col h-full shrink-0 relative transition-all duration-300 ease-in-out ${
           isRightPanelOpen
@@ -1589,6 +1606,56 @@ export default function Board({
           />
         </div>
       </div>
+
+      {/* 2. Responsive Slide-Over Drawer for screens < 1280px (Viewport 1279px and below) */}
+      {isRightPanelOpen && (
+        <div className="xl:hidden fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop overlay */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity duration-200"
+            onClick={() => setIsRightPanelOpen(false)}
+            aria-hidden="true"
+          />
+          {/* Slide-out Panel */}
+          <div className="relative w-80 sm:w-88 h-full bg-surface shadow-2xl border-l border-border flex flex-col z-10 animate-in slide-in-from-right duration-200 overflow-hidden">
+            {/* Drawer Close Bar */}
+            <div className="px-4 py-2.5 bg-surface-muted border-b border-border flex items-center justify-between text-xs font-bold text-text-primary">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-primary" />
+                Calendar & Schedule
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsRightPanelOpen(false)}
+                className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface transition-colors cursor-pointer"
+                aria-label="Close calendar panel"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <RightContextPanel
+                user={user}
+                board={board}
+                cards={allBoardCards}
+                onCardClick={(c) => {
+                  setIsRightPanelOpen(false);
+                  if (onCardClick) onCardClick(c);
+                }}
+                onSelectNotificationCard={(c) => {
+                  setIsRightPanelOpen(false);
+                  if (onSelectNotificationCard) onSelectNotificationCard(c);
+                }}
+                onOpenAllNotifications={() => {
+                  setIsRightPanelOpen(false);
+                  if (onOpenAllNotifications) onOpenAllNotifications();
+                }}
+                className="w-full h-full"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
 
       {/* Board Theme Palette Picker */}
