@@ -1,5 +1,19 @@
 import { format, formatDistanceToNow, isValid } from 'date-fns';
 
+let serverTimeOffset = 0;
+
+export function updateServerTime(serverDateHeader) {
+  if (!serverDateHeader) return;
+  const sTime = new Date(serverDateHeader).getTime();
+  if (!isNaN(sTime)) {
+    serverTimeOffset = sTime - Date.now();
+  }
+}
+
+export function getServerNow() {
+  return new Date(Date.now() + serverTimeOffset);
+}
+
 /**
  * Parse date safely handling MySQL string dates ('YYYY-MM-DD HH:MM:SS') and timezone offsets
  */

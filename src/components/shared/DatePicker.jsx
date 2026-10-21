@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Popover from './Popover';
-import { parseDDMMYYYY, parseSafeDate } from '../../lib/dateFormat';
+import { parseDDMMYYYY, parseSafeDate, getServerNow } from '../../lib/dateFormat';
 import {
   startOfMonth,
   endOfMonth,
@@ -37,14 +37,14 @@ export default function DatePicker({
   dueDate,
   onChange
 }) {
-  const todayStart = new Date();
+  const todayStart = getServerNow();
   todayStart.setHours(0, 0, 0, 0);
 
   const initialDue = dueDate ? parseSafeDate(dueDate) : null;
   const initialStart = startDate ? parseSafeDate(startDate) : null;
 
   const [activeTarget, setActiveTarget] = useState('due'); // 'due' | 'start'
-  const [currentMonth, setCurrentMonth] = useState(initialDue || initialStart || new Date());
+  const [currentMonth, setCurrentMonth] = useState(initialDue || initialStart || getServerNow());
 
   const [enableStartDate, setEnableStartDate] = useState(Boolean(initialStart));
   const [startDateStr, setStartDateStr] = useState(
@@ -127,7 +127,7 @@ export default function DatePicker({
 
   const handlePreset = (type) => {
     setDateError('');
-    const today = new Date();
+    const today = getServerNow();
     let targetDate = today;
 
     if (type === 'today') {
@@ -196,7 +196,7 @@ export default function DatePicker({
     onClose();
   };
 
-  const isToday = (day) => isSameDay(day, new Date());
+  const isToday = (day) => isSameDay(day, getServerNow());
 
   const getDayState = (day) => {
     const isStart = parsedStart && isSameDay(day, parsedStart);
@@ -418,7 +418,7 @@ export default function DatePicker({
               if (checked) {
                 setActiveTarget('start');
                 if (!startDateStr) {
-                  const today = new Date();
+                  const today = getServerNow();
                   setStartDateStr(
                     `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`
                   );
@@ -456,7 +456,7 @@ export default function DatePicker({
               if (checked) {
                 setActiveTarget('due');
                 if (!dueDateStr) {
-                  const today = new Date();
+                  const today = getServerNow();
                   setDueDateStr(
                     `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`
                   );

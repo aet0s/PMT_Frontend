@@ -1,4 +1,5 @@
 import { getApiUrl, getFileUrl, API_BASE_URL, SOCKET_URL } from './config';
+import { updateServerTime } from '../lib/dateFormat';
 
 // Single-flight refresh coordination within tab and across tabs
 let inFlightRefreshPromise = null;
@@ -212,6 +213,11 @@ export async function apiFetch(url, options = {}, isRetry = false) {
 
   const fullUrl = getApiUrl(url);
   const response = await fetch(fullUrl, config);
+
+  const serverHeaderTime = response.headers.get('x-server-time') || response.headers.get('date');
+  if (serverHeaderTime) {
+    updateServerTime(serverHeaderTime);
+  }
 
   let data;
   try {

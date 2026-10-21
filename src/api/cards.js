@@ -6,10 +6,6 @@ export async function getCard(id) {
 }
 
 export async function createCard(listId, title, description, position, dueDate, startDate) {
-  const effectiveStartDate = (startDate !== undefined && startDate !== null)
-    ? startDate
-    : format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
-
   return apiFetch('/api/cards', {
     method: 'POST',
     body: JSON.stringify({
@@ -17,7 +13,7 @@ export async function createCard(listId, title, description, position, dueDate, 
       title,
       description,
       position,
-      start_date: effectiveStartDate,
+      start_date: startDate || undefined,
       due_date: dueDate
     })
   });

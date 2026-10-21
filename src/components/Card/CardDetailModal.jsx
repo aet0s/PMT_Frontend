@@ -15,7 +15,7 @@ import CopyCardModal from './CopyCardModal';
 import DatePicker from '../shared/DatePicker';
 import LabelPill from '../shared/LabelPill';
 import Avatar from '../shared/Avatar';
-import { formatShortDate } from '../../lib/dateFormat';
+import { formatShortDate, getServerNow } from '../../lib/dateFormat';
 import { CalendarRange, Calendar, ShieldAlert, CheckCircle2, ExternalLink } from 'lucide-react';
 import QuickCheckinModal from '../DailyTracker/QuickCheckinModal';
 import TaskCompletionModal from './TaskCompletionModal';
@@ -145,7 +145,7 @@ export default function CardDetailModal({
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 lg:border-r border-border">
             {/* Date Badges — shown above title if dates are set */}
             {(card.start_date || card.due_date) && (() => {
-              const now = new Date();
+              const now = getServerNow();
               const due = card.due_date ? new Date(card.due_date) : null;
               const isOverdue = due && due < now && !card.is_complete;
               const isDueSoon = due && due - now < 24 * 60 * 60 * 1000 && due >= now && !card.is_complete;
