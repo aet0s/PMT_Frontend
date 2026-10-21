@@ -1,13 +1,25 @@
+import { format } from 'date-fns';
 import { apiFetch } from './client';
 
 export async function getCard(id) {
   return apiFetch(`/api/cards/${id}`);
 }
 
-export async function createCard(listId, title, description, position, dueDate) {
+export async function createCard(listId, title, description, position, dueDate, startDate) {
+  const effectiveStartDate = (startDate !== undefined && startDate !== null)
+    ? startDate
+    : format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
+
   return apiFetch('/api/cards', {
     method: 'POST',
-    body: JSON.stringify({ list_id: listId, title, description, position, due_date: dueDate })
+    body: JSON.stringify({
+      list_id: listId,
+      title,
+      description,
+      position,
+      start_date: effectiveStartDate,
+      due_date: dueDate
+    })
   });
 }
 
