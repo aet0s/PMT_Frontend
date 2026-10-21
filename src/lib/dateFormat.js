@@ -11,10 +11,19 @@ export function parseSafeDate(date) {
     return isValid(d) ? d : null;
   }
   if (typeof date === 'string') {
-    let s = date.trim();
+    const s = date.trim();
     if (!s) return null;
-    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(s)) {
-      s = s.replace(' ', 'T') + (s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s) ? '' : 'Z');
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [y, m, d] = s.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    // YYYY-MM-DD HH:mm or YYYY-MM-DD HH:mm:ss (or T separated) without Z or offset
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(s)) {
+      const [datePart, timePart] = s.replace(' ', 'T').split('T');
+      const [y, m, d] = datePart.split('-').map(Number);
+      const [h = 0, min = 0, sec = 0] = timePart.split(':').map(Number);
+      return new Date(y, m - 1, d, h, min, sec);
     }
     const d = new Date(s);
     return isValid(d) ? d : null;

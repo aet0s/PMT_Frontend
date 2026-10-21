@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { usePermissions } from '../../context/PermissionContext';
 import { Check } from 'lucide-react';
 
-export default function CardTitle({ card, onUpdateTitle, onToggleComplete }) {
+export default function CardTitle({ card, onUpdateTitle, onToggleComplete, canModify = true }) {
   const { hasPermission } = usePermissions();
-  const canEditCard = hasPermission('task.edit');
+  const canEditCard = hasPermission('task.edit') && canModify;
 
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(card.title);

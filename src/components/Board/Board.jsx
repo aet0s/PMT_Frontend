@@ -31,7 +31,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { matchesCardFilter } from '../../lib/filterCards';
 import { getTenantItem } from '../../lib/storage';
 import RightContextPanel from './RightContextPanel';
-import { getBoardWorkspaceMembers } from '../../api/boards';
+import { getBoardWorkspaceMembers, addBoardMemberById } from '../../api/boards';
+import { useToast } from '../ui/Toast';
 
 import {
   Plus,
@@ -305,7 +306,7 @@ export default function Board({
       setLocalActivityOpen(val);
     }
   };
-  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isInviteMemberModalOpen, setIsInviteMemberModalOpen] = useState(false);
   const [memberEmailInput, setMemberEmailInput] = useState('');
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
@@ -321,6 +322,12 @@ export default function Board({
   const [boardWorkspaceMembers, setBoardWorkspaceMembers] = useState([]);
   const [memberFilterQuery, setMemberFilterQuery] = useState('');
   const boardMembersDropdownRef = useRef(null);
+
+  // Add Member to Board state (for top level users)
+  const [isAddBoardMemberDropdownOpen, setIsAddBoardMemberDropdownOpen] = useState(false);
+  const [addMemberFilterQuery, setAddMemberFilterQuery] = useState('');
+  const [addingMemberId, setAddingMemberId] = useState(null);
+  const addMemberDropdownRef = useRef(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -357,6 +364,20 @@ export default function Board({
     );
   }, [permittedMembers, memberFilterQuery]);
 
+  const unassignedWorkspaceMembers = useMemo(() => {
+    return (boardWorkspaceMembers || []).filter((m) => !m.has_access);
+  }, [boardWorkspaceMembers]);
+
+  const filteredUnassignedMembers = useMemo(() => {
+    if (!addMemberFilterQuery.trim()) return unassignedWorkspaceMembers;
+    const q = addMemberFilterQuery.trim().toLowerCase();
+    return unassignedWorkspaceMembers.filter(
+      (m) =>
+        (m.name && m.name.toLowerCase().includes(q)) ||
+        (m.email && m.email.toLowerCase().includes(q))
+    );
+  }, [unassignedWorkspaceMembers, addMemberFilterQuery]);
+
   const boardMenuRef = useRef(null);
   const boardSwitcherRef = useRef(null);
   const paletteRef = useRef(null);
@@ -372,6 +393,9 @@ export default function Board({
       }
       if (boardMembersDropdownRef.current && !boardMembersDropdownRef.current.contains(event.target)) {
         setIsBoardMembersDropdownOpen(false);
+      }
+      if (addMemberDropdownRef.current && !addMemberDropdownRef.current.contains(event.target)) {
+        setIsAddBoardMemberDropdownOpen(false);
       }
       if (
         paletteRef.current &&
@@ -455,13 +479,33 @@ export default function Board({
     isDraggingBoardRef.current = false;
   };
 
-  const { hasPermission } = usePermissions();
+  const toast = useToast();
+  const { hasPermission, userRole } = usePermissions();
+  const userRank = Number(userRole?.rank || 30);
+  const roleName = String(userRole?.name || '').toLowerCase();
+  const isTopLevel = userRank >= 50 || ['owner', 'admin', 'project manager', 'team lead'].includes(roleName);
   const canEditBoard = hasPermission('project.edit_settings');
   const canDeleteBoard = hasPermission('project.delete');
   const canArchiveBoard = hasPermission('project.archive') || canEditBoard;
   const canManageBoardMembers = hasPermission('project.manage_members');
   const canCreateList = hasPermission('list.create');
   const canViewActivity = hasPermission('activity.view');
+
+  const handleAddMemberToBoard = async (member) => {
+    if (!board?.id || !member?.id) return;
+    setAddingMemberId(member.id);
+    try {
+      await addBoardMemberById(board.id, member.id);
+      setBoardWorkspaceMembers((prev) =>
+        prev.map((m) => (m.id === member.id ? { ...m, has_access: 1 } : m))
+      );
+      toast.show(`${member.name || member.email} added to board!`, 'success');
+    } catch (err) {
+      toast.show(err.message || 'Failed to add member to board', 'error');
+    } finally {
+      setAddingMemberId(null);
+    }
+  };
 
   const handleStartRename = () => {
     if (!canEditBoard) return;
@@ -851,9 +895,11 @@ export default function Board({
     e.preventDefault();
     if (!memberEmailInput.trim()) return;
     try {
-      await onAddBoardMember(board.id, memberEmailInput.trim());
+      if (onAddBoardMember) {
+        await onAddBoardMember(board.id, memberEmailInput.trim());
+      }
       setMemberEmailInput('');
-      setIsAddMemberOpen(false);
+      setIsInviteMemberModalOpen(false);
     } catch (err) {
       console.error('Failed to invite member:', err);
     }
@@ -977,6 +1023,88 @@ export default function Board({
                   </div>
                 )}
               </div>
+
+              {/* Add Member Button: for top level users only */}
+              {isTopLevel && (
+                <div className="relative" ref={addMemberDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddBoardMemberDropdownOpen((prev) => !prev);
+                      setIsBoardMembersDropdownOpen(false);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-primary hover:bg-primary-hover active:bg-primary-active text-white rounded-full shadow-2xs transition-all cursor-pointer min-h-[36px] text-xs sm:text-sm font-bold ${
+                      isAddBoardMemberDropdownOpen ? 'ring-2 ring-primary/40 brightness-110' : ''
+                    }`}
+                    title="Add already invited workspace member to this board"
+                    aria-label="Add Member to board"
+                    aria-expanded={isAddBoardMemberDropdownOpen}
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Add Member</span>
+                  </button>
+
+                  {isAddBoardMemberDropdownOpen && (
+                    <div className="absolute left-0 top-full mt-2 w-80 sm:w-88 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 p-3 space-y-2.5 animate-sassy-dropdown-left text-left">
+                      <div className="pb-2 border-b border-border/60">
+                        <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                          <UserPlus className="w-3.5 h-3.5 text-primary" />
+                          Add Member to Board
+                        </h4>
+                        <p className="text-[11px] text-text-secondary mt-0.5">
+                          Add an invited workspace member to this board
+                        </p>
+                      </div>
+
+                      {unassignedWorkspaceMembers.length > 3 && (
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                          <input
+                            type="text"
+                            placeholder="Search members..."
+                            value={addMemberFilterQuery}
+                            onChange={(e) => setAddMemberFilterQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-muted/60 border border-border/80 rounded-xl focus:outline-none focus:border-primary text-text-primary placeholder:text-text-muted"
+                          />
+                        </div>
+                      )}
+
+                      <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                        {filteredUnassignedMembers.length === 0 ? (
+                          <p className="text-xs text-text-muted italic py-3 text-center">
+                            {unassignedWorkspaceMembers.length === 0
+                              ? 'All workspace members already have access to this board.'
+                              : 'No matching workspace members found.'}
+                          </p>
+                        ) : (
+                          filteredUnassignedMembers.map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center justify-between p-2 rounded-xl hover:bg-surface-muted/70 transition-colors gap-2"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <Avatar name={m.name} email={m.email} src={m.avatar_url || m.avatar} user={m} size="sm" />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-text-primary truncate">{m.name}</p>
+                                  <p className="text-[10px] text-text-muted truncate">{m.workspace_role || m.email}</p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={addingMemberId === m.id}
+                                onClick={() => handleAddMemberToBoard(m)}
+                                className="px-2.5 py-1 text-xs font-semibold bg-primary hover:bg-primary-hover active:bg-primary-active text-white rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                              >
+                                {addingMemberId === m.id ? 'Adding...' : 'Add'}
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Right: Board Filter Controls replacing Create Task button */}
@@ -1504,13 +1632,13 @@ export default function Board({
 
       {/* Invite Member Modal */}
       <Modal
-        isOpen={isAddMemberOpen}
-        onClose={() => setIsAddMemberOpen(false)}
+        isOpen={isInviteMemberModalOpen}
+        onClose={() => setIsInviteMemberModalOpen(false)}
         title="Invite to Board"
         size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsAddMemberOpen(false)}>
+            <Button variant="secondary" onClick={() => setIsInviteMemberModalOpen(false)}>
               Cancel
             </Button>
             <Button variant="primary" onClick={handleAddMemberSubmit}>

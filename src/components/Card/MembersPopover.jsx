@@ -15,14 +15,22 @@ export default function MembersPopover({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredMembers = boardMembers.filter((m) =>
-    m.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const isAssigned = (userId) => {
-    return cardMembers.some((m) => m.id === userId);
+    return cardMembers.some((m) => Number(m.id) === Number(userId));
   };
+
+  const filteredMembers = boardMembers
+    .filter((m) =>
+      (m.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      const aAssigned = isAssigned(a.id);
+      const bAssigned = isAssigned(b.id);
+      if (aAssigned && !bAssigned) return -1;
+      if (!aAssigned && bAssigned) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
 
   return (
     <Popover isOpen={isOpen} onClose={onClose} anchorRef={anchorRef} title={title} className="w-72">

@@ -7,9 +7,9 @@ import { safeLazy } from '../../lib/safeLazy';
 
 const RichTextEditor = safeLazy(() => import('./RichTextEditor'), 'RichTextEditor');
 
-export default function DescriptionEditor({ cardId, cardTitle = '', initialValue = '', onSave }) {
+export default function DescriptionEditor({ cardId, cardTitle = '', initialValue = '', onSave, canModify = true }) {
   const { hasPermission } = usePermissions();
-  const canEditCard = hasPermission('task.edit');
+  const canEditCard = hasPermission('task.edit') && canModify;
 
   const [isEditing, setIsEditing] = useState(false);
   const [currentValue, setCurrentValue] = useState(initialValue);

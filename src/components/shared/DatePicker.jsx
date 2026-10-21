@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Popover from './Popover';
-import { parseDDMMYYYY } from '../../lib/dateFormat';
+import { parseDDMMYYYY, parseSafeDate } from '../../lib/dateFormat';
 import {
   startOfMonth,
   endOfMonth,
@@ -37,8 +37,11 @@ export default function DatePicker({
   dueDate,
   onChange
 }) {
-  const initialDue = dueDate ? new Date(dueDate) : null;
-  const initialStart = startDate ? new Date(startDate) : null;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const initialDue = dueDate ? parseSafeDate(dueDate) : null;
+  const initialStart = startDate ? parseSafeDate(startDate) : null;
 
   const [activeTarget, setActiveTarget] = useState('due'); // 'due' | 'start'
   const [currentMonth, setCurrentMonth] = useState(initialDue || initialStart || new Date());
@@ -66,26 +69,30 @@ export default function DatePicker({
 
   useEffect(() => {
     if (dueDate) {
-      const d = new Date(dueDate);
-      setEnableDueDate(true);
-      setDueDateStr(
-        `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
-      );
-      setDueTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
-      setCurrentMonth(d);
+      const d = parseSafeDate(dueDate);
+      if (d) {
+        setEnableDueDate(true);
+        setDueDateStr(
+          `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+        );
+        setDueTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+        setCurrentMonth(d);
+      }
     } else {
       setEnableDueDate(false);
       setDueDateStr('');
     }
 
     if (startDate) {
-      const s = new Date(startDate);
-      setEnableStartDate(true);
-      setStartDateStr(
-        `${String(s.getDate()).padStart(2, '0')}/${String(s.getMonth() + 1).padStart(2, '0')}/${s.getFullYear()}`
-      );
-      if (!dueDate) {
-        setCurrentMonth(s);
+      const s = parseSafeDate(startDate);
+      if (s) {
+        setEnableStartDate(true);
+        setStartDateStr(
+          `${String(s.getDate()).padStart(2, '0')}/${String(s.getMonth() + 1).padStart(2, '0')}/${s.getFullYear()}`
+        );
+        if (!dueDate) {
+          setCurrentMonth(s);
+        }
       }
     } else {
       setEnableStartDate(false);
@@ -104,6 +111,10 @@ export default function DatePicker({
 
   const handleSelectDay = (day) => {
     setDateError('');
+    if (activeTarget === 'due' && isBefore(day, todayStart)) {
+      setDateError('Due date cannot be in the past');
+      return;
+    }
     const formatted = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}/${day.getFullYear()}`;
     if (activeTarget === 'start') {
       setEnableStartDate(true);
@@ -149,7 +160,7 @@ export default function DatePicker({
         setDateError('Invalid start date (use DD/MM/YYYY)');
         return;
       }
-      resolvedStart = parsed.toISOString();
+      resolvedStart = format(parsed, "yyyy-MM-dd'T'HH:mm:ss");
     }
 
     if (enableDueDate) {
@@ -160,7 +171,11 @@ export default function DatePicker({
       }
       const [hours, minutes] = dueTime.split(':').map((n) => parseInt(n, 10));
       parsed.setHours(hours || 0, minutes || 0, 0, 0);
-      resolvedDue = parsed.toISOString();
+      if (isBefore(parsed, todayStart)) {
+        setDateError('Due date cannot be in the past');
+        return;
+      }
+      resolvedDue = format(parsed, "yyyy-MM-dd'T'HH:mm:ss");
     }
 
     if (resolvedStart && resolvedDue && new Date(resolvedStart) > new Date(resolvedDue)) {
@@ -349,6 +364,8 @@ export default function DatePicker({
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const { isStart, isDue, inRange } = getDayState(day);
               const todayFlag = isToday(day);
+              const isPast = isBefore(day, todayStart);
+              const isDueDisabled = activeTarget === 'due' && isPast;
 
               return (
                 <div
@@ -359,15 +376,19 @@ export default function DatePicker({
                 >
                   <button
                     type="button"
+                    disabled={isDueDisabled}
                     onClick={() => handleSelectDay(day)}
-                    className={`w-7 h-7 rounded-lg text-xs font-medium flex items-center justify-center transition-all cursor-pointer relative z-10 ${
-                      isStart || isDue
-                        ? 'bg-primary text-white font-bold shadow-xs'
+                    title={isDueDisabled ? 'Due date cannot be in the past' : undefined}
+                    className={`w-7 h-7 rounded-lg text-xs font-medium flex items-center justify-center transition-all relative z-10 ${
+                      isDueDisabled
+                        ? 'opacity-25 cursor-not-allowed line-through text-text-muted/40 pointer-events-none'
+                        : isStart || isDue
+                        ? 'bg-primary text-white font-bold shadow-xs cursor-pointer'
                         : inRange
-                        ? 'text-primary font-semibold hover:bg-primary-tint'
+                        ? 'text-primary font-semibold hover:bg-primary-tint cursor-pointer'
                         : isCurrentMonth
-                        ? 'text-text-primary hover:bg-surface-muted'
-                        : 'text-text-muted/40 hover:bg-surface-muted/50'
+                        ? 'text-text-primary hover:bg-surface-muted cursor-pointer'
+                        : 'text-text-muted/40 hover:bg-surface-muted/50 cursor-pointer'
                     } ${
                       todayFlag && !isStart && !isDue
                         ? 'ring-1 ring-primary/70 font-bold'

@@ -252,6 +252,7 @@ export default function BoardPage() {
   const loadActiveBoard = useCallback(async (id, isSilent = false) => {
     const targetId = id || activeBoardIdRef.current;
     if (!targetId) return;
+    activeBoardIdRef.current = Number(targetId);
     if (!isSilent) {
       setLoading(true);
     }
@@ -262,29 +263,32 @@ export default function BoardPage() {
         return;
       }
 
-      // Guard: if the loaded board belongs to a different workspace, redirect cleanly
-      if (activeWorkspace?.id && data.board && Number(data.board.workspace_id) !== Number(activeWorkspace.id)) {
-        console.warn(`Board ${targetId} belongs to workspace ${data.board.workspace_id}, not current workspace ${activeWorkspace.id}`);
-        let availableBoards = boardsRef.current || [];
-        if (availableBoards.length === 0) {
-          try {
-            const fetched = await getBoards(activeWorkspace.id);
-            availableBoards = fetched.boards || [];
-          } catch (_) {}
-        }
-        if (availableBoards.length > 0) {
-          navigate(`/w/${activeWorkspace.id}/p/${availableBoards[0].id}/${currentView || 'board'}`, { replace: true });
-        } else {
-          navigate(`/w/${activeWorkspace.id}/home`, { replace: true });
-        }
+      // Guard: if the loaded board belongs to a different workspace than the current URL workspace,
+      // redirect cleanly to the board's actual workspace route!
+      if (workspaceId && data.board && Number(data.board.workspace_id) !== Number(workspaceId)) {
+        console.warn(`Board ${targetId} belongs to workspace ${data.board.workspace_id}, redirecting to correct workspace.`);
+        navigate(`/w/${data.board.workspace_id}/p/${data.board.id}/${currentView || 'board'}${cardIdParam ? `?card=${cardIdParam}` : ''}`, { replace: true });
         return;
       }
 
       setBoardData(data.board);
       setIsNotFound(false);
-      setTenantItem(user?.tenant_id, `last_board_id_${activeWorkspace?.id || data.board?.workspace_id}`, targetId);
+
+      // Synchronize currently open selectedCard with fresh board details
+      setSelectedCard((prev) => {
+        if (!prev) return prev;
+        for (const l of data.board?.lists || []) {
+          const freshCard = (l.cards || []).find((c) => Number(c.id) === Number(prev.id));
+          if (freshCard) {
+            return { ...prev, ...freshCard };
+          }
+        }
+        return prev;
+      });
+
+      setTenantItem(user?.tenant_id, `last_board_id_${data.board?.workspace_id || workspaceId}`, targetId);
       try {
-        localStorage.setItem(`taskflow_last_board_${activeWorkspace?.id || data.board?.workspace_id}`, String(targetId));
+        localStorage.setItem(`taskflow_last_board_${data.board?.workspace_id || workspaceId}`, String(targetId));
       } catch {}
     } catch (err) {
       // Guard: if user navigated away while request was in flight, ignore the error and do not 404
@@ -429,20 +433,27 @@ export default function BoardPage() {
     }
   }, [subPath, activeWorkspace?.id, boards, navigate, user?.tenant_id]);
 
-  // Synchronize selectedCard with URL query param ?card= or ?modal=
-  const cardIdParam = searchParams.get('card') || searchParams.get('modal');
+  // Synchronize selectedCard with URL query param ?card=
+  const cardIdParam = searchParams.get('card');
+  const lastFetchedCardIdRef = useRef(null);
   useEffect(() => {
-    if (cardIdParam && boardData) {
-      let found = null;
-      (boardData.lists || []).forEach((l) => {
-        (l.cards || []).forEach((c) => {
-          if (String(c.id) === String(cardIdParam)) found = c;
-        });
-      });
-      if (found) {
-        setSelectedCard(found);
+    if (cardIdParam) {
+      if (lastFetchedCardIdRef.current === cardIdParam && selectedCard && String(selectedCard.id) === String(cardIdParam)) {
+        return;
       }
-      // Always fetch latest full card details (comments, attachments, checklists) from server
+      if (boardData) {
+        let found = null;
+        (boardData.lists || []).forEach((l) => {
+          (l.cards || []).forEach((c) => {
+            if (String(c.id) === String(cardIdParam)) found = c;
+          });
+        });
+        if (found) {
+          setSelectedCard(found);
+        }
+      }
+      lastFetchedCardIdRef.current = cardIdParam;
+      // Fetch latest full card details (comments, attachments, checklists) from server
       getCard(cardIdParam)
         .then((data) => {
           if (data?.card) {
@@ -454,10 +465,11 @@ export default function BoardPage() {
           }
         })
         .catch(() => {});
-    } else if (!cardIdParam) {
+    } else {
+      lastFetchedCardIdRef.current = null;
       setSelectedCard(null);
     }
-  }, [cardIdParam, boardData]);
+  }, [cardIdParam]);
 
   // Synchronize Document Title per route
   useEffect(() => {
@@ -489,17 +501,35 @@ export default function BoardPage() {
   }, [subPath, activeWorkspace, boardData, currentView]);
 
   // Handle Notification or Card click navigation directly to card modal or board
-  const handleSelectNotificationCard = (param = {}) => {
+  const handleSelectNotificationCard = async (param = {}) => {
     const cardId = param.cardId || param.id;
-    const boardId = param.boardId || param.board_id;
-    const targetWsId = param.workspaceId || param.workspace_id || param.notifWsId || workspaceId;
+    let boardId = param.boardId || param.board_id;
+    let targetWsId = param.workspaceId || param.workspace_id || param.notifWsId;
+
+    if (cardId && (!boardId || !targetWsId)) {
+      try {
+        const res = await getCard(cardId);
+        if (res?.card) {
+          boardId = boardId || res.card.board_id;
+          targetWsId = targetWsId || res.card.workspace_id;
+        }
+      } catch (err) {
+        console.warn('Could not resolve card details for notification:', err);
+      }
+    }
+
+    targetWsId = targetWsId || workspaceId || activeWorkspace?.id || (workspaces && workspaces[0]?.id);
+    if (!targetWsId) return;
+
     if (boardId) {
       if (cardId) {
         navigate(`/w/${targetWsId}/p/${boardId}/board?card=${cardId}`);
       } else {
         navigate(`/w/${targetWsId}/p/${boardId}/board`);
       }
-    } else if (targetWsId) {
+    } else if (cardId) {
+      navigate(`/w/${targetWsId}/home`);
+    } else {
       navigate(`/w/${targetWsId}/home`);
     }
   };
@@ -1463,17 +1493,48 @@ export default function BoardPage() {
 
   const handleAddChecklist = async (cardId, title, items = []) => {
     try {
-      await addChecklist(cardId, title, items);
-      loadActiveBoard(activeBoardIdRef.current);
+      const data = await addChecklist(cardId, title, items);
+      if (data?.checklist) {
+        setSelectedCard((prev) =>
+          prev && Number(prev.id) === Number(cardId)
+            ? { ...prev, checklists: [...(prev.checklists || []), data.checklist] }
+            : prev
+        );
+      }
+      loadActiveBoard(activeBoardIdRef.current, true);
     } catch (err) {
       toast.error(err?.message || 'Failed to add checklist');
     }
   };
 
   const handleDeleteChecklist = async (checklistId) => {
+    setSelectedCard((prev) => {
+      if (!prev || !prev.checklists) return prev;
+      return {
+        ...prev,
+        checklists: prev.checklists.filter((ch) => Number(ch.id) !== Number(checklistId))
+      };
+    });
+    setBoardData((prev) => {
+      if (!prev || !prev.lists) return prev;
+      return {
+        ...prev,
+        lists: prev.lists.map((l) => ({
+          ...l,
+          cards: (l.cards || []).map((c) => {
+            if (!c.checklists) return c;
+            return {
+              ...c,
+              checklists: c.checklists.filter((ch) => Number(ch.id) !== Number(checklistId))
+            };
+          })
+        }))
+      };
+    });
+
     try {
       await deleteChecklist(checklistId);
-      loadActiveBoard(activeBoardIdRef.current);
+      loadActiveBoard(activeBoardIdRef.current, true);
     } catch (err) {
       toast.error(err?.message || 'Failed to delete checklist');
     }
@@ -1481,8 +1542,21 @@ export default function BoardPage() {
 
   const handleAddChecklistItem = async (checklistId, text) => {
     try {
-      await addChecklistItem(checklistId, text);
-      loadActiveBoard(activeBoardIdRef.current);
+      const data = await addChecklistItem(checklistId, text);
+      if (data?.item) {
+        setSelectedCard((prev) => {
+          if (!prev || !prev.checklists) return prev;
+          return {
+            ...prev,
+            checklists: prev.checklists.map((ch) =>
+              Number(ch.id) === Number(checklistId)
+                ? { ...ch, items: [...(ch.items || []), data.item] }
+                : ch
+            )
+          };
+        });
+      }
+      loadActiveBoard(activeBoardIdRef.current, true);
     } catch (err) {
       toast.error(err?.message || 'Failed to add checklist item');
     }
@@ -1532,7 +1606,7 @@ export default function BoardPage() {
 
     try {
       await updateChecklistItem(itemId, updates);
-      loadActiveBoard(activeBoardIdRef.current);
+      loadActiveBoard(activeBoardIdRef.current, true);
     } catch (err) {
       setSelectedCard(prevSelectedCard);
       setBoardData(prevBoardData);
@@ -1541,10 +1615,48 @@ export default function BoardPage() {
   };
 
   const handleDeleteChecklistItem = async (itemId) => {
+    const prevSelectedCard = selectedCard;
+    const prevBoardData = boardData;
+
+    // Optimistically update selectedCard
+    setSelectedCard((prev) => {
+      if (!prev || !prev.checklists) return prev;
+      return {
+        ...prev,
+        checklists: prev.checklists.map((ch) => ({
+          ...ch,
+          items: (ch.items || []).filter((item) => Number(item.id) !== Number(itemId))
+        }))
+      };
+    });
+
+    // Optimistically update boardData
+    setBoardData((prev) => {
+      if (!prev || !prev.lists) return prev;
+      return {
+        ...prev,
+        lists: prev.lists.map((l) => ({
+          ...l,
+          cards: (l.cards || []).map((c) => {
+            if (!c.checklists) return c;
+            return {
+              ...c,
+              checklists: c.checklists.map((ch) => ({
+                ...ch,
+                items: (ch.items || []).filter((item) => Number(item.id) !== Number(itemId))
+              }))
+            };
+          })
+        }))
+      };
+    });
+
     try {
       await deleteChecklistItem(itemId);
-      loadActiveBoard(activeBoardIdRef.current);
+      loadActiveBoard(activeBoardIdRef.current, true);
     } catch (err) {
+      setSelectedCard(prevSelectedCard);
+      setBoardData(prevBoardData);
       toast.error(err?.message || 'Failed to delete checklist item');
     }
   };

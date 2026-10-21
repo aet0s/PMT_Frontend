@@ -11,15 +11,16 @@ export default function CardHeader({
   onArchiveCard,
   onCopyCard,
   onDeleteCard,
-  onClose
+  onClose,
+  canModify = true
 }) {
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
   const isCardCreator = Boolean(card?.created_by && user?.id && Number(card.created_by) === Number(user.id));
-  const canMoveCard = hasPermission('task.move');
-  const canEditCard = hasPermission('task.edit');
+  const canMoveCard = hasPermission('task.move') && canModify;
+  const canEditCard = hasPermission('task.edit') && canModify;
   const canCreateCard = hasPermission('task.create');
-  const canDeleteCard = hasPermission('task.delete') || (hasPermission('task.delete_own') && isCardCreator);
+  const canDeleteCard = (hasPermission('task.delete') || (hasPermission('task.delete_own') && isCardCreator)) && canModify;
 
   const currentList = boardLists.find((l) => l.id === card.list_id);
 

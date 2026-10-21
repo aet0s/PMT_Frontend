@@ -9,7 +9,8 @@ export default function QuickAddRow({
   onOpenAttachment,
   onOpenMembers,
   onOpenAssigners,
-  onOpenCheckin
+  onOpenCheckin,
+  canModify = true
 }) {
   const { hasPermission } = usePermissions();
   const labelsBtnRef = useRef(null);
@@ -19,9 +20,9 @@ export default function QuickAddRow({
   const membersBtnRef = useRef(null);
   const assignersBtnRef = useRef(null);
 
-  const canAssignMembers = hasPermission('task.assign');
-  const canEditCard = hasPermission('task.edit');
-  const canManageAttachments = hasPermission('attachment.upload');
+  const canAssignMembers = hasPermission('task.assign') && canModify;
+  const canEditCard = hasPermission('task.edit') && canModify;
+  const canManageAttachments = hasPermission('attachment.upload') && canModify;
 
   return (
     <div className="flex flex-wrap items-center gap-2 select-none">

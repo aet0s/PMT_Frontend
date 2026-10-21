@@ -8,11 +8,12 @@ export default function ChecklistSection({
   onDeleteChecklist,
   onAddChecklistItem,
   onUpdateChecklistItem,
-  onDeleteChecklistItem
+  onDeleteChecklistItem,
+  canModify = true
 }) {
   const { hasPermission } = usePermissions();
-  const canEditChecklist = hasPermission('checklist.edit');
-  const canDeleteChecklist = hasPermission('checklist.delete');
+  const canEditChecklist = hasPermission('checklist.edit') && canModify;
+  const canDeleteChecklist = hasPermission('checklist.delete') && canModify;
   const [newItemTexts, setNewItemTexts] = useState({});
 
   if (!checklists || checklists.length === 0) return null;

@@ -53,12 +53,12 @@ export default function NotificationBell({ onSelectNotificationCard, onOpenAllNo
 
   const topFiveNotifications = (notifications || []).slice(0, 5);
 
-  const handleNotificationClick = async (n) => {
-    if (!n.is_read) {
-      await markAsRead(n.id);
-    }
+  const handleNotificationClick = (n) => {
     setIsOpen(false);
-    if (onSelectNotificationCard && (n.card_id || n.board_id)) {
+    if (!n.is_read) {
+      markAsRead(n.id).catch((err) => console.error('Failed to mark read:', err));
+    }
+    if (onSelectNotificationCard) {
       onSelectNotificationCard({
         cardId: n.card_id,
         boardId: n.board_id,

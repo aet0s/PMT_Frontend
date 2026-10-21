@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-13T07:51:43.348Z",
-  "totalPermissions": 140,
+  "generatedAt": "2026-10-20T14:08:39.295Z",
+  "totalPermissions": 151,
   "permissions": [
     {
       "key": "company.view",
@@ -26,17 +26,7 @@
       "label": "Manage Security Policies",
       "description": "Configure 2FA requirements and authentication policies",
       "scope": "company",
-      "dangerous": true,
-      "planned": true
-    },
-    {
-      "key": "company.manage_billing",
-      "module": "company",
-      "label": "Manage Billing",
-      "description": "Access and modify subscriptions and billing",
-      "scope": "company",
-      "dangerous": true,
-      "planned": true
+      "dangerous": true
     },
     {
       "key": "company.delete",
@@ -158,6 +148,14 @@
       "dangerous": false
     },
     {
+      "key": "member.invite_guest",
+      "module": "member",
+      "label": "Invite Guest Members",
+      "description": "Invite external collaborators to specific boards",
+      "scope": "company",
+      "dangerous": false
+    },
+    {
       "key": "member.remove",
       "module": "member",
       "label": "Remove Members",
@@ -179,8 +177,7 @@
       "label": "Deactivate Members",
       "description": "Temporarily deactivate member accounts",
       "scope": "company",
-      "dangerous": true,
-      "planned": true
+      "dangerous": true
     },
     {
       "key": "member.reset_password",
@@ -231,10 +228,10 @@
       "dangerous": true
     },
     {
-      "key": "role.assign",
-      "module": "role",
-      "label": "Assign Roles to Users",
-      "description": "Assign roles to workspace members",
+      "key": "project.access_all",
+      "module": "project",
+      "label": "Access All Projects",
+      "description": "Permissions apply across all workspace boards without explicit board membership",
       "scope": "company",
       "dangerous": true
     },
@@ -287,6 +284,14 @@
       "dangerous": false
     },
     {
+      "key": "project.assign_role",
+      "module": "project",
+      "label": "Assign Project Roles",
+      "description": "Assign or modify board-level member roles",
+      "scope": "project",
+      "dangerous": true
+    },
+    {
       "key": "project.manage_templates",
       "module": "project",
       "label": "Manage Templates",
@@ -305,10 +310,19 @@
       "planned": true
     },
     {
-      "key": "project.view_dashboard",
+      "key": "project.duplicate",
       "module": "project",
-      "label": "View Project Dashboard",
-      "description": "View analytics and burndown metrics",
+      "label": "Duplicate Project",
+      "description": "Clone project board and structure",
+      "scope": "project",
+      "dangerous": false,
+      "planned": true
+    },
+    {
+      "key": "project.change_visibility",
+      "module": "project",
+      "label": "Change Project Visibility",
+      "description": "Toggle board public or private visibility",
       "scope": "project",
       "dangerous": false,
       "planned": true
@@ -414,6 +428,30 @@
       "dangerous": false
     },
     {
+      "key": "task.assign",
+      "module": "task",
+      "label": "Assign Tasks",
+      "description": "Assign or unassign members on cards",
+      "scope": "project",
+      "dangerous": false
+    },
+    {
+      "key": "task.assign_self",
+      "module": "task",
+      "label": "Assign Self to Tasks",
+      "description": "Assign or unassign yourself on cards",
+      "scope": "project",
+      "dangerous": false
+    },
+    {
+      "key": "task.complete",
+      "module": "task",
+      "label": "Complete Tasks",
+      "description": "Mark tasks done or reopen completed tasks",
+      "scope": "project",
+      "dangerous": false
+    },
+    {
       "key": "task.delete",
       "module": "task",
       "label": "Delete Tasks",
@@ -422,12 +460,12 @@
       "dangerous": true
     },
     {
-      "key": "task.assign",
+      "key": "task.delete_own",
       "module": "task",
-      "label": "Assign Tasks",
-      "description": "Assign or unassign members on cards",
+      "label": "Delete Own Tasks",
+      "description": "Delete cards created by yourself",
       "scope": "project",
-      "dangerous": false
+      "dangerous": true
     },
     {
       "key": "task.watch",
@@ -463,24 +501,6 @@
       "description": "Batch delete multiple cards",
       "scope": "project",
       "dangerous": true,
-      "planned": true
-    },
-    {
-      "key": "task.import",
-      "module": "task",
-      "label": "Import Tasks",
-      "description": "Import tasks from CSV/Excel",
-      "scope": "project",
-      "dangerous": false,
-      "planned": true
-    },
-    {
-      "key": "task.export",
-      "module": "task",
-      "label": "Export Tasks",
-      "description": "Export tasks to CSV/Excel",
-      "scope": "project",
-      "dangerous": false,
       "planned": true
     },
     {
@@ -640,6 +660,30 @@
       "planned": true
     },
     {
+      "key": "checkin.create",
+      "module": "checkin",
+      "label": "Submit Daily Check-in",
+      "description": "Submit daily progress check-in on focused tasks",
+      "scope": "project",
+      "dangerous": false
+    },
+    {
+      "key": "checkin.view",
+      "module": "checkin",
+      "label": "View Check-ins",
+      "description": "View member check-ins and evidence on boards",
+      "scope": "project",
+      "dangerous": false
+    },
+    {
+      "key": "checkin.review",
+      "module": "checkin",
+      "label": "Review Check-ins",
+      "description": "Acknowledge, question, or request evidence on member check-ins",
+      "scope": "project",
+      "dangerous": false
+    },
+    {
       "key": "file.view",
       "module": "file",
       "label": "Download Files",
@@ -708,6 +752,14 @@
       "module": "label",
       "label": "Delete Labels",
       "description": "Delete board labels",
+      "scope": "project",
+      "dangerous": false
+    },
+    {
+      "key": "label.delete_own",
+      "module": "label",
+      "label": "Delete Own Labels",
+      "description": "Delete custom labels created by yourself",
       "scope": "project",
       "dangerous": false
     },
@@ -951,8 +1003,7 @@
       "label": "View Project Reports",
       "description": "View task velocity and project progress",
       "scope": "project",
-      "dangerous": false,
-      "planned": true
+      "dangerous": false
     },
     {
       "key": "report.view_team",
@@ -989,6 +1040,38 @@
       "scope": "company",
       "dangerous": false,
       "planned": true
+    },
+    {
+      "key": "daily_tracker.view",
+      "module": "daily_tracker",
+      "label": "View Daily Tracker",
+      "description": "View and track daily added cards across projects",
+      "scope": "company",
+      "dangerous": false
+    },
+    {
+      "key": "daily_tracker.view_people",
+      "module": "daily_tracker",
+      "label": "View People Tracker",
+      "description": "View member daily working states, evidence, and review actions",
+      "scope": "company",
+      "dangerous": false
+    },
+    {
+      "key": "leave.request",
+      "module": "leave",
+      "label": "Request Leave",
+      "description": "Request days off and view leave status",
+      "scope": "company",
+      "dangerous": false
+    },
+    {
+      "key": "leave.approve",
+      "module": "leave",
+      "label": "Approve Leave",
+      "description": "Approve or reject leave requests for team members",
+      "scope": "company",
+      "dangerous": false
     },
     {
       "key": "dashboard.view_project",
@@ -1045,7 +1128,7 @@
       "module": "activity",
       "label": "View Activity Feed",
       "description": "View card and board event stream",
-      "scope": "project",
+      "scope": "company",
       "dangerous": false
     },
     {
@@ -1160,7 +1243,7 @@
       "module": "archive",
       "label": "Restore from Archive",
       "description": "Restore archived resources to active state",
-      "scope": "company",
+      "scope": "project",
       "dangerous": false
     },
     {
@@ -1198,28 +1281,7 @@
       "planned": true
     }
   ],
-  "aliases": {
-    "workspace.edit_settings": "workspace.edit",
-    "workspace.view_billing": "billing.view",
-    "workspace.manage_roles": "role.create",
-    "board.view": "project.view",
-    "board.create": "project.create",
-    "board.edit_settings": "project.edit_settings",
-    "board.delete": "project.delete",
-    "board.archive": "project.archive",
-    "board.manage_members": "project.manage_members",
-    "card.view": "task.view",
-    "card.create": "task.create",
-    "card.edit": "task.edit",
-    "card.delete": "task.delete",
-    "card.move": "task.move",
-    "card.comment": "comment.create",
-    "card.manage_attachments": "attachment.upload",
-    "card.assign_members": "task.assign",
-    "member.view_all": "member.view",
-    "workspace.invite_members": "member.invite",
-    "workspace.manage_members": "member.assign_role"
-  },
+  "aliases": {},
   "prerequisites": {
     "task.create": [
       "task.view",
@@ -1237,7 +1299,19 @@
       "task.view",
       "project.view"
     ],
+    "task.delete_own": [
+      "task.view",
+      "project.view"
+    ],
     "task.assign": [
+      "task.view",
+      "project.view"
+    ],
+    "task.assign_self": [
+      "task.view",
+      "project.view"
+    ],
+    "task.complete": [
       "task.view",
       "project.view"
     ],
@@ -1256,6 +1330,31 @@
     ],
     "task.view": [
       "project.view"
+    ],
+    "checkin.create": [
+      "task.view",
+      "project.view"
+    ],
+    "checkin.view": [
+      "task.view",
+      "project.view"
+    ],
+    "checkin.review": [
+      "checkin.view",
+      "task.view",
+      "project.view"
+    ],
+    "daily_tracker.view": [
+      "workspace.view"
+    ],
+    "daily_tracker.view_people": [
+      "daily_tracker.view"
+    ],
+    "leave.request": [
+      "workspace.view"
+    ],
+    "leave.approve": [
+      "leave.request"
     ],
     "checklist.create": [
       "task.view",
@@ -1346,6 +1445,10 @@
       "label.view",
       "project.view"
     ],
+    "label.delete_own": [
+      "label.view",
+      "project.view"
+    ],
     "activity.view": [
       "project.view"
     ],
@@ -1375,6 +1478,11 @@
       "member.view",
       "workspace.view"
     ],
+    "member.invite_guest": [
+      "member.view",
+      "workspace.view",
+      "project.manage_members"
+    ],
     "member.remove": [
       "member.view",
       "workspace.view"
@@ -1391,6 +1499,9 @@
       "member.view",
       "workspace.view"
     ],
+    "project.access_all": [
+      "project.view"
+    ],
     "project.edit_settings": [
       "project.view"
     ],
@@ -1401,6 +1512,12 @@
       "project.view"
     ],
     "project.manage_members": [
+      "project.view"
+    ],
+    "project.assign_role": [
+      "project.view"
+    ],
+    "report.view_project": [
       "project.view"
     ],
     "workspace.edit": [
@@ -1421,11 +1538,13 @@
     ],
     "archive.restore": [
       "archive.view",
-      "workspace.view"
+      "workspace.view",
+      "project.view"
     ],
     "archive.permanent_delete": [
       "archive.view",
-      "workspace.view"
+      "workspace.view",
+      "project.view"
     ]
   },
   "systemRoles": {
@@ -1442,7 +1561,6 @@
         "company.view",
         "company.edit_settings",
         "company.manage_security",
-        "company.manage_billing",
         "company.delete",
         "company.export_data",
         "workspace.view",
@@ -1457,6 +1575,7 @@
         "team.manage_members",
         "member.view",
         "member.invite",
+        "member.invite_guest",
         "member.remove",
         "member.assign_role",
         "member.deactivate",
@@ -1466,16 +1585,18 @@
         "role.create",
         "role.edit",
         "role.delete",
-        "role.assign",
+        "project.access_all",
         "project.view",
         "project.create",
         "project.edit_settings",
         "project.delete",
         "project.archive",
         "project.manage_members",
+        "project.assign_role",
         "project.manage_templates",
         "project.change_status",
-        "project.view_dashboard",
+        "project.duplicate",
+        "project.change_visibility",
         "view.view",
         "view.create",
         "view.edit",
@@ -1488,14 +1609,15 @@
         "task.create",
         "task.edit",
         "task.move",
-        "task.delete",
         "task.assign",
+        "task.assign_self",
+        "task.complete",
+        "task.delete",
+        "task.delete_own",
         "task.watch",
         "task.set_priority",
         "task.bulk_edit",
         "task.bulk_delete",
-        "task.import",
-        "task.export",
         "task.duplicate",
         "task.archive",
         "task.restore",
@@ -1515,6 +1637,9 @@
         "attachment.delete_own",
         "attachment.delete_any",
         "attachment.version",
+        "checkin.create",
+        "checkin.view",
+        "checkin.review",
         "file.view",
         "file.delete",
         "session.view_own",
@@ -1524,6 +1649,7 @@
         "label.create",
         "label.edit",
         "label.delete",
+        "label.delete_own",
         "custom_field.view",
         "custom_field.create",
         "custom_field.edit",
@@ -1555,6 +1681,10 @@
         "report.view_all",
         "report.export",
         "report.create_custom",
+        "daily_tracker.view",
+        "daily_tracker.view_people",
+        "leave.request",
+        "leave.approve",
         "dashboard.view_project",
         "dashboard.view_executive",
         "notification.view_own",
@@ -1592,11 +1722,9 @@
         "company.view",
         "company.edit_settings",
         "company.manage_security",
-        "company.export_data",
         "workspace.view",
         "workspace.create",
         "workspace.edit",
-        "workspace.delete",
         "workspace.archive",
         "team.view",
         "team.create",
@@ -1605,6 +1733,7 @@
         "team.manage_members",
         "member.view",
         "member.invite",
+        "member.invite_guest",
         "member.remove",
         "member.assign_role",
         "member.deactivate",
@@ -1614,16 +1743,18 @@
         "role.create",
         "role.edit",
         "role.delete",
-        "role.assign",
+        "project.access_all",
         "project.view",
         "project.create",
         "project.edit_settings",
         "project.delete",
         "project.archive",
         "project.manage_members",
+        "project.assign_role",
         "project.manage_templates",
         "project.change_status",
-        "project.view_dashboard",
+        "project.duplicate",
+        "project.change_visibility",
         "view.view",
         "view.create",
         "view.edit",
@@ -1636,14 +1767,15 @@
         "task.create",
         "task.edit",
         "task.move",
-        "task.delete",
         "task.assign",
+        "task.assign_self",
+        "task.complete",
+        "task.delete",
+        "task.delete_own",
         "task.watch",
         "task.set_priority",
         "task.bulk_edit",
         "task.bulk_delete",
-        "task.import",
-        "task.export",
         "task.duplicate",
         "task.archive",
         "task.restore",
@@ -1663,6 +1795,9 @@
         "attachment.delete_own",
         "attachment.delete_any",
         "attachment.version",
+        "checkin.create",
+        "checkin.view",
+        "checkin.review",
         "file.view",
         "file.delete",
         "session.view_own",
@@ -1672,6 +1807,7 @@
         "label.create",
         "label.edit",
         "label.delete",
+        "label.delete_own",
         "custom_field.view",
         "custom_field.create",
         "custom_field.edit",
@@ -1703,6 +1839,10 @@
         "report.view_all",
         "report.export",
         "report.create_custom",
+        "daily_tracker.view",
+        "daily_tracker.view_people",
+        "leave.request",
+        "leave.approve",
         "dashboard.view_project",
         "dashboard.view_executive",
         "notification.view_own",
@@ -1738,22 +1878,22 @@
       "is_editable": 1,
       "description": "Manages projects, tasks, workflows, and team members. Cannot manage company settings or security.",
       "permissions": [
-        "team.view",
+        "workspace.view",
+        "company.view",
         "member.view",
-        "member.invite",
+        "member.invite_guest",
+        "role.view",
+        "team.view",
         "project.view",
         "project.create",
         "project.edit_settings",
-        "project.delete",
         "project.archive",
         "project.manage_members",
+        "project.assign_role",
         "project.manage_templates",
         "project.change_status",
-        "project.view_dashboard",
-        "view.view",
-        "view.create",
-        "view.edit",
-        "view.delete",
+        "project.duplicate",
+        "project.change_visibility",
         "list.create",
         "list.edit",
         "list.reorder",
@@ -1762,14 +1902,15 @@
         "task.create",
         "task.edit",
         "task.move",
-        "task.delete",
         "task.assign",
+        "task.assign_self",
+        "task.complete",
+        "task.delete",
+        "task.delete_own",
         "task.watch",
         "task.set_priority",
         "task.bulk_edit",
         "task.bulk_delete",
-        "task.import",
-        "task.export",
         "task.duplicate",
         "task.archive",
         "task.restore",
@@ -1790,14 +1931,16 @@
         "attachment.delete_any",
         "attachment.version",
         "file.view",
-        "file.delete",
-        "session.view_own",
-        "session.revoke_own",
-        "session.revoke_others",
+        "checkin.create",
+        "checkin.view",
+        "checkin.review",
+        "leave.request",
+        "leave.approve",
         "label.view",
         "label.create",
         "label.edit",
         "label.delete",
+        "label.delete_own",
         "custom_field.view",
         "custom_field.create",
         "custom_field.edit",
@@ -1822,27 +1965,121 @@
         "time.log",
         "time.edit_own",
         "time.view_all",
-        "time.edit_all",
         "time.approve_timesheet",
         "report.view_project",
         "report.view_team",
-        "report.view_all",
         "report.export",
-        "report.create_custom",
         "dashboard.view_project",
-        "dashboard.view_executive",
-        "notification.view_own",
-        "notification.manage_own",
-        "activity.view",
-        "webhook.view",
-        "webhook.create",
-        "webhook.edit",
-        "webhook.delete",
+        "view.view",
+        "view.create",
+        "view.edit",
+        "view.delete",
         "import_export.import",
         "import_export.export",
         "archive.view",
         "archive.restore",
-        "archive.permanent_delete",
+        "activity.view",
+        "daily_tracker.view",
+        "daily_tracker.view_people",
+        "notification.view_own",
+        "notification.manage_own",
+        "session.view_own",
+        "session.revoke_own",
+        "search.use"
+      ]
+    },
+    "Team Lead": {
+      "name": "Team Lead",
+      "aliases": [
+        "Lead"
+      ],
+      "rank": 50,
+      "is_system": 1,
+      "is_editable": 1,
+      "description": "Leads project execution and list management, reviews team progress and assigns tasks.",
+      "permissions": [
+        "workspace.view",
+        "company.view",
+        "member.view",
+        "team.view",
+        "project.view",
+        "list.create",
+        "list.edit",
+        "list.reorder",
+        "task.view",
+        "task.create",
+        "task.edit",
+        "task.move",
+        "task.assign",
+        "task.assign_self",
+        "task.complete",
+        "task.delete_own",
+        "task.watch",
+        "task.set_priority",
+        "task.bulk_edit",
+        "task.duplicate",
+        "task.archive",
+        "task.restore",
+        "subtask.create",
+        "subtask.edit",
+        "subtask.delete",
+        "checklist.create",
+        "checklist.edit",
+        "checklist.delete",
+        "comment.view",
+        "comment.create",
+        "comment.edit_own",
+        "comment.delete_own",
+        "comment.delete_any",
+        "attachment.view",
+        "attachment.upload",
+        "attachment.delete_own",
+        "attachment.delete_any",
+        "file.view",
+        "checkin.create",
+        "checkin.view",
+        "checkin.review",
+        "leave.request",
+        "leave.approve",
+        "label.view",
+        "label.create",
+        "label.edit",
+        "label.delete_own",
+        "custom_field.view",
+        "custom_field.create",
+        "custom_field.edit",
+        "milestone.view",
+        "milestone.create",
+        "milestone.edit",
+        "sprint.view",
+        "sprint.create",
+        "sprint.edit",
+        "sprint.start",
+        "sprint.complete",
+        "backlog.view",
+        "backlog.reorder",
+        "epic.view",
+        "epic.create",
+        "epic.edit",
+        "time.view_own",
+        "time.log",
+        "time.edit_own",
+        "time.view_all",
+        "report.view_project",
+        "report.view_team",
+        "dashboard.view_project",
+        "view.view",
+        "view.create",
+        "view.edit",
+        "view.delete",
+        "import_export.export",
+        "archive.view",
+        "archive.restore",
+        "activity.view",
+        "notification.view_own",
+        "notification.manage_own",
+        "session.view_own",
+        "session.revoke_own",
         "search.use"
       ]
     },
@@ -1856,19 +2093,29 @@
       "is_editable": 1,
       "description": "Collaborates on assigned projects, creates and moves tasks, and logs time.",
       "permissions": [
+        "workspace.view",
+        "company.view",
+        "member.view",
+        "team.view",
         "project.view",
-        "view.view",
-        "list.create",
         "task.view",
         "task.create",
         "task.edit",
         "task.move",
-        "task.assign",
+        "task.assign_self",
+        "task.complete",
+        "task.delete_own",
         "task.watch",
+        "task.set_priority",
+        "task.duplicate",
+        "task.archive",
+        "task.restore",
         "subtask.create",
         "subtask.edit",
+        "subtask.delete",
         "checklist.create",
         "checklist.edit",
+        "checklist.delete",
         "comment.view",
         "comment.create",
         "comment.edit_own",
@@ -1877,10 +2124,11 @@
         "attachment.upload",
         "attachment.delete_own",
         "file.view",
-        "session.view_own",
-        "session.revoke_own",
+        "checkin.create",
+        "leave.request",
         "label.view",
         "label.create",
+        "label.delete_own",
         "custom_field.view",
         "milestone.view",
         "sprint.view",
@@ -1891,9 +2139,17 @@
         "time.edit_own",
         "report.view_project",
         "dashboard.view_project",
+        "view.view",
+        "view.create",
+        "view.edit",
+        "view.delete",
+        "archive.view",
+        "archive.restore",
+        "activity.view",
         "notification.view_own",
         "notification.manage_own",
-        "activity.view",
+        "session.view_own",
+        "session.revoke_own",
         "search.use"
       ]
     },
@@ -1905,35 +2161,75 @@
       "is_editable": 1,
       "description": "Read-only access to projects and tasks. Cannot modify or create resources.",
       "permissions": [
-        "company.view",
         "workspace.view",
-        "team.view",
+        "company.view",
         "member.view",
-        "role.view",
+        "team.view",
         "project.view",
-        "view.view",
         "task.view",
+        "task.watch",
         "comment.view",
         "attachment.view",
         "file.view",
-        "session.view_own",
-        "session.revoke_own",
         "label.view",
         "custom_field.view",
         "milestone.view",
         "sprint.view",
         "backlog.view",
         "epic.view",
+        "report.view_project",
+        "dashboard.view_project",
+        "view.view",
+        "activity.view",
         "notification.view_own",
         "notification.manage_own",
+        "session.view_own",
+        "session.revoke_own",
+        "search.use"
+      ]
+    },
+    "Auditor": {
+      "name": "Auditor",
+      "aliases": [],
+      "rank": 15,
+      "is_system": 1,
+      "is_editable": 1,
+      "description": "Read-only compliance and auditing role across all workspace projects and reports.",
+      "permissions": [
+        "workspace.view",
+        "company.view",
+        "member.view",
+        "role.view",
+        "team.view",
+        "project.access_all",
+        "project.view",
+        "task.view",
+        "view.view",
+        "comment.view",
+        "attachment.view",
+        "file.view",
+        "label.view",
+        "custom_field.view",
+        "milestone.view",
+        "sprint.view",
+        "backlog.view",
+        "epic.view",
         "audit.view",
-        "activity.view",
-        "api_key.view",
-        "webhook.view",
-        "integration.view",
+        "audit.export",
         "archive.view",
-        "search.use",
-        "billing.view"
+        "activity.view",
+        "report.view_project",
+        "report.view_team",
+        "report.view_all",
+        "report.export",
+        "dashboard.view_project",
+        "dashboard.view_executive",
+        "time.view_all",
+        "notification.view_own",
+        "notification.manage_own",
+        "session.view_own",
+        "session.revoke_own",
+        "search.use"
       ]
     },
     "Guest": {
@@ -1947,10 +2243,15 @@
         "project.view",
         "view.view",
         "task.view",
+        "task.watch",
         "comment.view",
         "comment.create",
+        "comment.edit_own",
+        "comment.delete_own",
         "attachment.view",
         "file.view",
+        "label.view",
+        "member.view",
         "notification.view_own",
         "notification.manage_own",
         "session.view_own",

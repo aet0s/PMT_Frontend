@@ -16,9 +16,11 @@ import DatePicker from '../shared/DatePicker';
 import LabelPill from '../shared/LabelPill';
 import Avatar from '../shared/Avatar';
 import { formatShortDate } from '../../lib/dateFormat';
-import { CalendarRange, Calendar } from 'lucide-react';
+import { CalendarRange, Calendar, ShieldAlert } from 'lucide-react';
 import QuickCheckinModal from '../DailyTracker/QuickCheckinModal';
 import { useToast } from '../ui/Toast';
+import { useAuth } from '../../hooks/useAuth';
+import { usePermissions } from '../../context/PermissionContext';
 
 export default function CardDetailModal({
   isOpen,
@@ -52,12 +54,21 @@ export default function CardDetailModal({
   onCopyCard
 }) {
   const toast = useToast();
+  const { user } = useAuth();
+  const { userRole } = usePermissions();
   const [activePopover, setActivePopover] = useState(null);
   const [activeAnchorRef, setActiveAnchorRef] = useState(null);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
 
   if (!card) return null;
+
+  const userRank = Number(userRole?.rank || 30);
+  const roleName = String(userRole?.name || '').toLowerCase();
+  const isTopLevel = userRank >= 50 || ['owner', 'admin', 'project manager', 'team lead'].includes(roleName);
+  const isCreator = user && card.created_by && Number(card.created_by) === Number(user.id);
+  const isAssignee = user && (card.members || []).some((m) => Number(m.id) === Number(user.id));
+  const canModifyCard = isTopLevel || isCreator || isAssignee;
 
   const handleOpenDates = (anchorRef) => {
     setActiveAnchorRef(anchorRef);
@@ -115,8 +126,16 @@ export default function CardDetailModal({
               onClose();
             }}
             onClose={onClose}
+            canModify={canModifyCard}
           />
         </div>
+
+        {!canModifyCard && (
+          <div className="mx-4 sm:mx-6 mt-3 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-500" />
+            <span>Members can only edit cards they created or are assigned to. You have view and comment access to this card.</span>
+          </div>
+        )}
 
         {/* Dual Panels on Desktop (lg:) / Single Scrolling Column on Mobile */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
@@ -159,6 +178,7 @@ export default function CardDetailModal({
             {/* Card Title & Complete Checkbox */}
             <CardTitle
               card={card}
+              canModify={canModifyCard}
               onUpdateTitle={(title) => onUpdateCard(card.id, { title })}
               onToggleComplete={(is_complete) => onUpdateCard(card.id, { is_complete })}
             />
@@ -172,6 +192,7 @@ export default function CardDetailModal({
               onOpenMembers={handleOpenMembers}
               onOpenAssigners={handleOpenAssigners}
               onOpenCheckin={() => setIsCheckinModalOpen(true)}
+              canModify={canModifyCard}
             />
 
             {/* Rendered Selected Labels, Assigners & Assignees */}
@@ -224,6 +245,7 @@ export default function CardDetailModal({
               cardTitle={card.title}
               initialValue={card.description}
               onSave={(description) => onUpdateCard(card.id, { description })}
+              canModify={canModifyCard}
             />
 
             {/* Attachments Section */}
@@ -239,6 +261,7 @@ export default function CardDetailModal({
               onAddChecklistItem={onAddChecklistItem}
               onUpdateChecklistItem={onUpdateChecklistItem}
               onDeleteChecklistItem={onDeleteChecklistItem}
+              canModify={canModifyCard}
             />
           </div>
 
