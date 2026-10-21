@@ -57,7 +57,7 @@ export default function DatePicker({
   const [dueDateStr, setDueDateStr] = useState(
     initialDue
       ? `${String(initialDue.getDate()).padStart(2, '0')}/${String(initialDue.getMonth() + 1).padStart(2, '0')}/${initialDue.getFullYear()}`
-      : `${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`
+      : ''
   );
   const [dueTime, setDueTime] = useState(
     initialDue

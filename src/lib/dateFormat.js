@@ -18,12 +18,11 @@ export function parseSafeDate(date) {
       const [y, m, d] = s.split('-').map(Number);
       return new Date(y, m - 1, d);
     }
-    // YYYY-MM-DD HH:mm or YYYY-MM-DD HH:mm:ss (or T separated) without Z or offset
-    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(s)) {
-      const [datePart, timePart] = s.replace(' ', 'T').split('T');
-      const [y, m, d] = datePart.split('-').map(Number);
-      const [h = 0, min = 0, sec = 0] = timePart.split(':').map(Number);
-      return new Date(y, m - 1, d, h, min, sec);
+    // YYYY-MM-DD HH:mm(:ss)? (or T-separated, optional .milliseconds, optional Z)
+    const match = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?Z?$/);
+    if (match) {
+      const [, y, m, d, h, min, sec] = match;
+      return new Date(Number(y), Number(m) - 1, Number(d), Number(h), Number(min), Number(sec || 0));
     }
     const d = new Date(s);
     return isValid(d) ? d : null;
