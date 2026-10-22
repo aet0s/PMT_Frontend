@@ -14,6 +14,7 @@ import {
   addYears,
   subYears,
   addDays,
+  differenceInCalendarDays,
   isWithinInterval,
   isBefore,
   format
@@ -111,17 +112,44 @@ export default function DatePicker({
 
   const handleSelectDay = (day) => {
     setDateError('');
-    if (activeTarget === 'due' && isBefore(day, todayStart)) {
-      setDateError('Due date cannot be in the past');
-      return;
-    }
-    const formatted = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}/${day.getFullYear()}`;
+
     if (activeTarget === 'start') {
+      const prevParsedStart = enableStartDate && startDateStr ? parseDDMMYYYY(startDateStr) : null;
+      const prevParsedDue = enableDueDate && dueDateStr ? parseDDMMYYYY(dueDateStr) : null;
+
+      const formattedStart = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}/${day.getFullYear()}`;
       setEnableStartDate(true);
-      setStartDateStr(formatted);
+      setStartDateStr(formattedStart);
+
+      // Requirement: Due date moves in lockstep according to start date
+      if (enableDueDate && prevParsedDue) {
+        let durationDays = 0;
+        if (prevParsedStart) {
+          durationDays = differenceInCalendarDays(prevParsedDue, prevParsedStart);
+          if (durationDays < 0) durationDays = 0;
+        } else if (isBefore(prevParsedDue, day)) {
+          durationDays = 0;
+        } else {
+          durationDays = differenceInCalendarDays(prevParsedDue, day);
+        }
+        const newDue = addDays(day, durationDays);
+        const formattedDue = `${String(newDue.getDate()).padStart(2, '0')}/${String(newDue.getMonth() + 1).padStart(2, '0')}/${newDue.getFullYear()}`;
+        setDueDateStr(formattedDue);
+      }
     } else {
+      // activeTarget === 'due'
+      // Requirement: If start date is selected back, due date can be chosen as that start date or after
+      const currentStart = enableStartDate && startDateStr ? parseDDMMYYYY(startDateStr) : null;
+      const minDue = currentStart ? currentStart : todayStart;
+
+      if (isBefore(day, minDue)) {
+        setDateError(currentStart ? 'Due date cannot be before start date' : 'Due date cannot be in the past');
+        return;
+      }
+
+      const formattedDue = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}/${day.getFullYear()}`;
       setEnableDueDate(true);
-      setDueDateStr(formatted);
+      setDueDateStr(formattedDue);
     }
   };
 
@@ -142,9 +170,32 @@ export default function DatePicker({
     setCurrentMonth(targetDate);
 
     if (activeTarget === 'start') {
+      const prevParsedStart = enableStartDate && startDateStr ? parseDDMMYYYY(startDateStr) : null;
+      const prevParsedDue = enableDueDate && dueDateStr ? parseDDMMYYYY(dueDateStr) : null;
+
       setEnableStartDate(true);
       setStartDateStr(formatted);
+
+      if (enableDueDate && prevParsedDue) {
+        let durationDays = 0;
+        if (prevParsedStart) {
+          durationDays = differenceInCalendarDays(prevParsedDue, prevParsedStart);
+          if (durationDays < 0) durationDays = 0;
+        } else if (isBefore(prevParsedDue, targetDate)) {
+          durationDays = 0;
+        } else {
+          durationDays = differenceInCalendarDays(prevParsedDue, targetDate);
+        }
+        const newDue = addDays(targetDate, durationDays);
+        const formattedDue = `${String(newDue.getDate()).padStart(2, '0')}/${String(newDue.getMonth() + 1).padStart(2, '0')}/${newDue.getFullYear()}`;
+        setDueDateStr(formattedDue);
+      }
     } else {
+      const currentStart = enableStartDate && startDateStr ? parseDDMMYYYY(startDateStr) : null;
+      if (currentStart && isBefore(targetDate, currentStart)) {
+        setDateError('Due date cannot be before start date');
+        return;
+      }
       setEnableDueDate(true);
       setDueDateStr(formatted);
     }
@@ -163,7 +214,7 @@ export default function DatePicker({
       resolvedStart = format(parsed, "yyyy-MM-dd'T'HH:mm:ss");
     }
 
-    if (enableDueDate) {
+    if (enableDueDate && dueDateStr.trim()) {
       const parsed = parseDDMMYYYY(dueDateStr);
       if (!parsed) {
         setDateError('Invalid due date (use DD/MM/YYYY)');
@@ -171,10 +222,21 @@ export default function DatePicker({
       }
       const [hours, minutes] = dueTime.split(':').map((n) => parseInt(n, 10));
       parsed.setHours(hours || 0, minutes || 0, 0, 0);
-      if (isBefore(parsed, todayStart)) {
-        setDateError('Due date cannot be in the past');
-        return;
+
+      const parsedStartObj = resolvedStart ? parseSafeDate(resolvedStart) : null;
+      if (parsedStartObj) {
+        parsedStartObj.setHours(0, 0, 0, 0);
+        if (isBefore(parsed, parsedStartObj)) {
+          setDateError('Due date cannot be before start date');
+          return;
+        }
+      } else {
+        if (isBefore(parsed, todayStart)) {
+          setDateError('Due date cannot be in the past');
+          return;
+        }
       }
+
       resolvedDue = format(parsed, "yyyy-MM-dd'T'HH:mm:ss");
     }
 
@@ -364,8 +426,8 @@ export default function DatePicker({
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const { isStart, isDue, inRange } = getDayState(day);
               const todayFlag = isToday(day);
-              const isPast = isBefore(day, todayStart);
-              const isDueDisabled = activeTarget === 'due' && isPast;
+              const minDue = parsedStart ? parsedStart : todayStart;
+              const isDueDisabled = activeTarget === 'due' && isBefore(day, minDue);
 
               return (
                 <div
@@ -378,7 +440,11 @@ export default function DatePicker({
                     type="button"
                     disabled={isDueDisabled}
                     onClick={() => handleSelectDay(day)}
-                    title={isDueDisabled ? 'Due date cannot be in the past' : undefined}
+                    title={
+                      isDueDisabled
+                        ? (parsedStart ? 'Due date cannot be before start date' : 'Due date cannot be in the past')
+                        : undefined
+                    }
                     className={`w-7 h-7 rounded-lg text-xs font-medium flex items-center justify-center transition-all relative z-10 ${
                       isDueDisabled
                         ? 'opacity-25 cursor-not-allowed line-through text-text-muted/40 pointer-events-none'
@@ -419,9 +485,25 @@ export default function DatePicker({
                 setActiveTarget('start');
                 if (!startDateStr) {
                   const today = getServerNow();
-                  setStartDateStr(
-                    `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`
-                  );
+                  const formatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+                  setStartDateStr(formatted);
+                  if (enableDueDate && dueDateStr) {
+                    const parsedD = parseDDMMYYYY(dueDateStr);
+                    if (parsedD && isBefore(parsedD, todayStart)) {
+                      setDueDateStr(formatted);
+                    }
+                  }
+                }
+              } else {
+                // If start date is disabled, past due date without start date is not permitted: reset to today
+                if (enableDueDate && dueDateStr) {
+                  const parsedD = parseDDMMYYYY(dueDateStr);
+                  if (parsedD && isBefore(parsedD, todayStart)) {
+                    const today = getServerNow();
+                    setDueDateStr(
+                      `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`
+                    );
+                  }
                 }
               }
             }}
@@ -435,8 +517,28 @@ export default function DatePicker({
               value={startDateStr}
               onFocus={() => setActiveTarget('start')}
               onChange={(e) => {
-                setStartDateStr(e.target.value);
+                const val = e.target.value;
+                setStartDateStr(val);
                 setDateError('');
+                const newStart = parseDDMMYYYY(val);
+                if (newStart && enableDueDate && dueDateStr) {
+                  const oldDue = parseDDMMYYYY(dueDateStr);
+                  if (oldDue) {
+                    let durationDays = 0;
+                    if (parsedStart) {
+                      durationDays = differenceInCalendarDays(oldDue, parsedStart);
+                      if (durationDays < 0) durationDays = 0;
+                    } else if (isBefore(oldDue, newStart)) {
+                      durationDays = 0;
+                    } else {
+                      durationDays = differenceInCalendarDays(oldDue, newStart);
+                    }
+                    const newDue = addDays(newStart, durationDays);
+                    setDueDateStr(
+                      `${String(newDue.getDate()).padStart(2, '0')}/${String(newDue.getMonth() + 1).padStart(2, '0')}/${newDue.getFullYear()}`
+                    );
+                  }
+                }
               }}
               className={`w-full px-2.5 py-1.5 bg-surface border rounded-lg text-text-primary font-mono text-xs focus:outline-none transition-colors ${
                 activeTarget === 'start'
