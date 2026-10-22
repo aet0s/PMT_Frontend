@@ -834,6 +834,13 @@ export default function BoardPage() {
           };
         }
 
+        case 'board:members_updated': {
+          if (activeBoardIdRef.current) {
+            loadActiveBoard(activeBoardIdRef.current, true);
+          }
+          return prevBoard;
+        }
+
         default:
           return prevBoard;
       }
@@ -982,6 +989,9 @@ export default function BoardPage() {
       if (restored) {
         setActiveWorkspace(restored);
         setTenantItem(user?.tenant_id, 'last_workspace_id', restored.id);
+        if (subPath === 'archive') {
+          navigate(`/w/${restored.id}/archive`, { replace: true });
+        }
       }
       toast.success('Workspace restored');
     } catch (err) {

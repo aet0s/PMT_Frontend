@@ -185,7 +185,7 @@ export async function getWorkspaceDailyTracker(workspaceId, {
   const params = new URLSearchParams();
   if (date) params.set('date', date);
   if (mode) params.set('mode', mode);
-  if (filterWsId) params.set('workspace_id', String(filterWsId));
+  if (filterWsId !== undefined && filterWsId !== null) params.set('workspace_id', String(filterWsId));
   if (labelId && labelId !== 'all') params.set('label_id', String(labelId));
   if (boardId && boardId !== 'all') params.set('board_id', String(boardId));
   if (search) params.set('search', search);

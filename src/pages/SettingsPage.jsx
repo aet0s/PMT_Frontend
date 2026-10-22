@@ -46,13 +46,28 @@ export default function SettingsPage({
     return () => setDirty('settingsForm', false);
   }, [formDirty, setDirty]);
 
+  const isOwner =
+    (typeof userRole === 'string' ? userRole : userRole?.name)?.toLowerCase() === 'owner' ||
+    (typeof userRole === 'string' ? userRole : userRole?.name)?.toLowerCase() === 'super admin' ||
+    (activeWorkspace?.role_name || activeWorkspace?.role)?.toLowerCase() === 'owner' ||
+    (activeWorkspace?.role_name || activeWorkspace?.role)?.toLowerCase() === 'super admin';
+
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || activeWorkspace?.role_name || activeWorkspace?.role || '')?.toLowerCase();
+  const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
+
+  const canAccessSettings =
+    !isMemberOrBelow &&
+    (isOwner ||
+    hasPermission('workspace.edit') ||
+    hasPermission('workspace.edit_settings'));
+
   // Tab definitions with icons and permission requirements
   const allTabs = useMemo(
     () => [
-      { id: 'general', label: 'General', icon: <Briefcase className="w-4 h-4" />, perm: null },
-      { id: 'project', label: 'Workspace Defaults', icon: <SlidersHorizontal className="w-4 h-4" />, perm: null },
-      { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, perm: null },
-      { id: 'data', label: 'Data & Export', icon: <Database className="w-4 h-4" />, perm: null },
+      { id: 'general', label: 'General', icon: <Briefcase className="w-4 h-4" />, perms: ['workspace.edit', 'workspace.delete', 'workspace.archive'] },
+      { id: 'project', label: 'Workspace Defaults', icon: <SlidersHorizontal className="w-4 h-4" />, perm: 'workspace.edit' },
+      { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, perm: 'workspace.edit' },
+      { id: 'data', label: 'Data & Export', icon: <Database className="w-4 h-4" />, perms: ['import_export.export', 'import_export.import', 'workspace.edit'] },
       { id: 'security-log', label: 'Activity & Security Log', icon: <ShieldAlert className="w-4 h-4" />, perms: ['audit.view', 'company.manage_security'] }
     ],
     []
@@ -61,12 +76,13 @@ export default function SettingsPage({
   // Filter allowed tabs based on permissions
   const allowedTabs = useMemo(() => {
     if (permissionsLoading) return allTabs;
+    if (isOwner) return allTabs;
     return allTabs.filter((t) => {
       if (t.perms) return t.perms.some((p) => hasPermission(p));
       if (t.perm) return hasPermission(t.perm);
       return true;
     });
-  }, [allTabs, hasPermission, permissionsLoading]);
+  }, [allTabs, hasPermission, permissionsLoading, isOwner]);
 
   // Determine active tab: URL path > propTab > routeTab > stored tab > 'general'
   const pathMatch = location.pathname.match(/\/settings\/([^/?#]+)/);
@@ -79,8 +95,8 @@ export default function SettingsPage({
     if (routeTab && allTabs.some((t) => t.id === routeTab)) return routeTab;
     const stored = getTenantItem(tenantId, 'last_settings_tab', null);
     if (stored && allTabs.some((t) => t.id === stored)) return stored;
-    return 'general';
-  }, [pathTab, propTab, routeTab, allTabs, tenantId]);
+    return allowedTabs[0]?.id || 'general';
+  }, [pathTab, propTab, routeTab, allTabs, allowedTabs, tenantId]);
 
   // Persist current tab whenever it changes
   useEffect(() => {
@@ -102,12 +118,22 @@ export default function SettingsPage({
     }
   }, [effectiveWsId, pathTab, currentTabId, navigate]);
 
+  // Guard: if user does not have permission to access workspace settings at all
+  useEffect(() => {
+    if (permissionsLoading || !userRole) return;
+    if (!canAccessSettings && effectiveWsId) {
+      toast.show('You do not have permission to access workspace settings', 'error');
+      navigate(`/w/${effectiveWsId}/home`, { replace: true });
+    }
+  }, [canAccessSettings, permissionsLoading, userRole, effectiveWsId, navigate, toast]);
+
   // Redirect to first allowed tab if user lacks permission for requested tab
   // (Guard: only run when permissions and role have loaded to prevent premature refresh redirection)
   useEffect(() => {
-    if (permissionsLoading || !userRole) return;
+    if (permissionsLoading || !userRole || !canAccessSettings) return;
     const currentTabObj = allTabs.find((t) => t.id === currentTabId);
     const hasAccess =
+      isOwner ||
       !currentTabObj ||
       (!currentTabObj.perm && !currentTabObj.perms) ||
       (currentTabObj.perms ? currentTabObj.perms.some((p) => hasPermission(p)) : hasPermission(currentTabObj.perm));
@@ -116,13 +142,22 @@ export default function SettingsPage({
       toast.show('You do not have permission to view that settings tab', 'error');
       navigate(`/w/${effectiveWsId}/settings/${fallbackTab}`, { replace: true });
     }
-  }, [currentTabId, allTabs, allowedTabs, hasPermission, permissionsLoading, userRole, effectiveWsId, navigate, toast]);
+  }, [currentTabId, allTabs, allowedTabs, hasPermission, permissionsLoading, userRole, isOwner, canAccessSettings, effectiveWsId, navigate, toast]);
 
   const currentTab = allowedTabs.find((t) => t.id === currentTabId) || allowedTabs[0] || allTabs[0];
 
   useEffect(() => {
     document.title = `${currentTab.label} - Workspace Settings | TaskFlow`;
   }, [currentTab]);
+
+  if (!permissionsLoading && !canAccessSettings) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
+        <Spinner size="lg" />
+        <p className="text-xs font-semibold text-text-secondary">Redirecting to workspace home...</p>
+      </div>
+    );
+  }
 
   const handleTabChange = (newTabId) => {
     setTenantItem(tenantId, 'last_settings_tab', newTabId);

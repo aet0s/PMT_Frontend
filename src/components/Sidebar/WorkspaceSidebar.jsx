@@ -23,6 +23,7 @@ import {
   Bell,
   Home,
   Users,
+  User,
   Activity,
   BarChart3,
   Check,
@@ -165,18 +166,21 @@ export default function WorkspaceSidebar({
     (activeWorkspace?.role_name || activeWorkspace?.role)?.toLowerCase() === 'owner' ||
     (activeWorkspace?.role_name || activeWorkspace?.role)?.toLowerCase() === 'super admin';
 
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || activeWorkspace?.role_name || activeWorkspace?.role || '')?.toLowerCase();
+  const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
+
   const canCreateBoard = isOwner || hasPermission('project.create');
-  const canEditWs = isOwner || hasPermission('workspace.edit');
+  const canEditWs = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit'));
   const canCreateWs = isOwner || hasPermission('workspace.create') || hasPermission('workspace.edit');
   const canDeleteWs = isOwner || hasPermission('workspace.delete');
   const canViewRoadmap = isOwner || hasPermission('project.view') || hasPermission('task.view');
   const canViewSprint = isOwner || hasPermission('project.view') || hasPermission('task.view');
   const canViewIssues = isOwner || hasPermission('task.view');
   const canViewActivity = isOwner || hasPermission('activity.view');
-  const canViewMembers = isOwner || hasPermission('member.view');
-  const canViewReports = isOwner || hasPermission('report.view_project') || hasPermission('role.view');
+  const canViewMembers = !isMemberOrBelow && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
+  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_team') || hasPermission('report.view_all') || hasPermission('report.export') || hasPermission('role.view'));
   const canViewDailyTracker = isOwner || hasPermission('daily_tracker.view');
-  const canViewSettings = isOwner || hasPermission('workspace.edit') || hasPermission('role.view') || hasPermission('member.invite');
+  const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit') || hasPermission('workspace.edit_settings'));
 
   const openRenameDialog = () => {
     setWorkspaceRenameValue(activeWorkspace?.name || '');
@@ -832,8 +836,8 @@ export default function WorkspaceSidebar({
                 }`
               }
             >
-              <Settings className="w-4.5 h-4.5 shrink-0" />
-              <span>Settings</span>
+              <User className="w-4.5 h-4.5 shrink-0" />
+              <span>Account Settings</span>
             </NavLink>
           </div>
         </div>

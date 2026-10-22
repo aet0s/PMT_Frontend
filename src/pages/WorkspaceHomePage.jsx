@@ -34,6 +34,7 @@ import { Select } from '../components/ui/Select';
 import { getBoardBgClass, getBoardStyle } from '../lib/palettes';
 import { getTimeBasedGreeting, fetchServerGreeting, getCurrentServerDate } from '../lib/serverTime';
 import { getFileUrl } from '../api/config';
+import { usePermissions } from '../context/PermissionContext';
 
 function formatBoardDate(dateStr) {
   if (!dateStr) return 'Recently';
@@ -64,6 +65,24 @@ export default function WorkspaceHomePage({
   const navigate = useNavigate();
   const { workspaceId } = useParams();
   const currentWsId = workspace?.id || workspaceId;
+  const { hasPermission, userRole } = usePermissions();
+
+  const isOwner =
+    (typeof userRole === 'string' ? userRole : userRole?.name)?.toLowerCase() === 'owner' ||
+    (typeof userRole === 'string' ? userRole : userRole?.name)?.toLowerCase() === 'super admin' ||
+    (workspace?.role_name || workspace?.role)?.toLowerCase() === 'owner' ||
+    (workspace?.role_name || workspace?.role)?.toLowerCase() === 'super admin';
+
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
+  const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
+
+  const canCreateBoard = !isMemberOrBelow && (isOwner || hasPermission('project.create'));
+  const canViewMembers = !isMemberOrBelow && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
+  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_team') || hasPermission('report.view_all') || hasPermission('report.export') || hasPermission('role.view'));
+  const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit') || hasPermission('workspace.edit_settings'));
+  const canViewArchive = !isMemberOrBelow && (isOwner || hasPermission('archive.view'));
+
+  const visibleQuickActionCount = [canViewMembers, canViewReports, canViewSettings, canViewArchive].filter(Boolean).length;
 
   // Search, filter, sorting, view mode, and pinned board states
   const [searchQuery, setSearchQuery] = useState('');
@@ -267,7 +286,7 @@ export default function WorkspaceHomePage({
             </div>
 
             <div className="flex items-center gap-3 shrink-0 flex-wrap">
-              {onCreateBoard && (
+              {canCreateBoard && onCreateBoard && (
                 <Button
                   variant="primary"
                   size="md"
@@ -521,7 +540,7 @@ export default function WorkspaceHomePage({
                   Get started by creating your first project board. Organize tasks, manage deadlines, and build something great.
                 </p>
               </div>
-              {onCreateBoard && (
+              {canCreateBoard && onCreateBoard && (
                 <Button
                   variant="primary"
                   size="md"
@@ -931,98 +950,114 @@ export default function WorkspaceHomePage({
         {/* ======================================================== */}
         {/* MY WORK & WORKSPACE MANAGEMENT QUICK ACCESS              */}
         {/* ======================================================== */}
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-info-tint text-info-text flex items-center justify-center">
-              <Activity className="w-4 h-4" />
+        {visibleQuickActionCount > 0 && (
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-info-tint text-info-text flex items-center justify-center">
+                <Activity className="w-4 h-4" />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-text-primary">
+                Workspace Hub & Quick Actions
+              </h2>
             </div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-text-primary">
-              Workspace Hub & Quick Actions
-            </h2>
+
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${
+              visibleQuickActionCount >= 4
+                ? 'lg:grid-cols-4'
+                : visibleQuickActionCount === 3
+                ? 'lg:grid-cols-3'
+                : 'lg:grid-cols-2'
+            } gap-4`}>
+              {canViewMembers && (
+                <Link
+                  to={`/w/${currentWsId}/members`}
+                  className="p-5 bg-surface hover:bg-surface-muted border border-border hover:border-primary/40 rounded-2xl shadow-xs transition-all flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary-tint text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors">
+                      Team Members
+                    </p>
+                    <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
+                      Manage collaborators, assign workspace roles, and invite new members.
+                    </p>
+                  </div>
+                </Link>
+              )}
+
+              {canViewReports && (
+                <Link
+                  to={`/w/${currentWsId}/reports`}
+                  className="p-5 bg-surface hover:bg-surface-muted border border-border hover:border-primary/40 rounded-2xl shadow-xs transition-all flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-info-tint text-info-text flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <BarChart3 className="w-5 h-5" />
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors">
+                      Reports & Analytics
+                    </p>
+                    <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
+                      Track sprint velocity, completion rates, and team workload trends.
+                    </p>
+                  </div>
+                </Link>
+              )}
+
+              {canViewSettings && (
+                <Link
+                  to={`/w/${currentWsId}/settings/general`}
+                  className="p-5 bg-surface hover:bg-surface-muted border border-border hover:border-primary/40 rounded-2xl shadow-xs transition-all flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-surface-muted text-text-secondary border border-border flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Settings className="w-5 h-5" />
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors">
+                      Workspace Settings
+                    </p>
+                    <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
+                      Configure workspace preferences, security policies, and integrations.
+                    </p>
+                  </div>
+                </Link>
+              )}
+
+              {canViewArchive && (
+                <Link
+                  to={`/w/${currentWsId}/archive`}
+                  className="p-5 bg-surface hover:bg-surface-muted border border-border hover:border-primary/40 rounded-2xl shadow-xs transition-all flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-surface-muted text-text-secondary border border-border flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Archive className="w-5 h-5" />
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors">
+                      Archived Items
+                    </p>
+                    <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
+                      Restore previously archived projects, lists, and completed tasks.
+                    </p>
+                  </div>
+                </Link>
+              )}
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link
-              to={`/w/${currentWsId}/members`}
-              className="p-5 bg-surface hover:bg-surface-muted border border-border hover:border-primary/40 rounded-2xl shadow-xs transition-all flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-tint text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <Users className="w-5 h-5" />
-                </div>
-                <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors">
-                  Team Members
-                </p>
-                <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
-                  Manage collaborators, assign workspace roles, and invite new members.
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              to={`/w/${currentWsId}/reports`}
-              className="p-5 bg-surface hover:bg-surface-muted border border-border hover:border-primary/40 rounded-2xl shadow-xs transition-all flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-info-tint text-info-text flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <BarChart3 className="w-5 h-5" />
-                </div>
-                <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors">
-                  Reports & Analytics
-                </p>
-                <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
-                  Track sprint velocity, completion rates, and team workload trends.
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              to={`/w/${currentWsId}/settings/general`}
-              className="p-5 bg-surface hover:bg-surface-muted border border-border hover:border-primary/40 rounded-2xl shadow-xs transition-all flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-surface-muted text-text-secondary border border-border flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <Settings className="w-5 h-5" />
-                </div>
-                <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors">
-                  Workspace Settings
-                </p>
-                <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
-                  Configure workspace preferences, security policies, and integrations.
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              to={`/w/${currentWsId}/archive`}
-              className="p-5 bg-surface hover:bg-surface-muted border border-border hover:border-primary/40 rounded-2xl shadow-xs transition-all flex flex-col justify-between group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-surface-muted text-text-secondary border border-border flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <Archive className="w-5 h-5" />
-                </div>
-                <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-text-primary group-hover:text-primary transition-colors">
-                  Archived Items
-                </p>
-                <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
-                  Restore previously archived projects, lists, and completed tasks.
-                </p>
-              </div>
-            </Link>
-          </div>
-        </div>
+        )}
 
       </div>
     </div>

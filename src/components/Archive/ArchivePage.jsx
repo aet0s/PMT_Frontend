@@ -383,14 +383,14 @@ export default function ArchivePage({
 }) {
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
-  const canDeleteWorkspace = hasPermission('workspace.delete');
-  const canRestoreWorkspace = hasPermission('workspace.edit') || hasPermission('workspace.archive');
-  const canDeleteBoard = hasPermission('project.delete');
-  const canRestoreBoard = hasPermission('project.edit_settings') || hasPermission('project.archive');
-  const canDeleteAnyCard = hasPermission('task.delete');
+  const canDeleteWorkspace = hasPermission('workspace.delete') || ['owner', 'super admin'].includes(String(user?.role || '').toLowerCase()) || Boolean(user?.rank && user.rank >= 100);
+  const canRestoreWorkspace = hasPermission('workspace.edit') || hasPermission('workspace.archive') || hasPermission('workspace.restore') || hasPermission('archive.restore') || ['owner', 'super admin', 'admin'].includes(String(user?.role || '').toLowerCase()) || Boolean(user?.rank && user.rank >= 80);
+  const canDeleteBoard = hasPermission('project.delete') || hasPermission('archive.permanent_delete');
+  const canRestoreBoard = hasPermission('project.edit_settings') || hasPermission('project.archive') || hasPermission('archive.restore');
+  const canDeleteAnyCard = hasPermission('task.delete') || hasPermission('archive.permanent_delete');
   const canDeleteOwnCard = hasPermission('task.delete_own');
   const canDeleteCard = (c) => Boolean(canDeleteAnyCard || (canDeleteOwnCard && c?.created_by && user?.id && Number(c.created_by) === Number(user.id)));
-  const canRestoreCard = hasPermission('task.restore') || hasPermission('task.archive');
+  const canRestoreCard = hasPermission('task.restore') || hasPermission('task.archive') || hasPermission('archive.restore') || hasPermission('task.edit');
 
   // Top level active tab: 'cards' | 'boards' | 'workspaces'
   const [activeTab, setActiveTab] = useState('cards');
@@ -476,7 +476,7 @@ export default function ArchivePage({
           page,
           limit,
           workspace_id: selectedWorkspaceId,
-          board_id: selectedBoardId,
+          board_id: activeTab === 'cards' ? selectedBoardId : 'all',
           search: debouncedSearch,
           label_id: filterLabelId,
           assignee_id: filterAssigneeId,
@@ -493,7 +493,7 @@ export default function ArchivePage({
         page,
         limit,
         workspace_id: selectedWorkspaceId,
-        board_id: selectedBoardId,
+        board_id: activeTab === 'cards' ? selectedBoardId : 'all',
         search: debouncedSearch,
         label_id: filterLabelId,
         assignee_id: filterAssigneeId,
@@ -507,6 +507,7 @@ export default function ArchivePage({
     limit,
     selectedWorkspaceId,
     selectedBoardId,
+    activeTab,
     debouncedSearch,
     filterLabelId,
     filterAssigneeId,
@@ -1124,8 +1125,25 @@ export default function ArchivePage({
         {/* TAB 2: ARCHIVED PROJECTS / BOARDS */}
         {activeTab === 'boards' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-border/60">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/60">
               <h3 className="text-sm font-bold text-text-primary">Archived Projects ({archivedBoards.length})</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-text-muted">Workspace:</span>
+                <Select
+                  value={selectedWorkspaceId}
+                  onChange={(val) => {
+                    setSelectedWorkspaceId(val);
+                    setSelectedBoardId('all');
+                    setPage(1);
+                  }}
+                  options={[
+                    { value: 'all', label: 'All Workspaces' },
+                    ...availableWorkspaces.map((w) => ({ value: String(w.id), label: w.name }))
+                  ]}
+                  size="sm"
+                  className="w-48 text-xs font-semibold"
+                />
+              </div>
             </div>
 
             {archivedBoards.length === 0 ? (
@@ -1152,7 +1170,7 @@ export default function ArchivePage({
                     <div className="pt-3 border-t border-border/60 flex items-center justify-between">
                       <span className="text-[11px] text-text-muted font-mono">ID: {b.id}</span>
                       <div className="flex items-center gap-1.5">
-                        {canRestoreBoard && onRestoreBoard && (
+                        {(canRestoreBoard || ['owner', 'super admin', 'admin', 'project manager'].includes(String(b.role || '').toLowerCase())) && onRestoreBoard && (
                           <Button
                             type="button"
                             variant="secondary"
@@ -1164,7 +1182,7 @@ export default function ArchivePage({
                             Restore
                           </Button>
                         )}
-                        {canDeleteBoard && onDeleteBoard && (
+                        {(canDeleteBoard || ['owner', 'super admin', 'admin'].includes(String(b.role || '').toLowerCase())) && onDeleteBoard && (
                           <button
                             type="button"
                             onClick={() => setBoardToDelete(b)}
@@ -1223,7 +1241,7 @@ export default function ArchivePage({
                     <div className="pt-3 border-t border-border/60 flex items-center justify-between">
                       <span className="text-[11px] text-text-muted font-mono">ID: {ws.id}</span>
                       <div className="flex items-center gap-1.5">
-                        {canRestoreWorkspace && onRestoreWorkspace && (
+                        {(canRestoreWorkspace || ['owner', 'super admin', 'admin'].includes(String(ws.role || '').toLowerCase()) || ['owner', 'super admin', 'admin'].includes(String(user?.role || '').toLowerCase())) && onRestoreWorkspace && (
                           <Button
                             type="button"
                             variant="secondary"
@@ -1235,7 +1253,7 @@ export default function ArchivePage({
                             Restore
                           </Button>
                         )}
-                        {canDeleteWorkspace && onDeleteWorkspace && (
+                        {(canDeleteWorkspace || ['owner', 'super admin'].includes(String(ws.role || '').toLowerCase()) || ['owner', 'super admin'].includes(String(user?.role || '').toLowerCase())) && onDeleteWorkspace && (
                           <button
                             type="button"
                             onClick={() => setWorkspaceToDelete(ws)}

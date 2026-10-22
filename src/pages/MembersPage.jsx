@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -21,11 +22,24 @@ import { usePermissions } from '../context/PermissionContext';
 import { useSocket } from '../context/SocketProvider';
 
 export default function MembersPage({ workspace }) {
+  const navigate = useNavigate();
   const toast = useToast();
-  const { hasPermission, userRole } = usePermissions();
+  const { hasPermission, userRole, loading: permissionsLoading } = usePermissions();
   const socketContext = useSocket();
   const socket = socketContext?.socket;
   const originId = socketContext?.originId;
+
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
+  const isOwner = roleName === 'owner' || roleName === 'super admin';
+  const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
+  const canViewMembers = !isMemberOrBelow && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
+
+  useEffect(() => {
+    if (!permissionsLoading && userRole && !canViewMembers && workspace?.id) {
+      toast.show('You do not have permission to view workspace members', 'error');
+      navigate(`/w/${workspace.id}/home`, { replace: true });
+    }
+  }, [permissionsLoading, userRole, canViewMembers, workspace?.id, navigate, toast]);
 
   const canRemove = hasPermission('member.remove') || userRole?.name === 'Owner' || userRole?.name === 'Admin';
 
@@ -132,6 +146,15 @@ export default function MembersPage({ workspace }) {
     if (r.includes('viewer') || r.includes('guest')) return 'secondary';
     return 'neutral';
   };
+
+  if (!permissionsLoading && userRole && !canViewMembers) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
+        <Spinner size="lg" />
+        <p className="text-xs font-semibold text-text-secondary">Redirecting to workspace home...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-6 md:p-8">

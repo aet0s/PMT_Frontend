@@ -1,5 +1,6 @@
 // client/src/pages/DailyTrackerPage.jsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -20,7 +21,8 @@ import {
   CheckSquare,
   User,
   UserCheck,
-  Users
+  Users,
+  Link2
 } from 'lucide-react';
 import { format, parseISO, addDays, subDays, isToday, isYesterday } from 'date-fns';
 import { getWorkspaceDailyTracker } from '../api/workspaces';
@@ -51,10 +53,48 @@ export default function DailyTrackerPage({
   const canViewDailyTracker = hasPermission('daily_tracker.view');
   const canViewPeople = hasPermission('daily_tracker.view_people');
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const dateInputRef = useRef(null);
 
   // Tab State: 'tasks' (card stream) | 'people' (member focus & check-ins)
-  const [mainTab, setMainTab] = useState('tasks');
+  // Holds tab selection across page reload/refresh
+  const initialTab = useMemo(() => {
+    const paramTab = searchParams.get('tab');
+    if (paramTab === 'people' || paramTab === 'tasks') {
+      return paramTab;
+    }
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('taskflow_daily_tracker_tab') : null;
+    if (saved === 'people' || saved === 'tasks') {
+      return saved;
+    }
+    return 'tasks';
+  }, [searchParams]);
+
+  const [mainTab, setMainTab] = useState(initialTab);
+
+  const handleTabChange = useCallback((newTab) => {
+    setMainTab(newTab);
+    try {
+      localStorage.setItem('taskflow_daily_tracker_tab', newTab);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', newTab);
+        return next;
+      }, { replace: true });
+    } catch (e) {
+      console.warn('Failed to persist tab:', e);
+    }
+  }, [setSearchParams]);
+
+  // Sync tab if URL search param changes
+  useEffect(() => {
+    const paramTab = searchParams.get('tab');
+    if (paramTab && (paramTab === 'people' || paramTab === 'tasks') && paramTab !== mainTab) {
+      setMainTab(paramTab);
+      localStorage.setItem('taskflow_daily_tracker_tab', paramTab);
+    }
+  }, [searchParams, mainTab]);
 
   // Filter States
   const [mode, setMode] = useState('active'); // 'active' | 'in_progress' | 'created'
@@ -72,7 +112,15 @@ export default function DailyTrackerPage({
       return () => window.removeEventListener('server-time-updated', onSync);
     }
   }, [hasUserSelectedDate]);
+
   const [selectedWsId, setSelectedWsId] = useState(workspace?.id ? String(workspace.id) : 'all');
+
+  useEffect(() => {
+    if (workspace?.id) {
+      setSelectedWsId(String(workspace.id));
+    }
+  }, [workspace?.id]);
+
   const [selectedLabelId, setSelectedLabelId] = useState('all');
   const [selectedBoardId, setSelectedBoardId] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,9 +154,9 @@ export default function DailyTrackerPage({
       const res = await getWorkspaceDailyTracker(effectiveWorkspaceId, {
         date: selectedDate,
         mode,
-        workspaceId: selectedWsId === 'all' ? null : selectedWsId,
-        labelId: selectedLabelId === 'all' ? null : selectedLabelId,
-        boardId: selectedBoardId === 'all' ? null : selectedBoardId,
+        workspaceId: selectedWsId,
+        labelId: selectedLabelId,
+        boardId: selectedBoardId,
         search: searchQuery.trim() || null,
         page,
         limit
@@ -147,8 +195,12 @@ export default function DailyTrackerPage({
   };
 
   // Reset page to 1 when filters change
-  const handleDateChange = (newDate) => {
+  const handleDateChange = (newDate, isUserAction = true) => {
+    if (!newDate) return;
     setSelectedDate(newDate);
+    if (isUserAction) {
+      setHasUserSelectedDate(true);
+    }
     setPage(1);
   };
 
@@ -156,9 +208,9 @@ export default function DailyTrackerPage({
     try {
       const parsed = parseISO(selectedDate);
       const prev = subDays(parsed, 1);
-      handleDateChange(format(prev, 'yyyy-MM-dd'));
+      handleDateChange(format(prev, 'yyyy-MM-dd'), true);
     } catch {
-      handleDateChange(getTodayString());
+      handleDateChange(getTodayString(), true);
     }
   };
 
@@ -166,14 +218,15 @@ export default function DailyTrackerPage({
     try {
       const parsed = parseISO(selectedDate);
       const next = addDays(parsed, 1);
-      handleDateChange(format(next, 'yyyy-MM-dd'));
+      handleDateChange(format(next, 'yyyy-MM-dd'), true);
     } catch {
-      handleDateChange(getTodayString());
+      handleDateChange(getTodayString(), true);
     }
   };
 
   const handleTodayClick = () => {
-    handleDateChange(getTodayString());
+    handleDateChange(getTodayString(), false);
+    setHasUserSelectedDate(false);
   };
 
   const formattedDisplayDate = useMemo(() => {
@@ -188,39 +241,82 @@ export default function DailyTrackerPage({
   }, [selectedDate]);
 
   // Global Dropdown options
-  const workspaceOptions = useMemo(() => [
-    { value: 'all', label: 'All Workspaces' },
-    ...(filterOptions.workspaces || workspaces || []).map((w) => ({
-      value: String(w.id),
-      label: w.name
-    }))
-  ], [filterOptions.workspaces, workspaces]);
+  const workspaceOptions = useMemo(() => {
+    const list = filterOptions.workspaces && filterOptions.workspaces.length > 0
+      ? filterOptions.workspaces
+      : workspaces;
+    const seen = new Set();
+    const items = [];
+    (list || []).forEach((w) => {
+      if (!w || !w.id || seen.has(String(w.id))) return;
+      seen.add(String(w.id));
+      items.push({
+        value: String(w.id),
+        label: w.name
+      });
+    });
+    return [
+      { value: 'all', label: 'All Workspaces' },
+      ...items
+    ];
+  }, [filterOptions.workspaces, workspaces]);
 
-  const labelOptions = useMemo(() => [
-    { value: 'all', label: 'All Labels' },
-    ...(filterOptions.labels || []).map((l) => ({
-      value: String(l.id),
-      label: l.name
-    }))
-  ], [filterOptions.labels]);
+  const labelOptions = useMemo(() => {
+    const seen = new Set();
+    const unique = [];
+    (filterOptions.labels || []).forEach((l) => {
+      const key = (l.name || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      unique.push({
+        value: String(l.id),
+        label: l.name
+      });
+    });
+    return [
+      { value: 'all', label: 'All Labels' },
+      ...unique
+    ];
+  }, [filterOptions.labels]);
 
-  const boardOptions = useMemo(() => [
-    { value: 'all', label: 'All Boards' },
-    ...(filterOptions.boards || []).map((b) => ({
-      value: String(b.id),
-      label: b.name
-    }))
-  ], [filterOptions.boards]);
+  const boardOptions = useMemo(() => {
+    const isAllWorkspaces = selectedWsId === 'all';
+    return [
+      { value: 'all', label: 'All Boards' },
+      ...(filterOptions.boards || []).map((b) => ({
+        value: String(b.id),
+        label: isAllWorkspaces && b.workspace_name ? `${b.name} (${b.workspace_name})` : b.name
+      }))
+    ];
+  }, [filterOptions.boards, selectedWsId]);
 
   // Open Card to inspect what is inside
   const handleCardClick = async (c) => {
-    setSelectedPreviewCard(c);
-    setDetailedCard(c);
+    if (!c) return;
+    const cardId = c.id || c.card_id;
+    const initialCard = {
+      ...c,
+      id: cardId,
+      card_id: cardId,
+      title: c.title || c.card_title || `Card #${cardId}`,
+      workspaceName: c.workspaceName || c.workspace_name,
+      boardName: c.boardName || c.board_name,
+      listName: c.listName || c.list_name
+    };
+    setSelectedPreviewCard(initialCard);
+    setDetailedCard(initialCard);
     setPreviewLoading(true);
     try {
-      const res = await getCard(c.id);
+      const res = await getCard(cardId);
       if (res?.card) {
-        setDetailedCard((prev) => ({ ...prev, ...res.card }));
+        setDetailedCard((prev) => ({
+          ...prev,
+          ...res.card,
+          id: res.card.id || cardId,
+          checkins: (res.card.checkins && res.card.checkins.length > 0)
+            ? res.card.checkins
+            : (prev?.checkins || c.checkins || [])
+        }));
       }
     } catch (err) {
       console.warn('Could not load full card details:', err);
@@ -252,7 +348,7 @@ export default function DailyTrackerPage({
           <div className="inline-flex p-1 bg-surface border border-border/80 rounded-xl shadow-2xs self-start shrink-0">
             <button
               type="button"
-              onClick={() => setMainTab('tasks')}
+              onClick={() => handleTabChange('tasks')}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 mainTab === 'tasks'
                   ? 'bg-primary text-white shadow-xs'
@@ -265,7 +361,7 @@ export default function DailyTrackerPage({
             {canViewPeople && (
               <button
                 type="button"
-                onClick={() => setMainTab('people')}
+                onClick={() => handleTabChange('people')}
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   mainTab === 'people'
                     ? 'bg-primary text-white shadow-xs'
@@ -315,7 +411,11 @@ export default function DailyTrackerPage({
                 type="date"
                 aria-label="Choose date"
                 value={selectedDate}
-                onChange={(e) => handleDateChange(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleDateChange(e.target.value, true);
+                  }
+                }}
                 onClick={handleOpenCalendar}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -341,9 +441,8 @@ export default function DailyTrackerPage({
             <button
               type="button"
               onClick={() => {
-                setHasUserSelectedDate(true);
                 const y = subDays(getServerNow(), 1);
-                handleDateChange(format(y, 'yyyy-MM-dd'));
+                handleDateChange(format(y, 'yyyy-MM-dd'), true);
               }}
               className="px-3 py-1.5 bg-surface text-text-secondary hover:text-text-primary border border-border/80 hover:bg-surface-muted rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
             >
@@ -427,7 +526,10 @@ export default function DailyTrackerPage({
                   size="sm"
                   value={selectedWsId}
                   onChange={(val) => {
-                    setSelectedWsId(val || 'all');
+                    const newWs = val || 'all';
+                    setSelectedWsId(newWs);
+                    setSelectedBoardId('all');
+                    setSelectedLabelId('all');
                     setPage(1);
                   }}
                   options={workspaceOptions}
@@ -449,20 +551,20 @@ export default function DailyTrackerPage({
               </div>
 
               {/* Board Filter */}
-              {filterOptions.boards && filterOptions.boards.length > 0 && (
-                <div className="min-w-[110px] max-w-[150px] flex-1 sm:flex-initial">
-                  <Select
-                    aria-label="Filter by board"
-                    size="sm"
-                    value={selectedBoardId}
-                    onChange={(val) => {
-                      setSelectedBoardId(val || 'all');
-                      setPage(1);
-                    }}
-                    options={boardOptions}
-                  />
-                </div>
-              )}
+              <div className="min-w-[110px] max-w-[160px] flex-1 sm:flex-initial">
+                <Select
+                  aria-label="Filter by board"
+                  size="sm"
+                  value={selectedBoardId}
+                  onChange={(val) => {
+                    const newBoard = val || 'all';
+                    setSelectedBoardId(newBoard);
+                    setSelectedLabelId('all');
+                    setPage(1);
+                  }}
+                  options={boardOptions}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -475,9 +577,7 @@ export default function DailyTrackerPage({
           onCardClick={handleCardClick}
         />
       ) : (
-        <>
-          {/* Main Cards List Area - Overflow hidden when empty to avoid scrollbar */}
-          <div className={`flex-1 ${cards.length > 0 ? 'overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-3' : 'overflow-hidden flex flex-col items-center justify-center p-4'}`}>
+        <div className={`flex-1 ${cards.length > 0 ? 'overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-3' : 'overflow-hidden flex flex-col items-center justify-center p-4'}`}>
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center p-16 space-y-3 text-center">
             <Spinner size="lg" />
@@ -749,8 +849,9 @@ export default function DailyTrackerPage({
           </div>
         )}
       </div>
+      )}
 
-      {/* Quick Card Detail Preview Modal - allows owner to see what is inside the card */}
+      {/* Quick Card Detail Preview Modal - accessible from both Tasks and People tabs */}
       {selectedPreviewCard && (
         <Modal
           isOpen={Boolean(selectedPreviewCard)}
@@ -880,9 +981,16 @@ export default function DailyTrackerPage({
               {/* Description */}
               <div className="space-y-1.5">
                 <h5 className="text-[11px] font-bold uppercase tracking-wider text-text-muted">Description</h5>
-                <div className="p-3.5 bg-surface rounded-xl border border-border/80 text-xs text-text-primary whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-                  {detailedCard?.description ? detailedCard.description : <span className="text-text-muted italic">No description provided for this card.</span>}
-                </div>
+                {detailedCard?.description ? (
+                  <div
+                    className="p-3.5 bg-surface rounded-xl border border-border/80 text-xs text-text-primary leading-relaxed prose prose-sm max-w-none break-words max-h-48 overflow-y-auto"
+                    dangerouslySetInnerHTML={{ __html: detailedCard.description }}
+                  />
+                ) : (
+                  <div className="p-3.5 bg-surface rounded-xl border border-border/80 text-xs text-text-muted italic">
+                    No description provided for this card.
+                  </div>
+                )}
               </div>
 
               {/* Labels */}
@@ -906,12 +1014,121 @@ export default function DailyTrackerPage({
                   </div>
                 </div>
               )}
+
+              {/* Check-in Updates */}
+              {(() => {
+                const checkinList = detailedCard?.checkins || selectedPreviewCard?.checkins || [];
+                if (checkinList.length === 0) return null;
+                return (
+                  <div className="space-y-2 pt-2 border-t border-border/60">
+                    <h5 className="text-[11px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                      <span>Check-in Updates ({checkinList.length})</span>
+                    </h5>
+                    <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                      {checkinList.map((ci) => {
+                        const isBlocked = ci.status === 'blocked' || ci.blocker;
+                        const dateFormatted = (() => {
+                          try {
+                            if (ci.work_date) {
+                              const d = parseISO(ci.work_date);
+                              return format(d, 'MMM d, yyyy');
+                            }
+                            if (ci.created_at) {
+                              const d = parseISO(ci.created_at);
+                              return format(d, 'MMM d, yyyy');
+                            }
+                          } catch {}
+                          return ci.work_date || 'Recent';
+                        })();
+
+                        return (
+                          <div
+                            key={ci.id}
+                            className={`p-3 rounded-xl border text-xs space-y-2 ${
+                              isBlocked
+                                ? 'bg-danger-tint/30 border-danger/30'
+                                : 'bg-surface-muted/40 border-border/80'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <Avatar
+                                  name={ci.user_name}
+                                  src={ci.avatar_url}
+                                  size="xs"
+                                  className="w-5 h-5 shrink-0"
+                                />
+                                <span className="font-bold text-text-primary">{ci.user_name || 'Member'}</span>
+                                <span className="text-[11px] text-text-muted font-medium">({dateFormatted})</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-tint text-primary border border-primary/20">
+                                  {ci.progress_pct ?? 0}% Progress
+                                </span>
+                                {isBlocked ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-danger-tint text-danger border border-danger/30">
+                                    Blocked
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
+                                    On Track
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {ci.did && (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">What I did:</span>
+                                <p className="text-text-primary leading-relaxed bg-surface p-2 rounded-lg border border-border/40 whitespace-pre-wrap">
+                                  {ci.did}
+                                </p>
+                              </div>
+                            )}
+
+                            {ci.next_step && (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Next step:</span>
+                                <p className="text-text-primary leading-relaxed bg-surface p-2 rounded-lg border border-border/40 whitespace-pre-wrap">
+                                  {ci.next_step}
+                                </p>
+                              </div>
+                            )}
+
+                            {ci.blocker && (
+                              <div className="p-2 rounded-lg bg-danger-tint border border-danger/30 text-danger text-xs flex items-start gap-1.5">
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-bold block">Blocker:</span>
+                                  <span className="leading-relaxed">{ci.blocker}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {ci.evidence_url && (
+                              <div className="pt-0.5">
+                                <a
+                                  href={ci.evidence_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                                >
+                                  <Link2 className="w-3 h-3" />
+                                  <span>View Attached Proof / Link</span>
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </Modal>
-      )}
-
-        </>
       )}
 
       {/* Footer: Server-Side Pagination Bar */}

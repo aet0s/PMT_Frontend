@@ -19,7 +19,9 @@ import {
   CheckSquare,
   MessageSquare,
   Eye,
-  ShieldAlert
+  ShieldAlert,
+  Layers,
+  ArrowUpRight
 } from 'lucide-react';
 import { getWorkspaceDailyTrackerPeople, createWorkspaceLeaveDay } from '../../api/workspaces';
 import { reviewCheckin } from '../../api/cards';
@@ -305,6 +307,10 @@ export default function DailyTrackerPeopleView({
               const completedCards = person.evidence?.completed_cards || [];
               const visibleWarnings = person.visible_warnings || [];
               const internalFlags = person.internal_flags || [];
+              const openCards = person.open_cards || [];
+              const checkedItems = person.evidence?.checked_items || [];
+              const files = person.evidence?.files || [];
+              const comments = person.evidence?.comments || [];
 
               return (
                 <div
@@ -402,7 +408,65 @@ export default function DailyTrackerPeopleView({
                   {/* Expanded Person Details */}
                   {isExpanded && (
                     <div className="mt-4 pt-4 border-t border-border/60 space-y-4">
-                      {/* 1. That Day's Updates */}
+                      {/* 1. Assigned Tasks & Open Items */}
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
+                            <Layers className="w-3.5 h-3.5 text-primary" />
+                            <span>Assigned Tasks & Open Items ({openCards.length})</span>
+                          </h4>
+                        </div>
+
+                        {openCards.length === 0 ? (
+                          <div className="p-3 bg-app/50 border border-dashed border-border rounded-xl text-center text-xs text-text-muted">
+                            No open tasks currently assigned to this member.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {openCards.map((c) => {
+                              const cardId = c.id || c.card_id;
+                              const cardTitle = c.title || c.card_title || `Card #${cardId}`;
+                              return (
+                                <div
+                                  key={cardId}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onCardClick?.({ id: cardId, card_id: cardId, title: cardTitle });
+                                  }}
+                                  className="p-3 bg-app hover:bg-surface-muted/60 border border-border/80 hover:border-primary/50 rounded-xl space-y-2 cursor-pointer transition-all shadow-2xs group"
+                                  title="Click to view card details"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <span className="text-xs font-bold text-text-primary group-hover:text-primary transition-colors line-clamp-2">
+                                      {cardTitle}
+                                    </span>
+                                    <ArrowUpRight className="w-3.5 h-3.5 text-text-muted group-hover:text-primary shrink-0 transition-colors" />
+                                  </div>
+
+                                  <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                                    {c.needs_update && (
+                                      <span className="px-2 py-0.5 rounded-full font-bold bg-amber-500/10 text-amber-600 border border-amber-500/30 flex items-center gap-1">
+                                        <AlertCircle className="w-3 h-3" />
+                                        Needs update
+                                      </span>
+                                    )}
+                                    {c.due_date ? (
+                                      <span className="px-2 py-0.5 rounded-full font-medium bg-surface text-text-secondary border border-border flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        Due {c.due_date}
+                                      </span>
+                                    ) : (
+                                      <span className="text-text-muted">No due date</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. That Day's Updates */}
                       <div className="space-y-2.5">
                         <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
                           <MessageSquare className="w-3.5 h-3.5 text-primary" />
@@ -417,9 +481,18 @@ export default function DailyTrackerPeopleView({
                           checkins.map((ci) => (
                             <div key={ci.id} className="p-3.5 bg-app border border-border/80 rounded-xl space-y-3">
                               <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <span className="text-xs font-bold text-text-primary">
-                                  Task: {ci.card_title}
-                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onCardClick?.({ id: ci.card_id, card_id: ci.card_id, title: ci.card_title });
+                                  }}
+                                  className="text-xs font-bold text-text-primary hover:text-primary hover:underline text-left cursor-pointer flex items-center gap-1.5 group"
+                                  title="View task details"
+                                >
+                                  <span>Task: {ci.card_title}</span>
+                                  <ArrowUpRight className="w-3.5 h-3.5 text-text-muted group-hover:text-primary shrink-0 transition-colors" />
+                                </button>
                                 <span className="text-xs font-bold text-primary">
                                   {ci.progress_pct ?? 0}% Progress
                                 </span>
@@ -557,7 +630,7 @@ export default function DailyTrackerPeopleView({
                         )}
                       </div>
 
-                      {/* 2. Completed Items Today */}
+                      {/* 3. Completed Items Today */}
                       {completedCards.length > 0 && (
                         <div className="space-y-2">
                           <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
@@ -565,19 +638,97 @@ export default function DailyTrackerPeopleView({
                             <span>Completed Today ({completedCards.length})</span>
                           </h4>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {completedCards.map((cc) => (
-                              <div key={cc.id} className="p-2.5 bg-app border border-border/80 rounded-xl space-y-1">
-                                <span className="text-xs font-bold text-text-primary block line-clamp-1">
-                                  {cc.title}
-                                </span>
-                                {cc.completion_note && (
-                                  <p className="text-[11px] text-text-secondary italic">
-                                    Result: "{cc.completion_note}"
-                                  </p>
-                                )}
-                              </div>
-                            ))}
+                            {completedCards.map((cc) => {
+                              const cardId = cc.id || cc.card_id;
+                              const cardTitle = cc.title || cc.card_title || `Card #${cardId}`;
+                              return (
+                                <div
+                                  key={cardId}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onCardClick?.({ id: cardId, card_id: cardId, title: cardTitle });
+                                  }}
+                                  className="p-2.5 bg-app hover:bg-surface-muted/60 border border-border/80 hover:border-success/40 rounded-xl space-y-1 cursor-pointer transition-all shadow-2xs group"
+                                  title="Click to view card details"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <span className="text-xs font-bold text-text-primary group-hover:text-success transition-colors line-clamp-1">
+                                      {cardTitle}
+                                    </span>
+                                    <ArrowUpRight className="w-3.5 h-3.5 text-text-muted group-hover:text-success shrink-0" />
+                                  </div>
+                                  {cc.completion_note && (
+                                    <p className="text-[11px] text-text-secondary italic">
+                                      Result: "{cc.completion_note}"
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
+                        </div>
+                      )}
+
+                      {/* 4. Work Evidence & Activity Today */}
+                      {(checkedItems.length > 0 || files.length > 0 || comments.length > 0) && (
+                        <div className="space-y-2 pt-2 border-t border-border/60">
+                          <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
+                            <Paperclip className="w-3.5 h-3.5 text-primary" />
+                            <span>Work Evidence & Activity</span>
+                          </h4>
+                          {checkedItems.length > 0 && (
+                            <div className="space-y-1">
+                              <span className="text-[11px] font-semibold text-text-muted">Checked checklist items:</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {checkedItems.map((item, iIdx) => (
+                                  <span key={iIdx} className="px-2.5 py-1 rounded-lg bg-surface border border-border text-xs text-text-primary flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3 h-3 text-success" />
+                                    <span>{item}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {files.length > 0 && (
+                            <div className="space-y-1">
+                              <span className="text-[11px] font-semibold text-text-muted">Attached Files:</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {files.map((file, fIdx) => (
+                                  <a
+                                    key={fIdx}
+                                    href={file.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-2.5 py-1 rounded-lg bg-surface border border-border text-xs text-primary hover:underline flex items-center gap-1.5"
+                                  >
+                                    <Paperclip className="w-3 h-3" />
+                                    <span>{file.name}</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {comments.length > 0 && (
+                            <div className="space-y-1">
+                              <span className="text-[11px] font-semibold text-text-muted">Comments Posted:</span>
+                              <div className="space-y-1">
+                                {comments.map((comm, cIdx) => (
+                                  <p key={cIdx} className="p-2 rounded-lg bg-surface border border-border text-xs text-text-primary italic">
+                                    "{comm}"
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 5. Summary when member has no items and no updates */}
+                      {openCards.length === 0 && checkins.length === 0 && completedCards.length === 0 && (
+                        <div className="p-3.5 bg-app/60 border border-dashed border-border/80 rounded-xl text-center text-xs space-y-1">
+                          <p className="font-semibold text-text-secondary">No updates or assigned tasks for this day</p>
+                          <p className="text-[11px] text-text-muted">This member has no active assigned cards or submitted updates on {selectedDate}.</p>
                         </div>
                       )}
 

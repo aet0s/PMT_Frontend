@@ -344,15 +344,14 @@ export default function Board({
     };
     fetchPermMembers();
     return () => { isCancelled = true; };
-  }, [board?.id]);
+  }, [board?.id, board?.members]);
 
   const permittedMembers = useMemo(() => {
     if (boardWorkspaceMembers.length > 0) {
-      const accessMembers = boardWorkspaceMembers.filter((m) => m.has_access);
-      if (accessMembers.length > 0) return accessMembers;
+      return boardWorkspaceMembers.filter((m) => m.has_access);
     }
-    return (board?.members && board.members.length > 0) ? board.members : onlineMembers;
-  }, [boardWorkspaceMembers, board?.members, onlineMembers]);
+    return (board?.members && board.members.length > 0) ? board.members : [];
+  }, [boardWorkspaceMembers, board?.members]);
 
   const filteredDropdownMembers = useMemo(() => {
     if (!memberFilterQuery.trim()) return permittedMembers;
@@ -488,6 +487,7 @@ export default function Board({
   const canDeleteBoard = hasPermission('project.delete');
   const canArchiveBoard = hasPermission('project.archive') || canEditBoard;
   const canManageBoardMembers = hasPermission('project.manage_members');
+  const canAddMember = isTopLevel || canManageBoardMembers;
   const canCreateList = hasPermission('list.create');
   const canViewActivity = hasPermission('activity.view');
 
@@ -497,8 +497,11 @@ export default function Board({
     try {
       await addBoardMemberById(board.id, member.id);
       setBoardWorkspaceMembers((prev) =>
-        prev.map((m) => (m.id === member.id ? { ...m, has_access: 1 } : m))
+        prev.map((m) => (m.id === member.id ? { ...m, has_access: true, board_role: 'member' } : m))
       );
+      if (typeof onRefreshBoard === 'function') {
+        onRefreshBoard();
+      }
       toast.show(`${member.name || member.email} added to board!`, 'success');
     } catch (err) {
       toast.show(err.message || 'Failed to add member to board', 'error');
@@ -1024,8 +1027,8 @@ export default function Board({
                 )}
               </div>
 
-              {/* Add Member Button: for top level users only */}
-              {isTopLevel && (
+              {/* Add Member Button: for top level users and managers */}
+              {canAddMember && (
                 <div className="relative" ref={addMemberDropdownRef}>
                   <button
                     type="button"

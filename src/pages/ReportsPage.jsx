@@ -46,8 +46,11 @@ const TIMEFRAME_OPTIONS = [
 export default function ReportsPage({ workspace }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { hasPermission, loading: permissionsLoading } = usePermissions();
-  const canViewReports = hasPermission('activity.view') || hasPermission('project.view');
+  const { hasPermission, userRole, loading: permissionsLoading } = usePermissions();
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
+  const isOwner = roleName === 'owner' || roleName === 'super admin';
+  const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
+  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_team') || hasPermission('report.view_all') || hasPermission('report.export') || hasPermission('role.view'));
 
   const getBoardUrl = (boardId, cardId = null) => {
     const wsId = workspace?.id;
@@ -57,9 +60,19 @@ export default function ReportsPage({ workspace }) {
 
   useEffect(() => {
     if (!permissionsLoading && !canViewReports && workspace?.id) {
+      addToast?.('You do not have permission to view reports', 'error');
       navigate(`/w/${workspace.id}/home`, { replace: true });
     }
-  }, [permissionsLoading, canViewReports, workspace?.id, navigate]);
+  }, [permissionsLoading, canViewReports, workspace?.id, navigate, addToast]);
+
+  if (!permissionsLoading && !canViewReports) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-xs font-semibold text-text-secondary">Redirecting to workspace home...</p>
+      </div>
+    );
+  }
 
   // Safely connect to real-time socket events if available
   let socketContext = null;
