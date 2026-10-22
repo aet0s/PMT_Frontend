@@ -20,7 +20,11 @@ import {
   Filter,
   CheckSquare,
   Square,
-  Activity
+  Activity,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Lock
 } from 'lucide-react';
 import MemberAuditModal from '../components/Members/MemberAuditModal';
 import Avatar from '../components/ui/Avatar';
@@ -37,7 +41,8 @@ import {
   updateCompanyMemberRole,
   assignCompanyMemberWorkspaces,
   assignCompanyMemberBoards,
-  removeCompanyMember
+  removeCompanyMember,
+  updateCompanyMemberCredentials
 } from '../api/workspaces';
 import {
   createInvitation,
@@ -55,8 +60,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
   const socket = socketContext?.socket;
   const originId = socketContext?.originId;
 
-  const canManage = hasPermission('member.assign_role') || hasPermission('member.remove') || userRole?.name === 'Owner' || userRole?.name === 'Admin';
-  const canInvite = hasPermission('member.invite') || userRole?.name === 'Owner' || userRole?.name === 'Admin';
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
+  const isOwner = roleName === 'owner' || roleName === 'super admin' || (userRole?.is_system === 1 && (userRole?.rank >= 100 || userRole?.is_editable === 0));
+  const canManage = hasPermission('member.assign_role') || hasPermission('member.remove') || isOwner || userRole?.name === 'Admin';
+  const canInvite = hasPermission('member.invite') || isOwner || userRole?.name === 'Admin';
 
   const [activeTab, setActiveTab] = useState('members'); // 'members' | 'pending'
   const [members, setMembers] = useState([]);
@@ -82,6 +89,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
 
   // Single Edit Employee Modal state
   const [editEmployeeUser, setEditEmployeeUser] = useState(null);
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [editMustChangePassword, setEditMustChangePassword] = useState(false);
   const [editRoleId, setEditRoleId] = useState('');
   const [editWsIds, setEditWsIds] = useState([]);
   const [editBoardIds, setEditBoardIds] = useState([]);
@@ -225,6 +236,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
   // Open Edit Employee Modal
   const openEditEmployeeModal = (member) => {
     setEditEmployeeUser(member);
+    setEditEmail(member.email || '');
+    setEditPassword('');
+    setShowEditPassword(false);
+    setEditMustChangePassword(false);
     const existingRoleId = member.workspaces?.[0]?.role_id || (roles.find((r) => r.name === member.role)?.id || '');
     setEditRoleId(existingRoleId ? String(existingRoleId) : '');
     const wsIds = (member.workspaces || []).map((w) => w.id);
@@ -308,13 +323,29 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
     if (!editEmployeeUser) return;
     setIsSavingEmployee(true);
     try {
+      // If Owner changed email or password, update credentials
+      if (isOwner) {
+        const cleanEmail = editEmail.trim();
+        const cleanPassword = editPassword.trim();
+        const hasEmailChange = cleanEmail && cleanEmail.toLowerCase() !== editEmployeeUser.email.toLowerCase();
+        const hasPasswordChange = Boolean(cleanPassword);
+
+        if (hasEmailChange || hasPasswordChange) {
+          await updateCompanyMemberCredentials(workspace.id, editEmployeeUser.id, {
+            email: hasEmailChange ? cleanEmail : undefined,
+            password: hasPasswordChange ? cleanPassword : undefined,
+            must_change_password: editMustChangePassword
+          });
+        }
+      }
+
       if (editRoleId) {
         await updateCompanyMemberRole(workspace.id, editEmployeeUser.id, Number(editRoleId));
       }
       await assignCompanyMemberWorkspaces(workspace.id, editEmployeeUser.id, editWsIds);
       await assignCompanyMemberBoards(workspace.id, editEmployeeUser.id, editBoardIds);
 
-      toast.show(`Updated access & roles for ${editEmployeeUser.name}`, 'success');
+      toast.show(`Updated details & access for ${editEmployeeUser.name}`, 'success');
       setEditEmployeeUser(null);
       loadData(currentPage, debouncedSearch, filterWorkspaceId);
     } catch (err) {
@@ -966,6 +997,78 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                   </span>
                 </div>
               </div>
+
+              {/* Owner Security Controls: Edit Email & Password */}
+              {isOwner && (
+                <div className="p-4 bg-primary-tint/20 border border-primary/30 rounded-xl space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
+                      <Shield className="w-4 h-4 text-primary" />
+                      <span>Owner Security Controls (Credentials)</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-primary px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                      Owner Only
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {/* Edit Email */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-text-secondary">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="email"
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                          placeholder="user@company.com"
+                          className="w-full pl-9 pr-3 py-1.5 bg-surface border border-border focus:border-primary rounded-lg text-xs font-medium text-text-primary outline-hidden"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Change Password */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-text-secondary">
+                        New Password
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type={showEditPassword ? 'text' : 'password'}
+                          value={editPassword}
+                          onChange={(e) => setEditPassword(e.target.value)}
+                          placeholder="Leave blank to keep unchanged"
+                          className="w-full pl-9 pr-8 py-1.5 bg-surface border border-border focus:border-primary rounded-lg text-xs font-medium text-text-primary outline-hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowEditPassword(!showEditPassword)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1 cursor-pointer"
+                          title={showEditPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showEditPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Force Password Change Checkbox */}
+                  {editPassword.trim() && (
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-text-secondary select-none pt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={editMustChangePassword}
+                        onChange={(e) => setEditMustChangePassword(e.target.checked)}
+                        className="rounded border-border text-primary focus:ring-primary/30"
+                      />
+                      <span>Force user to change password upon next login</span>
+                    </label>
+                  )}
+                </div>
+              )}
 
               {/* 1. Role Selection */}
               <div className="space-y-2">

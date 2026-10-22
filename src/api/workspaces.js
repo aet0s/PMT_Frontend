@@ -131,6 +131,13 @@ export async function removeCompanyMember(workspaceId, userId) {
   });
 }
 
+export async function updateCompanyMemberCredentials(workspaceId, userId, { email, password, must_change_password }) {
+  return apiFetch(`/api/workspaces/${workspaceId}/company-members/${userId}/credentials`, {
+    method: 'PATCH',
+    body: JSON.stringify({ email, password, must_change_password })
+  });
+}
+
 export async function getWorkspaceIssues(workspaceId, {
   page = 1,
   limit = 20,
