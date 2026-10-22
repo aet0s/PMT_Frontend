@@ -320,44 +320,62 @@ export default function WorkspaceSidebar({
                   ) : (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-2 bg-white/50 rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      hideTooltip();
-                      onSelectWorkspace(ws);
-                      navigate(`/w/${ws.id}/home`);
-                      if (onCloseMobile) onCloseMobile();
-                    }}
-                    onMouseEnter={(e) => showTooltip(e, ws.name, isSelected ? 'Active' : null)}
-                    onMouseLeave={hideTooltip}
-                    aria-label={ws.name}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer overflow-hidden ${
-                      wsIcon
-                        ? isSelected
-                          ? 'bg-white shadow-md ring-2 ring-white'
-                          : 'bg-white shadow-xs ring-2 ring-white/50 hover:ring-white active:scale-95'
-                        : isSelected
-                          ? 'bg-white text-primary shadow-md font-black ring-2 ring-white/60'
-                          : 'bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
-                    }`}
-                  >
-                    {wsIcon ? (
-                      <img
-                        src={getFileUrl(wsIcon)}
-                        alt={ws.name}
-                        className="w-full h-full object-cover rounded-full"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          if (e.target.nextElementSibling) {
-                            e.target.nextElementSibling.style.display = 'flex';
-                          }
-                        }}
-                      />
-                    ) : null}
-                    <span className={wsIcon ? 'hidden' : 'flex items-center justify-center'}>
-                      {ws.name.charAt(0).toUpperCase()}
-                    </span>
-                  </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        hideTooltip();
+                        onSelectWorkspace(ws);
+                        navigate(`/w/${ws.id}/home`);
+                        if (onCloseMobile) onCloseMobile();
+                      }}
+                      onMouseEnter={(e) =>
+                        showTooltip(
+                          e,
+                          ws.name,
+                          ws.assigned_tasks_count > 0
+                            ? `${ws.assigned_tasks_count} assigned task${ws.assigned_tasks_count > 1 ? 's' : ''}`
+                            : (isSelected ? 'Active' : null)
+                        )
+                      }
+                      onMouseLeave={hideTooltip}
+                      aria-label={`${ws.name}${ws.assigned_tasks_count > 0 ? ` (${ws.assigned_tasks_count} assigned tasks)` : ''}`}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer overflow-hidden ${
+                        wsIcon
+                          ? isSelected
+                            ? 'bg-white shadow-md ring-2 ring-white'
+                            : 'bg-white shadow-xs ring-2 ring-white/50 hover:ring-white active:scale-95'
+                          : isSelected
+                            ? 'bg-white text-primary shadow-md font-black ring-2 ring-white/60'
+                            : 'bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
+                      }`}
+                    >
+                      {wsIcon ? (
+                        <img
+                          src={getFileUrl(wsIcon)}
+                          alt={ws.name}
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            if (e.target.nextElementSibling) {
+                              e.target.nextElementSibling.style.display = 'flex';
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <span className={wsIcon ? 'hidden' : 'flex items-center justify-center'}>
+                        {ws.name.charAt(0).toUpperCase()}
+                      </span>
+                    </button>
+                    {ws.assigned_tasks_count > 0 && (
+                      <span
+                        className="absolute -top-1 -right-1 z-20 min-w-4 h-4 px-1 rounded-full bg-danger text-white text-[10px] font-black flex items-center justify-center ring-2 ring-primary shadow-xs pointer-events-none"
+                        title={`${ws.assigned_tasks_count} assigned task${ws.assigned_tasks_count > 1 ? 's' : ''}`}
+                      >
+                        {ws.assigned_tasks_count > 99 ? '99+' : ws.assigned_tasks_count}
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -423,9 +441,19 @@ export default function WorkspaceSidebar({
                     ) : (
                       <span className="text-xl font-black text-primary shrink-0">#</span>
                     )}
-                    <span className="text-[15px] sm:text-base font-extrabold text-text-primary truncate tracking-tight group-hover:text-primary transition-colors">
-                      {activeWorkspace?.name || 'Workspace'}
-                    </span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[15px] sm:text-base font-extrabold text-text-primary truncate tracking-tight group-hover:text-primary transition-colors">
+                        {activeWorkspace?.name || 'Workspace'}
+                      </span>
+                      {activeWorkspace?.assigned_tasks_count > 0 && (
+                        <span
+                          className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-danger text-white shrink-0 shadow-2xs"
+                          title={`${activeWorkspace.assigned_tasks_count} assigned task${activeWorkspace.assigned_tasks_count > 1 ? 's' : ''}`}
+                        >
+                          {activeWorkspace.assigned_tasks_count > 99 ? '99+' : activeWorkspace.assigned_tasks_count}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {activeWorkspace?.description && (
                     <span className="text-[11px] text-text-muted truncate pl-5">
@@ -513,7 +541,17 @@ export default function WorkspaceSidebar({
                                 {ws.name}
                               </span>
                             </div>
-                            {isSelected && <Check className="w-4 h-4 text-primary shrink-0 ml-3" />}
+                            <div className="flex items-center gap-2 shrink-0 ml-3">
+                              {ws.assigned_tasks_count > 0 && (
+                                <span
+                                  className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-danger/10 text-danger border border-danger/25"
+                                  title={`${ws.assigned_tasks_count} assigned task${ws.assigned_tasks_count > 1 ? 's' : ''}`}
+                                >
+                                  {ws.assigned_tasks_count > 99 ? '99+' : ws.assigned_tasks_count}
+                                </span>
+                              )}
+                              {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
+                            </div>
                           </button>
                         );
                       })

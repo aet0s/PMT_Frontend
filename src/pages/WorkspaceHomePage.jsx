@@ -266,6 +266,12 @@ export default function WorkspaceHomePage({
                   )}
                   {workspace?.name || 'TaskFlow Workspace'}
                 </span>
+                {workspace?.assigned_tasks_count > 0 && (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-danger/10 text-danger border border-danger/25 flex items-center gap-1.5 shadow-2xs">
+                    <CheckSquare className="w-3.5 h-3.5 text-danger" />
+                    <span>{workspace.assigned_tasks_count} assigned to you</span>
+                  </span>
+                )}
                 <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-success-tint text-success-text border border-success/20 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
                   Active

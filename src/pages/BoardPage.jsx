@@ -195,16 +195,38 @@ export default function BoardPage() {
   }, [loadWorkspaces]);
 
   // Real-time synchronization: reload workspaces when a new workspace is created in the company
+  // or when cards are assigned/updated/deleted/completed
   useEffect(() => {
     if (!socket) return;
-    const handleWorkspaceUpdate = () => {
-      loadWorkspaces();
+    let timer = null;
+    const debouncedLoadWorkspaces = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        loadWorkspaces();
+      }, 400);
     };
-    socket.on('workspace:created', handleWorkspaceUpdate);
-    socket.on('user:workspaces_updated', handleWorkspaceUpdate);
+
+    socket.on('workspace:created', debouncedLoadWorkspaces);
+    socket.on('user:workspaces_updated', debouncedLoadWorkspaces);
+    socket.on('user:workspace_tasks_updated', debouncedLoadWorkspaces);
+    socket.on('notification:new', debouncedLoadWorkspaces);
+    socket.on('card:created', debouncedLoadWorkspaces);
+    socket.on('card:updated', debouncedLoadWorkspaces);
+    socket.on('card:deleted', debouncedLoadWorkspaces);
+    socket.on('member:added', debouncedLoadWorkspaces);
+    socket.on('member:removed', debouncedLoadWorkspaces);
+
     return () => {
-      socket.off('workspace:created', handleWorkspaceUpdate);
-      socket.off('user:workspaces_updated', handleWorkspaceUpdate);
+      if (timer) clearTimeout(timer);
+      socket.off('workspace:created', debouncedLoadWorkspaces);
+      socket.off('user:workspaces_updated', debouncedLoadWorkspaces);
+      socket.off('user:workspace_tasks_updated', debouncedLoadWorkspaces);
+      socket.off('notification:new', debouncedLoadWorkspaces);
+      socket.off('card:created', debouncedLoadWorkspaces);
+      socket.off('card:updated', debouncedLoadWorkspaces);
+      socket.off('card:deleted', debouncedLoadWorkspaces);
+      socket.off('member:added', debouncedLoadWorkspaces);
+      socket.off('member:removed', debouncedLoadWorkspaces);
     };
   }, [socket, loadWorkspaces]);
 

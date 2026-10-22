@@ -133,8 +133,8 @@ export default function CardDetailModal({
         </div>
 
         {!canModifyCard && (
-          <div className="mx-4 sm:mx-6 mt-3 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-500" />
+          <div className="mx-4 sm:mx-6 mt-3 px-3.5 py-2.5 rounded-xl bg-warning-tint border border-warning/30 text-warning-text text-xs flex items-center gap-2 font-medium">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-warning" />
             <span>Members can only edit cards they created or are assigned to. You have view and comment access to this card.</span>
           </div>
         )}
