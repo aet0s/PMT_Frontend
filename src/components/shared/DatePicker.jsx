@@ -36,7 +36,11 @@ export default function DatePicker({
   anchorRef,
   startDate,
   dueDate,
-  onChange
+  onChange,
+  allowPast = false,
+  title = 'Dates',
+  startLabel = 'Start Date',
+  dueLabel = 'Due Date'
 }) {
   const todayStart = getServerNow();
   todayStart.setHours(0, 0, 0, 0);
@@ -231,7 +235,7 @@ export default function DatePicker({
           return;
         }
       } else {
-        if (isBefore(parsed, todayStart)) {
+        if (!allowPast && isBefore(parsed, todayStart)) {
           setDateError('Due date cannot be in the past');
           return;
         }
@@ -298,7 +302,7 @@ export default function DatePicker({
       isOpen={isOpen}
       onClose={onClose}
       anchorRef={anchorRef}
-      title="Dates"
+      title={title}
       footer={footer}
       className="w-[310px] max-w-[calc(100vw-24px)]"
     >
@@ -342,7 +346,7 @@ export default function DatePicker({
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            <span>Start Date</span>
+            <span>{startLabel}</span>
             {enableStartDate && startDateStr && (
               <span className={`w-1.5 h-1.5 rounded-full ${activeTarget === 'start' ? 'bg-white' : 'bg-primary'}`} />
             )}
@@ -359,7 +363,7 @@ export default function DatePicker({
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            <span>Due Date</span>
+            <span>{dueLabel}</span>
             {enableDueDate && dueDateStr && (
               <span className={`w-1.5 h-1.5 rounded-full ${activeTarget === 'due' ? 'bg-white' : 'bg-primary'}`} />
             )}
@@ -426,8 +430,8 @@ export default function DatePicker({
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const { isStart, isDue, inRange } = getDayState(day);
               const todayFlag = isToday(day);
-              const minDue = parsedStart ? parsedStart : todayStart;
-              const isDueDisabled = activeTarget === 'due' && isBefore(day, minDue);
+              const minDue = allowPast ? (parsedStart ? parsedStart : null) : (parsedStart ? parsedStart : todayStart);
+              const isDueDisabled = activeTarget === 'due' && minDue && isBefore(day, minDue);
 
               return (
                 <div
@@ -496,7 +500,7 @@ export default function DatePicker({
                 }
               } else {
                 // If start date is disabled, past due date without start date is not permitted: reset to today
-                if (enableDueDate && dueDateStr) {
+                if (!allowPast && enableDueDate && dueDateStr) {
                   const parsedD = parseDDMMYYYY(dueDateStr);
                   if (parsedD && isBefore(parsedD, todayStart)) {
                     const today = getServerNow();
@@ -507,7 +511,7 @@ export default function DatePicker({
                 }
               }
             }}
-            label="Start Date"
+            label={startLabel}
             size="sm"
           />
           {enableStartDate && (
@@ -565,7 +569,7 @@ export default function DatePicker({
                 }
               }
             }}
-            label="Due Date"
+            label={dueLabel}
             size="sm"
           />
 

@@ -70,7 +70,9 @@ export default function CardDetailModal({
   const isTopLevel = userRank >= 50 || ['owner', 'admin', 'project manager', 'team lead'].includes(roleName);
   const isCreator = user && card.created_by && Number(card.created_by) === Number(user.id);
   const isAssignee = user && (card.members || []).some((m) => Number(m.id) === Number(user.id));
-  const canModifyCard = isTopLevel || isCreator || isAssignee;
+  const isAssigner = user && (card.assigners || []).some((a) => Number(a.id) === Number(user.id));
+  const canModifyCard = isTopLevel || isCreator || isAssignee || isAssigner;
+  const canCompleteCard = isTopLevel || isAssigner;
 
   const handleOpenDates = (anchorRef) => {
     setActiveAnchorRef(anchorRef);
@@ -129,13 +131,14 @@ export default function CardDetailModal({
             }}
             onClose={onClose}
             canModify={canModifyCard}
+            canComplete={canCompleteCard}
           />
         </div>
 
         {!canModifyCard && (
           <div className="mx-4 sm:mx-6 mt-3 px-3.5 py-2.5 rounded-xl bg-warning-tint border border-warning/30 text-warning-text text-xs flex items-center gap-2 font-medium">
             <ShieldAlert className="w-4 h-4 shrink-0 text-warning" />
-            <span>Members can only edit cards they created or are assigned to. You have view and comment access to this card.</span>
+            <span>Members can only edit cards they created, are assigned to, or are assigners of. You have view and comment access to this card.</span>
           </div>
         )}
 
@@ -181,6 +184,7 @@ export default function CardDetailModal({
             <CardTitle
               card={card}
               canModify={canModifyCard}
+              canComplete={canCompleteCard}
               onUpdateTitle={(title) => onUpdateCard(card.id, { title })}
               onToggleComplete={(is_complete) => onUpdateCard(card.id, { is_complete })}
             />
@@ -193,7 +197,7 @@ export default function CardDetailModal({
                     <CheckCircle2 className="w-4 h-4 text-success stroke-[2.5]" />
                     <span>Completion Outcome</span>
                   </div>
-                  {canModifyCard && (
+                  {canCompleteCard && (
                     <button
                       type="button"
                       onClick={() => setIsCompletionModalOpen(true)}

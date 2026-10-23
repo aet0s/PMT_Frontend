@@ -70,12 +70,13 @@ export async function removeWorkspaceMember(workspaceId, userId) {
   });
 }
 
-export async function getWorkspaceActivity(workspaceId, { page = 1, limit = 20, boardId = null, actionType = 'all', search = '' } = {}) {
+export async function getWorkspaceActivity(workspaceId, { page = 1, limit = 20, boardId = null, actionType = 'all', category = 'all', search = '' } = {}) {
   const params = new URLSearchParams();
   if (page) params.set('page', String(page));
   if (limit) params.set('limit', String(limit));
   if (boardId) params.set('board_id', String(boardId));
   if (actionType && actionType !== 'all') params.set('action_type', actionType);
+  if (category && category !== 'all') params.set('category', category);
   if (search) params.set('search', search);
 
   const query = params.toString() ? `?${params.toString()}` : '';
@@ -224,5 +225,60 @@ export async function createWorkspaceLeaveDay(workspaceId, { user_id, date, reas
 export async function getWorkspacePendingCheckins(workspaceId) {
   return apiFetch(`/api/workspaces/${workspaceId}/checkins/pending`);
 }
+
+export async function getWorkspaceAuditEvents(workspaceId, filters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+      if (Array.isArray(value)) {
+        value.forEach((v) => params.append(key, String(v)));
+      } else {
+        params.set(key, String(value));
+      }
+    }
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiFetch(`/api/workspaces/${workspaceId}/audit-events${query}`);
+}
+
+export async function getWorkspaceAuditEventDetail(workspaceId, eventId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/audit-events/${eventId}`);
+}
+
+export async function getWorkspaceAuditFacets(workspaceId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/audit-events/facets`);
+}
+
+export async function verifyWorkspaceAuditIntegrity(workspaceId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/audit-events/verify`, {
+    method: 'POST'
+  });
+}
+
+export function getWorkspaceAuditExportUrl(workspaceId, filters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+      if (Array.isArray(value)) {
+        value.forEach((v) => params.append(key, String(v)));
+      } else {
+        params.set(key, String(value));
+      }
+    }
+  }
+  return `/api/workspaces/${workspaceId}/audit-events/export?${params.toString()}`;
+}
+
+export async function getWorkspaceMyTasks(workspaceId, params = {}) {
+  const query = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '' && v !== 'all') {
+      query.set(k, String(v));
+    }
+  }
+  const qStr = query.toString() ? `?${query.toString()}` : '';
+  return apiFetch(`/api/workspaces/${workspaceId}/my-tasks${qStr}`);
+}
+
 
 

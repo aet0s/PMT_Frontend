@@ -6,8 +6,10 @@ import {
   Outlet,
   Navigate,
   useLocation,
-  useParams
+  useParams,
+  useRouteError
 } from 'react-router-dom';
+import { AlertTriangle } from 'lucide-react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { NotificationSoundProvider } from './context/NotificationSoundContext';
 import { SocketProvider } from './context/SocketProvider';
@@ -220,10 +222,37 @@ function RootLayout() {
   );
 }
 
+// Fallback UI for uncaught route errors
+function RouteErrorFallback() {
+  const error = useRouteError();
+  console.error('Route error caught:', error);
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6 bg-app">
+      <div className="flex flex-col items-center justify-center max-w-md w-full p-8 text-center bg-surface border border-border rounded-2xl shadow-xl space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-danger-tint text-danger-text flex items-center justify-center">
+          <AlertTriangle className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-bold text-text-primary">Something went wrong</h2>
+        <p className="text-sm text-text-secondary">
+          {error?.statusText || error?.message || 'An unexpected application error occurred.'}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-semibold transition-colors cursor-pointer"
+        >
+          Reload Application
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Data router for useBlocker support
 const router = createBrowserRouter([
   {
     element: <RootLayout />,
+    errorElement: <RouteErrorFallback />,
     children: [
       {
         path: '/login',

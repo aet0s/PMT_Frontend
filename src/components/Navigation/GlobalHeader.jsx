@@ -9,7 +9,6 @@ import {
   Search,
   X,
   Palette,
-  Activity,
   MoreHorizontal,
   Archive,
   Trash2,
@@ -20,7 +19,9 @@ import {
   FolderKanban,
   Sparkles,
   Inbox,
-  CalendarCheck
+  CalendarCheck,
+  ShieldCheck,
+  CheckSquare
 } from 'lucide-react';
 import NotificationBell from '../Notifications/NotificationBell';
 import UserDropdown from '../ui/UserDropdown';
@@ -49,11 +50,14 @@ export default function GlobalHeader({
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, userRole } = usePermissions();
+  const userRank = Number(userRole?.rank || 0);
+  const roleName = String(userRole?.name || '').toLowerCase();
+  const isTopLevel = userRank >= 40 || ['owner', 'admin', 'project manager', 'team lead'].includes(roleName);
 
-  const canEditBoard = propCanEditBoard ?? hasPermission('project.edit_settings');
-  const canDeleteBoard = propCanDeleteBoard ?? hasPermission('project.delete');
-  const canArchiveBoard = propCanArchiveBoard ?? (hasPermission('project.archive') || hasPermission('project.edit_settings'));
+  const canEditBoard = propCanEditBoard ?? (isTopLevel || hasPermission('project.edit_settings') || hasPermission('project.edit'));
+  const canDeleteBoard = propCanDeleteBoard ?? (isTopLevel || hasPermission('project.delete'));
+  const canArchiveBoard = propCanArchiveBoard ?? (isTopLevel || hasPermission('project.archive') || canEditBoard);
   const canViewActivity = hasPermission('activity.view');
 
   // Search input state (bound to URL ?search=)
@@ -147,7 +151,8 @@ export default function GlobalHeader({
   // Determine active view context
   const pathParts = subPath ? subPath.split('/') : [];
   const isProjectRoute = pathParts[0] === 'p' && pathParts[1];
-  const isOnBoard = Boolean(isProjectRoute && board);
+  const isWorkspaceToolRoute = ['audit', 'home', 'members', 'company-members', 'reports', 'settings', 'archive', 'notifications', 'daily-tracker', 'my-tasks'].includes(subPath);
+  const isOnBoard = Boolean(board && (isProjectRoute || !isWorkspaceToolRoute));
 
   // Page title and icon mapping for non-board pages
   const pageMeta = useMemo(() => {
@@ -156,12 +161,12 @@ export default function GlobalHeader({
     switch (cleanSub) {
       case 'home':
         return { title: workspace?.name || 'Workspace', badge: 'Overview', icon: FolderKanban };
+      case 'my-tasks':
+        return { title: 'My Tasks & Work', badge: 'Personal Hub', icon: CheckSquare };
       case 'members':
         return { title: 'Workspace Members', badge: 'Access', icon: Users };
       case 'company-members':
         return { title: 'Company Members', badge: 'Directory', icon: Users };
-      case 'activity':
-        return { title: 'Releases & Activity', badge: 'Audit Feed', icon: Activity };
       case 'reports':
         return { title: 'Reports & Insights', badge: 'Analytics', icon: BarChart3 };
       case 'settings':
@@ -176,9 +181,10 @@ export default function GlobalHeader({
         return { title: 'Notifications', badge: 'Inbox', icon: Inbox };
       case 'daily-tracker':
         return { title: 'Daily Tracker', badge: 'Daily Tasks', icon: CalendarCheck };
+      case 'audit':
+        return { title: 'Enterprise Audit Log', badge: 'Compliance', icon: ShieldCheck };
       case 'calendar':
-      case 'roadmap':
-        return { title: 'Roadmap & Schedule', badge: 'Timeline', icon: Sparkles };
+        return { title: 'Calendar & Schedule', badge: 'Timeline', icon: Sparkles };
       case 'list':
       case 'issues':
         return { title: 'Issues & Tasks', badge: 'Backlog', icon: LayoutGrid };
@@ -415,39 +421,22 @@ export default function GlobalHeader({
               </button>
             )}
 
-            {/* Activity Drawer Toggle Button */}
-            {canViewActivity && onToggleActivity && (
-              <button
-                type="button"
-                onClick={onToggleActivity}
-                aria-label="Activity log"
-                title="Activity log"
-                className={`p-2 border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs ${
-                  isActivityOpen
-                    ? 'bg-primary-tint text-primary border-primary/40'
-                    : 'bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border-border'
-                }`}
-              >
-                <Activity className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Board Actions Overflow Menu */}
-            {(canEditBoard || canDeleteBoard || canArchiveBoard) && (
+            {/* Board Actions Overflow Menu (Archive, Delete, Rename) */}
+            {(onArchiveBoard || onDeleteBoard || onUpdateBoard || canEditBoard || canDeleteBoard || canArchiveBoard) && (
               <div className="relative" ref={boardMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsBoardMenuOpen((prev) => !prev)}
                   className="p-2 bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary border border-border rounded-xl transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shadow-2xs"
-                  title="Project Actions"
-                  aria-label="Project Actions"
+                  title="Board Actions"
+                  aria-label="Board Actions"
                 >
                   <MoreHorizontal className="w-4 h-4" />
                 </button>
 
                 {isBoardMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 py-1.5 text-text-primary animate-sassy-dropdown">
-                    {canEditBoard && (
+                    {(canEditBoard || onUpdateBoard) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -457,10 +446,10 @@ export default function GlobalHeader({
                         className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors cursor-pointer text-left"
                       >
                         <Pencil className="w-3.5 h-3.5 text-text-secondary" />
-                        Rename Project
+                        Rename Board
                       </button>
                     )}
-                    {canArchiveBoard && (
+                    {(canArchiveBoard || onArchiveBoard) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -470,10 +459,10 @@ export default function GlobalHeader({
                         className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-warning-text hover:bg-warning-tint transition-colors cursor-pointer text-left"
                       >
                         <Archive className="w-3.5 h-3.5 text-warning" />
-                        Archive Project
+                        Archive Board
                       </button>
                     )}
-                    {canDeleteBoard && (
+                    {(canDeleteBoard || onDeleteBoard) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -483,7 +472,7 @@ export default function GlobalHeader({
                         className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-danger-text hover:bg-danger-tint transition-colors cursor-pointer text-left"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-danger" />
-                        Delete Project
+                        Delete Board
                       </button>
                     )}
                   </div>

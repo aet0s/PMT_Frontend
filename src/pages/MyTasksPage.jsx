@@ -1,0 +1,962 @@
+// client/src/pages/MyTasksPage.jsx
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import {
+  CheckSquare,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  Calendar,
+  Search,
+  Users,
+  Flame,
+  LayoutList,
+  Kanban,
+  Check,
+  X,
+  RotateCcw,
+  Sparkles,
+  MessageSquare
+} from 'lucide-react';
+import { getWorkspaceMyTasks } from '../api/workspaces';
+import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../context/PermissionContext';
+import { useSocket } from '../context/SocketProvider';
+import Avatar from '../components/ui/Avatar';
+import Spinner from '../components/ui/Spinner';
+import Select from '../components/ui/Select';
+import LabelPill from '../components/shared/LabelPill';
+import { getListStatusConfig, getCardDefaultStatus } from '../lib/listStatusColors';
+import { format, isPast, isToday, isTomorrow } from 'date-fns';
+
+function formatCardDueDate(dueDateStr, isComplete) {
+  if (!dueDateStr) return null;
+  try {
+    const due = new Date(dueDateStr);
+    if (isNaN(due.getTime())) return null;
+    const now = new Date();
+    const isOverdue = due < now && !isComplete;
+    const isDueSoon = due - now < 24 * 60 * 60 * 1000 && due >= now && !isComplete;
+    if (isToday(due)) return { text: 'Due Today', isOverdue, isDueSoon, isComplete, title: `Due Today: ${format(due, 'PPp')}` };
+    if (isTomorrow(due)) return { text: 'Due Tomorrow', isOverdue: false, isDueSoon: true, isComplete, title: `Due Tomorrow: ${format(due, 'PPp')}` };
+    return {
+      text: format(due, 'MMM d'),
+      isOverdue,
+      isDueSoon,
+      isComplete,
+      title: `Due: ${format(due, 'PPp')}`
+    };
+  } catch {
+    return null;
+  }
+}
+
+export default function MyTasksPage({
+  workspace,
+  workspaces = [],
+  onCardClick
+}) {
+  const { user: authUser } = useAuth();
+  const { userRole } = usePermissions();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Socket for real-time reactivity
+  let socket = null;
+  try {
+    const sockCtx = useSocket();
+    socket = sockCtx?.socket;
+  } catch {}
+
+  // Owner check for member switcher
+  const roleStr = (userRole?.name || workspace?.role || '').toLowerCase();
+  const isOwner =
+    roleStr === 'owner' ||
+    roleStr === 'super admin' ||
+    (userRole?.is_system === 1 && (userRole?.rank >= 100 || userRole?.is_editable === 0)) ||
+    Boolean(tasksData?.canSwitchMember);
+
+  // Active user filter (locked to logged-in user unless requester is verified owner)
+  const urlUserId = searchParams.get('userId');
+  const [selectedUserId, setSelectedUserId] = useState(urlUserId || '');
+
+  // Tab State: 'assigned' | 'delegated' | 'completed'
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'assigned');
+
+  // Filter States
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedBoardId, setSelectedBoardId] = useState('all');
+  const [selectedStage, setSelectedStage] = useState('all'); // 'all' | 'in_progress' | 'todo' | 'review' | 'done' | 'overdue'
+  const [viewMode, setViewMode] = useState('grouped'); // 'grouped' | 'list'
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
+
+  // Data States
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [cards, setCards] = useState([]);
+  const [tasksData, setTasksData] = useState({
+    user: null,
+    canSwitchMember: false,
+    teamMembers: [],
+    boards: [],
+    summary: {
+      total_assigned: 0,
+      active_count: 0,
+      todo: 0,
+      in_progress: 0,
+      review: 0,
+      completed: 0,
+      overdue: 0,
+      due_soon: 0,
+      assigned_by_me: 0,
+      completion_rate: 0
+    }
+  });
+
+  // Debounce search input (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Load Tasks from Server with Server-Side Pagination & Filtering
+  const loadMyTasks = useCallback(async (isSilent = false) => {
+    if (!workspace?.id) return;
+    if (!isSilent) setLoading(true);
+    else setRefreshing(true);
+    setError(null);
+
+    try {
+      const params = {
+        page: currentPage,
+        limit: 20,
+        tab: activeTab,
+        boardId: selectedBoardId,
+        stage: selectedStage,
+        search: debouncedSearch.trim()
+      };
+      if (selectedUserId && isOwner) {
+        params.userId = selectedUserId;
+      }
+
+      const data = await getWorkspaceMyTasks(workspace.id, params);
+      setTasksData(data || {});
+      setCards(data?.cards || []);
+      setPagination(data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
+    } catch (err) {
+      console.error('Failed to load my-tasks:', err);
+      setError(err?.message || 'Failed to load tasks.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [workspace?.id, currentPage, activeTab, selectedBoardId, selectedStage, debouncedSearch, selectedUserId, isOwner]);
+
+  useEffect(() => {
+    loadMyTasks();
+  }, [loadMyTasks]);
+
+  // Real-time socket events
+  useEffect(() => {
+    if (!socket) return;
+    let timer = null;
+    const debouncedReload = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => loadMyTasks(true), 600);
+    };
+
+    socket.on('card:created', debouncedReload);
+    socket.on('card:updated', debouncedReload);
+    socket.on('card:deleted', debouncedReload);
+    socket.on('card:moved', debouncedReload);
+    socket.on('user:workspace_tasks_updated', debouncedReload);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      socket.off('card:created', debouncedReload);
+      socket.off('card:updated', debouncedReload);
+      socket.off('card:deleted', debouncedReload);
+      socket.off('card:moved', debouncedReload);
+      socket.off('user:workspace_tasks_updated', debouncedReload);
+    };
+  }, [socket, loadMyTasks]);
+
+  // Switch Target User (strictly Owner only)
+  const handleSelectUser = (userId) => {
+    setSelectedUserId(userId ? String(userId) : '');
+    setCurrentPage(1);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (userId) next.set('userId', String(userId));
+      else next.delete('userId');
+      return next;
+    }, { replace: true });
+  };
+
+  // Switch Tab
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    setSelectedStage('all');
+    setCurrentPage(1);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', newTab);
+      return next;
+    }, { replace: true });
+  };
+
+  // Reset all filters
+  const handleResetFilters = () => {
+    setSearchInput('');
+    setDebouncedSearch('');
+    setSelectedBoardId('all');
+    setSelectedStage('all');
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = Boolean(
+    searchInput.trim() ||
+    selectedBoardId !== 'all' ||
+    selectedStage !== 'all'
+  );
+
+  // Card click: navigate directly to that board and open card modal
+  const handleCardClick = (card) => {
+    if (onCardClick) {
+      onCardClick({ id: card.id, board_id: card.board_id, workspace_id: workspace.id });
+    } else {
+      navigate(`/w/${workspace.id}/p/${card.board_id}/board?card=${card.id}`);
+    }
+  };
+
+  // Dropdown options
+  const boardOptions = useMemo(() => {
+    const list = [{ value: 'all', label: 'All Projects & Boards' }];
+    (tasksData.boards || []).forEach((b) => {
+      list.push({ value: String(b.id), label: b.name });
+    });
+    return list;
+  }, [tasksData.boards]);
+
+  const stageOptions = [
+    { value: 'all', label: 'All Stages' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'todo', label: 'To Do' },
+    { value: 'review', label: 'In Review' },
+    { value: 'done', label: 'Completed' },
+    { value: 'overdue', label: 'Overdue Only' }
+  ];
+
+  const memberOptions = useMemo(() => {
+    const list = [
+      { value: '', label: `Myself (${authUser?.name || 'You'})` }
+    ];
+    (tasksData.teamMembers || []).forEach((m) => {
+      if (Number(m.id) !== Number(authUser?.id)) {
+        list.push({
+          value: String(m.id),
+          label: `${m.name} (${m.role_name || 'Member'})${m.active_tasks_count > 0 ? ` · ${m.active_tasks_count} active` : ''}`
+        });
+      }
+    });
+    return list;
+  }, [tasksData.teamMembers, authUser]);
+
+  // Grouped Cards by Stage for structured view
+  const groupedCards = useMemo(() => {
+    const groups = {
+      in_progress: [],
+      todo: [],
+      review: [],
+      done: []
+    };
+
+    cards.forEach((c) => {
+      if (c.is_complete || c.stage === 'done') {
+        groups.done.push(c);
+      } else if (c.stage === 'review') {
+        groups.review.push(c);
+      } else if (c.stage === 'todo') {
+        groups.todo.push(c);
+      } else {
+        groups.in_progress.push(c);
+      }
+    });
+
+    return groups;
+  }, [cards]);
+
+  const targetUser = tasksData.user || authUser;
+  const isViewingSelf = !selectedUserId || Number(selectedUserId) === Number(authUser?.id);
+  const canShowMemberSwitcher = Boolean(isOwner && tasksData.canSwitchMember);
+
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-app select-none">
+      {/* ======================================================== */}
+      {/* 1. STATS OVERVIEW CARDS                                   */}
+      {/* ======================================================== */}
+      <div className="px-4 sm:px-6 lg:px-8 py-3.5 border-b border-border/40 bg-surface/50 shrink-0">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {/* 1. Total Assigned */}
+          <div
+            onClick={() => { handleTabChange('assigned'); setSelectedStage('all'); }}
+            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
+              activeTab === 'assigned' && selectedStage === 'all'
+                ? 'bg-primary/5 border-primary ring-1 ring-primary/20'
+                : 'bg-surface border-border/70 hover:border-primary/40'
+            }`}
+          >
+            <div className="flex items-center justify-between text-text-muted mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Total Assigned</span>
+              <CheckSquare className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl sm:text-2xl font-black text-text-primary">
+                {tasksData.summary?.total_assigned || 0}
+              </span>
+              <span className="text-[11px] font-semibold text-text-muted">
+                {tasksData.summary?.completion_rate || 0}% done
+              </span>
+            </div>
+          </div>
+
+          {/* 2. In Progress */}
+          <div
+            onClick={() => { handleTabChange('assigned'); setSelectedStage('in_progress'); }}
+            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
+              activeTab === 'assigned' && selectedStage === 'in_progress'
+                ? 'bg-amber-500/10 border-amber-500 ring-1 ring-amber-500/20'
+                : 'bg-surface border-border/70 hover:border-amber-500/40'
+            }`}
+          >
+            <div className="flex items-center justify-between text-text-muted mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider">In Progress</span>
+              <Flame className="w-4 h-4 text-amber-500" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">
+                {tasksData.summary?.in_progress || 0}
+              </span>
+              <span className="text-[11px] font-semibold text-text-muted">active now</span>
+            </div>
+          </div>
+
+          {/* 3. To Do */}
+          <div
+            onClick={() => { handleTabChange('assigned'); setSelectedStage('todo'); }}
+            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
+              activeTab === 'assigned' && selectedStage === 'todo'
+                ? 'bg-indigo-500/10 border-indigo-500 ring-1 ring-indigo-500/20'
+                : 'bg-surface border-border/70 hover:border-indigo-500/40'
+            }`}
+          >
+            <div className="flex items-center justify-between text-text-muted mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider">To Do</span>
+              <Clock className="w-4 h-4 text-indigo-500" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                {tasksData.summary?.todo || 0}
+              </span>
+              <span className="text-[11px] font-semibold text-text-muted">backlog</span>
+            </div>
+          </div>
+
+          {/* 4. Overdue */}
+          <div
+            onClick={() => { handleTabChange('assigned'); setSelectedStage('overdue'); }}
+            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
+              selectedStage === 'overdue'
+                ? 'bg-danger/10 border-danger ring-1 ring-danger/20'
+                : 'bg-surface border-border/70 hover:border-danger/40'
+            }`}
+          >
+            <div className="flex items-center justify-between text-text-muted mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Overdue</span>
+              <AlertCircle className={`w-4 h-4 ${(tasksData.summary?.overdue || 0) > 0 ? 'text-danger' : 'text-text-muted'}`} />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-xl sm:text-2xl font-black ${(tasksData.summary?.overdue || 0) > 0 ? 'text-danger' : 'text-text-primary'}`}>
+                {tasksData.summary?.overdue || 0}
+              </span>
+              <span className="text-[11px] font-semibold text-text-muted">past due</span>
+            </div>
+          </div>
+
+          {/* 5. Completed */}
+          <div
+            onClick={() => handleTabChange('completed')}
+            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
+              activeTab === 'completed'
+                ? 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500/20'
+                : 'bg-surface border-border/70 hover:border-emerald-500/40'
+            }`}
+          >
+            <div className="flex items-center justify-between text-text-muted mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Completed</span>
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                {tasksData.summary?.completed || 0}
+              </span>
+              <span className="text-[11px] font-semibold text-text-muted">milestones</span>
+            </div>
+          </div>
+
+          {/* 6. Assigned by Me */}
+          <div
+            onClick={() => handleTabChange('delegated')}
+            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
+              activeTab === 'delegated'
+                ? 'bg-purple-500/10 border-purple-500 ring-1 ring-purple-500/20'
+                : 'bg-surface border-border/70 hover:border-purple-500/40'
+            }`}
+          >
+            <div className="flex items-center justify-between text-text-muted mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Assigned by Me</span>
+              <Sparkles className="w-4 h-4 text-purple-500" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400">
+                {tasksData.summary?.assigned_by_me || 0}
+              </span>
+              <span className="text-[11px] font-semibold text-text-muted">delegated</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 2. TABS, SEARCH & FILTER TOOLBAR                         */}
+      {/* ======================================================== */}
+      <div className="px-4 sm:px-6 lg:px-8 py-3 bg-surface border-b border-border/60 shrink-0">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Main Tabs */}
+          <div className="flex items-center gap-1.5 p-1 bg-surface-muted rounded-xl border border-border/60 shrink-0 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => handleTabChange('assigned')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'assigned'
+                  ? 'bg-surface text-primary shadow-xs'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>Assigned to Me ({tasksData.summary?.total_assigned || 0})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('delegated')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'delegated'
+                  ? 'bg-surface text-primary shadow-xs'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Assigned by Me ({tasksData.summary?.assigned_by_me || 0})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('completed')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'completed'
+                  ? 'bg-surface text-primary shadow-xs'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Completed Work ({tasksData.summary?.completed || 0})</span>
+            </button>
+          </div>
+
+          {/* Search, Global Dropdowns & View Toggle */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Search Input */}
+            <div className="relative min-w-[170px] sm:min-w-[200px]">
+              <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search tasks..."
+                className="w-full pl-8 pr-7 py-1.5 bg-surface-muted border border-border/80 rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-0.5 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Board Filter - Global Select */}
+            <div className="w-44 sm:w-52">
+              <Select
+                options={boardOptions}
+                value={selectedBoardId}
+                onChange={(val) => {
+                  setSelectedBoardId(val);
+                  setCurrentPage(1);
+                }}
+                size="sm"
+                aria-label="Filter by project or board"
+              />
+            </div>
+
+            {/* Stage Filter - Global Select (visible on Assigned tab) */}
+            {activeTab === 'assigned' && (
+              <div className="w-36 sm:w-40">
+                <Select
+                  options={stageOptions}
+                  value={selectedStage}
+                  onChange={(val) => {
+                    setSelectedStage(val);
+                    setCurrentPage(1);
+                  }}
+                  size="sm"
+                  aria-label="Filter by stage"
+                />
+              </div>
+            )}
+
+            {/* Switch Member Dropdown - Global Select (strictly Owner only) */}
+            {canShowMemberSwitcher && (
+              <div className="w-48 sm:w-56">
+                <Select
+                  options={memberOptions}
+                  value={selectedUserId}
+                  onChange={handleSelectUser}
+                  size="sm"
+                  aria-label="Switch team member"
+                  placeholder="Switch Team Member"
+                />
+              </div>
+            )}
+
+            {/* Reset Filter Button */}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-border/80 bg-surface hover:bg-surface-muted text-xs font-semibold text-text-secondary hover:text-primary transition-colors cursor-pointer"
+                title="Reset active filters"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            )}
+
+            {/* View Mode Toggle: Grouped vs List */}
+            <div className="flex items-center p-0.5 bg-surface-muted rounded-xl border border-border/60 shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewMode('grouped')}
+                title="Grouped by workflow stage"
+                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                  viewMode === 'grouped'
+                    ? 'bg-surface text-primary shadow-xs font-bold'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <Kanban className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                title="Compact flat list"
+                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                  viewMode === 'list'
+                    ? 'bg-surface text-primary shadow-xs font-bold'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Owner-Inspection Banner if viewing someone else */}
+        {!isViewingSelf && targetUser && (
+          <div className="max-w-7xl mx-auto mt-2.5 flex items-center justify-between px-3.5 py-2 bg-primary/10 border border-primary/20 rounded-xl text-xs font-medium text-primary">
+            <div className="flex items-center gap-2">
+              <Avatar src={targetUser.avatar_url} name={targetUser.name} size="xs" />
+              <span>Viewing work dashboard for <strong>{targetUser.name}</strong> ({targetUser.role_name || 'Member'})</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSelectUser('')}
+              className="text-xs font-bold underline hover:text-primary-hover cursor-pointer"
+            >
+              Return to My Tasks
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ======================================================== */}
+      {/* 3. MAIN TASK CONTENT AREA                                 */}
+      {/* ======================================================== */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-28 text-text-muted">
+              <Spinner className="w-8 h-8 text-primary mb-3" />
+              <p className="text-xs font-semibold">Loading assignments & tasks...</p>
+            </div>
+          ) : error ? (
+            <div className="p-4 rounded-2xl bg-danger-tint border border-danger/30 text-danger text-xs text-center">
+              {error}
+            </div>
+          ) : cards.length === 0 ? (
+            /* Empty State */
+            <div className="text-center py-24 bg-surface border border-border/70 rounded-3xl p-8 max-w-lg mx-auto shadow-2xs">
+              <div className="w-14 h-14 rounded-2xl bg-primary-tint text-primary flex items-center justify-center mx-auto mb-4">
+                <CheckSquare className="w-7 h-7" />
+              </div>
+              <h3 className="text-base font-bold text-text-primary mb-1">No Tasks Found</h3>
+              <p className="text-xs text-text-secondary max-w-sm mx-auto mb-6">
+                {hasActiveFilters
+                  ? 'No tasks match your active filter criteria. Try clearing search or filters.'
+                  : activeTab === 'delegated'
+                  ? 'You have not delegated or assigned any cards in this workspace yet.'
+                  : activeTab === 'completed'
+                  ? 'No completed tasks recorded yet. Finished cards will show up here.'
+                  : 'You have zero active tasks assigned right now. You are all caught up!'}
+              </p>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+          ) : viewMode === 'grouped' && activeTab === 'assigned' && selectedStage === 'all' ? (
+            /* Grouped View (In Progress -> To Do -> In Review -> Done) */
+            <div className="space-y-6">
+              {/* SECTION: In Progress */}
+              {groupedCards.in_progress.length > 0 && (
+                <TaskSection
+                  title="In Progress"
+                  icon={Flame}
+                  count={groupedCards.in_progress.length}
+                  themeClass="text-amber-500 bg-amber-500/10 border-amber-500/20"
+                  cards={groupedCards.in_progress}
+                  onCardClick={handleCardClick}
+                  workspaceId={workspace.id}
+                />
+              )}
+
+              {/* SECTION: To Do / Backlog */}
+              {groupedCards.todo.length > 0 && (
+                <TaskSection
+                  title="To Do & Upcoming"
+                  icon={Clock}
+                  count={groupedCards.todo.length}
+                  themeClass="text-indigo-500 bg-indigo-500/10 border-indigo-500/20"
+                  cards={groupedCards.todo}
+                  onCardClick={handleCardClick}
+                  workspaceId={workspace.id}
+                />
+              )}
+
+              {/* SECTION: Review & QA */}
+              {groupedCards.review.length > 0 && (
+                <TaskSection
+                  title="In Review & QA"
+                  icon={CheckSquare}
+                  count={groupedCards.review.length}
+                  themeClass="text-purple-500 bg-purple-500/10 border-purple-500/20"
+                  cards={groupedCards.review}
+                  onCardClick={handleCardClick}
+                  workspaceId={workspace.id}
+                />
+              )}
+
+              {/* SECTION: Completed */}
+              {groupedCards.done.length > 0 && (
+                <TaskSection
+                  title="Completed"
+                  icon={CheckCircle2}
+                  count={groupedCards.done.length}
+                  themeClass="text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
+                  cards={groupedCards.done}
+                  onCardClick={handleCardClick}
+                  workspaceId={workspace.id}
+                />
+              )}
+            </div>
+          ) : (
+            /* Flat List View */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {cards.map((card) => (
+                <BoardCardItem
+                  key={card.id}
+                  card={card}
+                  onCardClick={handleCardClick}
+                  workspaceId={workspace.id}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* 4. SERVER-SIDE PAGINATION FOOTER                          */}
+          {/* ======================================================== */}
+          {pagination.total > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-border/60">
+              <span className="text-xs text-text-secondary">
+                Showing <span className="font-bold text-text-primary">{(pagination.page - 1) * pagination.limit + 1}</span>–<span className="font-bold text-text-primary">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="font-bold text-text-primary">{pagination.total}</span> tasks
+              </span>
+
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={pagination.page <= 1 || loading}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-semibold text-text-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  >
+                    Previous
+                  </button>
+
+                  <span className="px-3 py-1.5 text-xs font-semibold text-text-primary">
+                    Page {pagination.page} of {pagination.totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={pagination.page >= pagination.totalPages || loading}
+                    onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+                    className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-semibold text-text-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subcomponent: Section Block for Grouped View
+// ─────────────────────────────────────────────────────────────────────────────
+function TaskSection({ title, icon: Icon, count, themeClass, cards, onCardClick, workspaceId }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className={`p-1.5 rounded-lg border flex items-center justify-center shrink-0 ${themeClass}`}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <h2 className="text-sm font-bold text-text-primary tracking-tight">
+          {title}
+        </h2>
+        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-surface-muted text-text-secondary border border-border/60">
+          {count}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        {cards.map((card) => (
+          <BoardCardItem
+            key={card.id}
+            card={card}
+            onCardClick={onCardClick}
+            workspaceId={workspaceId}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subcomponent: BoardCardItem - Matches Board Card.jsx design exactly
+// ─────────────────────────────────────────────────────────────────────────────
+function BoardCardItem({ card, onCardClick, workspaceId }) {
+  const status = getCardDefaultStatus(card, card.list_name);
+  const statusConfig = getListStatusConfig(status);
+  const dueDateInfo = formatCardDueDate(card.due_date, card.is_complete);
+  const checklist = card.checklist || { total: 0, completed: 0 };
+  const hasChecklist = checklist.total > 0;
+
+  // Extract clean plain text snippet from description HTML
+  const descriptionSnippet = card.description && card.description !== '<p></p>'
+    ? card.description.replace(/<[^>]*>/g, '').trim()
+    : '';
+
+  return (
+    <div
+      tabIndex={0}
+      role="button"
+      onClick={() => onCardClick?.(card)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onCardClick?.(card);
+        }
+      }}
+      className={`group relative bg-surface border border-border/80 rounded-2xl p-4 transition-all duration-200 cursor-pointer select-none space-y-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
+        statusConfig
+          ? `${statusConfig.cardClass} hover:border-t-primary/40 hover:border-x-primary/40 hover:-translate-y-0.5`
+          : 'hover:border-primary/40 shadow-[0_2px_10px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.08)] hover:-translate-y-0.5'
+      }`}
+    >
+      {/* Top Header: Task Number, Board Tag, Labels & Status Badge */}
+      <div className="flex items-center justify-between gap-2 min-h-[24px]">
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+          <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
+            Task #{card.task_number || card.id}
+          </span>
+
+          {card.board_name && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-surface-muted text-text-secondary border border-border/60 truncate max-w-[130px]"
+              title={`Board: ${card.board_name}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+              <span className="truncate">{card.board_name}</span>
+            </span>
+          )}
+
+          {card.labels && card.labels.length > 0 &&
+            card.labels.map((l) => (
+              <LabelPill key={l.id} name={l.name} color={l.color} size="xs" />
+            ))}
+        </div>
+
+        {card.list_name && (
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase shrink-0 ${
+              card.is_complete
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                : card.stage === 'in_progress'
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                : card.stage === 'review'
+                ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
+            }`}
+          >
+            {card.list_name}
+          </span>
+        )}
+      </div>
+
+      {/* Card Title & Complete Status */}
+      <div className="flex items-start gap-2">
+        {card.is_complete && (
+          <span className="mt-0.5 w-4.5 h-4.5 rounded-full bg-success text-white flex items-center justify-center shrink-0 shadow-2xs">
+            <Check className="w-3.5 h-3.5 stroke-[3]" />
+          </span>
+        )}
+        <h4
+          className={`text-[15px] sm:text-base font-bold leading-snug break-words transition-colors ${
+            card.is_complete
+              ? 'line-through text-text-muted'
+              : 'text-text-primary group-hover:text-primary'
+          }`}
+        >
+          {card.title}
+        </h4>
+      </div>
+
+      {/* Description Snippet */}
+      {descriptionSnippet && (
+        <p className="text-xs sm:text-[13px] text-text-secondary line-clamp-2 leading-relaxed">
+          {descriptionSnippet}
+        </p>
+      )}
+
+      {/* Card Footer: Assignee Avatars on Left, Metadata Icons on Right */}
+      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-text-secondary text-xs">
+        {/* Assignee Avatars */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {card.members && card.members.length > 0 ? (
+            <div className="flex -space-x-1.5">
+              {card.members.slice(0, 3).map((m) => (
+                <Avatar
+                  key={m.id}
+                  name={m.name}
+                  src={m.avatar_url}
+                  size="xs"
+                  className="rounded-full ring-2 ring-surface shadow-2xs"
+                  title={m.name}
+                />
+              ))}
+              {card.members.length > 3 && (
+                <span className="text-[10px] font-bold text-text-muted pl-1.5 self-center">
+                  +{card.members.length - 3}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="w-5.5 h-5.5 rounded-full border border-dashed border-border flex items-center justify-center text-[10px] text-text-muted">
+              —
+            </div>
+          )}
+        </div>
+
+        {/* Metadata: Due Date, Checklist, Comments */}
+        <div className="flex items-center gap-2.5 text-xs text-text-muted font-medium">
+          {/* Due Date badge */}
+          {dueDateInfo && (
+            <div
+              title={dueDateInfo.title}
+              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                dueDateInfo.isComplete
+                  ? 'bg-success-tint text-success-text'
+                  : dueDateInfo.isOverdue
+                  ? 'bg-danger-tint text-danger-text'
+                  : dueDateInfo.isDueSoon
+                  ? 'bg-warning-tint text-warning-text'
+                  : 'bg-surface-muted text-text-secondary'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{dueDateInfo.text}</span>
+            </div>
+          )}
+
+          {/* Checklist progress */}
+          {hasChecklist && (
+            <span className="flex items-center gap-1 text-[11px] font-medium text-text-secondary">
+              <CheckSquare className="w-3.5 h-3.5 text-text-muted" />
+              <span>{checklist.completed}/{checklist.total}</span>
+            </span>
+          )}
+
+          {/* Comments count */}
+          {card.comment_count > 0 && (
+            <span className="flex items-center gap-1 text-[11px] text-text-muted">
+              <MessageSquare className="w-3 h-3 text-text-muted" />
+              <span>{card.comment_count}</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

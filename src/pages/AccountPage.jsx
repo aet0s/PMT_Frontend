@@ -5,7 +5,6 @@ import {
   ShieldCheck,
   Shield,
   Laptop,
-  Activity,
   SlidersHorizontal
 } from 'lucide-react';
 import Spinner from '../components/ui/Spinner';
@@ -15,7 +14,6 @@ import { usePermissions } from '../context/PermissionContext';
 const RolesTab = lazy(() => import('./settings/tabs/RolesTab'));
 const SecurityTab = lazy(() => import('./account/tabs/SecurityTab'));
 const SessionsTab = lazy(() => import('./account/tabs/SessionsTab'));
-const ActivityTab = lazy(() => import('./account/tabs/ActivityTab'));
 const PreferencesTab = lazy(() => import('./account/tabs/PreferencesTab'));
 
 export default function AccountPage({ tab: propTab, workspace }) {
@@ -45,7 +43,6 @@ export default function AccountPage({ tab: propTab, workspace }) {
         : []),
       { id: 'security', label: 'Security', icon: <ShieldCheck className="w-4 h-4" /> },
       { id: 'sessions', label: 'Active Sessions', icon: <Laptop className="w-4 h-4" /> },
-      { id: 'activity', label: 'Activity Log', icon: <Activity className="w-4 h-4" /> },
       { id: 'preferences', label: 'Preferences', icon: <SlidersHorizontal className="w-4 h-4" /> }
     ],
     [canViewRoles]
@@ -153,9 +150,6 @@ export default function AccountPage({ tab: propTab, workspace }) {
             )}
             {currentTab?.id === 'sessions' && (
               <SessionsTab />
-            )}
-            {currentTab?.id === 'activity' && (
-              <ActivityTab />
             )}
             {currentTab?.id === 'preferences' && (
               <PreferencesTab setFormDirty={setFormDirty} />

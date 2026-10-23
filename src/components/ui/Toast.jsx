@@ -86,28 +86,69 @@ export function ToastProvider({ children }) {
 }
 
 function ToastItem({ toast, onDismiss }) {
+  const type = toast.type || 'info';
+
+  const THEME_STYLES = {
+    info: {
+      card: 'bg-[#EFF6FF] border-[#BFDBFE] border-l-4 border-l-[#2563EB] shadow-xl shadow-blue-500/15',
+      iconBox: 'bg-[#DBEAFE] border-[#BFDBFE] text-[#2563EB]',
+      title: 'text-[#1E3A8A]',
+      message: 'text-[#1E40AF]',
+      closeBtn: 'text-[#60A5FA] hover:text-[#1E3A8A] hover:bg-[#DBEAFE]',
+      action: 'text-[#2563EB] hover:text-[#1D4ED8]'
+    },
+    success: {
+      card: 'bg-[#F0FDF4] border-[#BBF7D0] border-l-4 border-l-[#16A34A] shadow-xl shadow-emerald-500/15',
+      iconBox: 'bg-[#DCFCE7] border-[#BBF7D0] text-[#16A34A]',
+      title: 'text-[#14532D]',
+      message: 'text-[#166534]',
+      closeBtn: 'text-[#4ADE80] hover:text-[#14532D] hover:bg-[#DCFCE7]',
+      action: 'text-[#16A34A] hover:text-[#15803D]'
+    },
+    warning: {
+      card: 'bg-[#FFFBEB] border-[#FDE68A] border-l-4 border-l-[#D97706] shadow-xl shadow-amber-500/15',
+      iconBox: 'bg-[#FEF3C7] border-[#FDE68A] text-[#D97706]',
+      title: 'text-[#78350F]',
+      message: 'text-[#92400E]',
+      closeBtn: 'text-[#FBBF24] hover:text-[#78350F] hover:bg-[#FEF3C7]',
+      action: 'text-[#D97706] hover:text-[#B45309]'
+    },
+    error: {
+      card: 'bg-[#FEF2F2] border-[#FECACA] border-l-4 border-l-[#DC2626] shadow-xl shadow-rose-500/15',
+      iconBox: 'bg-[#FEE2E2] border-[#FECACA] text-[#DC2626]',
+      title: 'text-[#7F1D1D]',
+      message: 'text-[#991B1B]',
+      closeBtn: 'text-[#F87171] hover:text-[#7F1D1D] hover:bg-[#FEE2E2]',
+      action: 'text-[#DC2626] hover:text-[#B91C1C]'
+    }
+  };
+
+  const style = THEME_STYLES[type] || THEME_STYLES.info;
+
   const ICONS = {
-    success: <CheckCircle2 className="w-5 h-5 text-success shrink-0" />,
-    error: <AlertCircle className="w-5 h-5 text-danger shrink-0" />,
-    warning: <AlertTriangle className="w-5 h-5 text-warning shrink-0" />,
-    info: <Info className="w-5 h-5 text-info shrink-0" />
+    success: <CheckCircle2 className="w-4.5 h-4.5" />,
+    error: <AlertCircle className="w-4.5 h-4.5" />,
+    warning: <AlertTriangle className="w-4.5 h-4.5" />,
+    info: <Info className="w-4.5 h-4.5" />
   };
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-auto flex items-start gap-3 p-3.5 bg-surface border border-border rounded-xl shadow-lg animate-slide-up text-left"
+      className={`pointer-events-auto flex items-start gap-3 p-3.5 border rounded-xl shadow-xl backdrop-blur-md animate-toast-in text-left transition-all max-w-sm w-full ${style.card}`}
     >
-      {ICONS[toast.type] || ICONS.info}
+      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 shadow-2xs ${style.iconBox}`}>
+        {ICONS[type] || ICONS.info}
+      </div>
       <div className="flex-1 min-w-0 pr-1">
         {toast.title && (
-          <h4 className="text-sm font-semibold text-text-primary leading-tight">
+          <h4 className={`text-[13px] font-bold leading-tight tracking-tight ${style.title}`}>
             {toast.title}
           </h4>
         )}
         {toast.message && (
-          <p className="text-xs text-text-secondary mt-0.5 leading-snug">
+          <p className={`text-xs mt-1 leading-relaxed font-medium ${style.message}`}>
             {toast.message}
           </p>
         )}
@@ -118,7 +159,7 @@ function ToastItem({ toast, onDismiss }) {
               toast.action.onClick();
               onDismiss();
             }}
-            className="mt-2 text-xs font-semibold text-primary hover:text-primary-hover active:text-primary-active underline cursor-pointer"
+            className={`mt-2 text-xs font-semibold underline cursor-pointer transition-colors ${style.action}`}
           >
             {toast.action.label || 'Undo'}
           </button>
@@ -128,9 +169,9 @@ function ToastItem({ toast, onDismiss }) {
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss toast"
-        className="text-text-muted hover:text-text-primary p-1 cursor-pointer rounded"
+        className={`p-1 cursor-pointer rounded-lg transition-colors shrink-0 ${style.closeBtn}`}
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-4 h-4" />
       </button>
     </div>
   );

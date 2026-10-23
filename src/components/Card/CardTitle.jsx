@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { usePermissions } from '../../context/PermissionContext';
 import { Check } from 'lucide-react';
 
-export default function CardTitle({ card, onUpdateTitle, onToggleComplete, canModify = true }) {
+export default function CardTitle({ card, onUpdateTitle, onToggleComplete, canModify = true, canComplete = true }) {
   const { hasPermission } = usePermissions();
   const canEditCard = hasPermission('task.edit') && canModify;
+  const canCompleteCard = (hasPermission('task.complete') || hasPermission('task.edit')) && canComplete;
 
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(card.title);
@@ -37,11 +38,15 @@ export default function CardTitle({ card, onUpdateTitle, onToggleComplete, canMo
       {/* Circle Complete Checkbox */}
       <button
         type="button"
-        onClick={() => canEditCard && onToggleComplete(!card.is_complete)}
-        disabled={!canEditCard}
-        title={canEditCard ? (card.is_complete ? 'Mark incomplete' : 'Mark complete') : undefined}
+        onClick={() => canCompleteCard && onToggleComplete(!card.is_complete)}
+        disabled={!canCompleteCard}
+        title={
+          canCompleteCard
+            ? (card.is_complete ? 'Mark incomplete' : 'Mark complete')
+            : 'Only assigners can mark this card as completed'
+        }
         className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-          canEditCard ? 'cursor-pointer' : 'cursor-default opacity-60'
+          canCompleteCard ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'
         } ${
           card.is_complete
             ? 'bg-success border-success text-white shadow-xs'

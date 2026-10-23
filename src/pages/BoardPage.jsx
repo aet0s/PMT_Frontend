@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import { useParams, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useLocation, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import WorkspaceSidebar from '../components/Sidebar/WorkspaceSidebar';
 import Board from '../components/Board/Board';
 import ConfirmModal from '../components/shared/ConfirmModal';
@@ -29,6 +29,8 @@ const ListView = safeLazy(() => import('../components/Board/ListView'), 'ListVie
 const CalendarView = safeLazy(() => import('../components/Board/CalendarView'), 'CalendarView');
 const NotFoundPage = safeLazy(() => import('../pages/NotFoundPage'), 'NotFoundPage');
 const DailyTrackerPage = safeLazy(() => import('../pages/DailyTrackerPage'), 'DailyTrackerPage');
+const AuditLogPage = safeLazy(() => import('../pages/AuditLogPage'), 'AuditLogPage');
+const MyTasksPage = safeLazy(() => import('../pages/MyTasksPage'), 'MyTasksPage');
 import GlobalHeader from '../components/Navigation/GlobalHeader';
 import CheckinPopup from '../components/DailyTracker/CheckinPopup';
 
@@ -89,9 +91,8 @@ export default function BoardPage() {
   const urlBoardId = isProjectRoute && pathParts[1] ? Number(pathParts[1]) : null;
   const currentView = isProjectRoute ? pathParts[2] || 'board' : 'board';
 
-  // Mobile sidebar drawer state & activity drawer state
+  // Mobile sidebar drawer state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isActivityOpen, setIsActivityOpen] = useState(false);
 
   // Task Completion Outcome Modal state (for tasks open > 2 working days)
   const [completionModalState, setCompletionModalState] = useState(null);
@@ -348,10 +349,8 @@ export default function BoardPage() {
       }
 
       if (activeWorkspace?.id) {
-        // Workspace exists but has no valid boards; redirect to roadmap, issues, or home gracefully
-        if (currentView === 'calendar' || location.pathname.includes('/calendar')) {
-          navigate(`/w/${activeWorkspace.id}/roadmap`, { replace: true });
-        } else if (currentView === 'list' || location.pathname.includes('/list')) {
+        // Workspace exists but has no valid boards; redirect to issues or home gracefully
+        if (currentView === 'list' || location.pathname.includes('/list')) {
           navigate(`/w/${activeWorkspace.id}/issues`, { replace: true });
         } else {
           navigate(`/w/${activeWorkspace.id}/home`, { replace: true });
@@ -395,11 +394,11 @@ export default function BoardPage() {
     }
   }, [activeWorkspace?.id, activeWorkspace?.settings?.workspace_defaults, activeWorkspace?.settings?.project_defaults, urlBoardId, loadActiveBoard]);
 
-  // Handle /roadmap and /calendar routes at workspace level:
-  // If boards exist, seamlessly navigate to the project's calendar roadmap view.
-  // Otherwise, clear loading so the empty roadmap state displays gracefully.
+  // Handle /calendar route at workspace level:
+  // If boards exist, seamlessly navigate to the project's calendar view.
+  // Otherwise, clear loading so the empty calendar state displays gracefully.
   useEffect(() => {
-    if ((subPath === 'roadmap' || subPath === 'calendar') && activeWorkspace?.id) {
+    if (subPath === 'calendar' && activeWorkspace?.id) {
       if (boards.length > 0) {
         const rememberedBoardId = getTenantItem(user?.tenant_id, `last_board_id_${activeWorkspace.id}`, null);
         const targetBoard = boards.find((b) => b.id === Number(rememberedBoardId)) || boards[0];
@@ -501,8 +500,8 @@ export default function BoardPage() {
   useEffect(() => {
     if (subPath === 'home') {
       document.title = `${activeWorkspace?.name || 'Workspace'} - Home | TaskFlow`;
-    } else if (subPath === 'roadmap' || subPath === 'calendar') {
-      document.title = `${activeWorkspace?.name || 'Workspace'} - Roadmap | TaskFlow`;
+    } else if (subPath === 'calendar') {
+      document.title = `${activeWorkspace?.name || 'Workspace'} - Calendar | TaskFlow`;
     } else if (subPath === 'notifications') {
       document.title = 'Notifications - TaskFlow';
     } else if (subPath === 'archive') {
@@ -1940,8 +1939,6 @@ export default function BoardPage() {
               onUpdateBoard={handleUpdateBoard}
               onArchiveBoard={handleArchiveCurrentBoard}
               onDeleteBoard={handleDeleteCurrentBoard}
-              isActivityOpen={isActivityOpen}
-              onToggleActivity={() => setIsActivityOpen((prev) => !prev)}
             />
           )}
 
@@ -2097,6 +2094,14 @@ export default function BoardPage() {
                 boards={boards}
               />
             </Suspense>
+          ) : subPath === 'my-tasks' ? (
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
+              <MyTasksPage
+                workspace={activeWorkspace}
+                workspaces={workspaces}
+                onCardClick={handleSelectNotificationCard}
+              />
+            </Suspense>
           ) : subPath === 'daily-tracker' ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
               <DailyTrackerPage
@@ -2105,10 +2110,12 @@ export default function BoardPage() {
                 onCardClick={handleSelectNotificationCard}
               />
             </Suspense>
-          ) : subPath === 'activity' ? (
+          ) : subPath === 'audit' ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
-              <ActivityPage workspace={activeWorkspace} />
+              <AuditLogPage workspace={activeWorkspace} />
             </Suspense>
+          ) : subPath === 'activity' ? (
+            <Navigate to={`/w/${activeWorkspace?.id || workspaceId}/audit`} replace />
           ) : subPath === 'reports' ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
               <ReportsPage workspace={activeWorkspace} />
@@ -2135,11 +2142,11 @@ export default function BoardPage() {
                 onDeleteWorkspace={handleDeleteCurrentWorkspace}
               />
             </Suspense>
-          ) : subPath === 'roadmap' || subPath === 'calendar' ? (
+          ) : subPath === 'calendar' ? (
             loading || loadingWorkspaces ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
                 <Spinner size="lg" />
-                <p className="text-xs font-semibold text-text-secondary">Loading Roadmap...</p>
+                <p className="text-xs font-semibold text-text-secondary">Loading Calendar...</p>
               </div>
             ) : boards.length > 0 && boardData ? (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
@@ -2161,9 +2168,9 @@ export default function BoardPage() {
                 <div className="w-16 h-16 rounded-2xl bg-primary-tint text-primary border border-primary/20 flex items-center justify-center mb-6 shadow-xs">
                   <Calendar className="w-8 h-8" />
                 </div>
-                <h2 className="text-2xl font-bold text-text-primary mb-2">Roadmap & Timeline</h2>
+                <h2 className="text-2xl font-bold text-text-primary mb-2">Project Calendar</h2>
                 <p className="text-text-secondary max-w-sm mb-6 text-sm leading-relaxed">
-                  No projects found in this workspace. Create a project to start planning your roadmap and schedule.
+                  No projects found in this workspace. Create a project to start planning your schedule.
                 </p>
                 <button
                   type="button"
@@ -2313,8 +2320,6 @@ export default function BoardPage() {
                     onSelectNotificationCard={handleSelectNotificationCard}
                     onOpenAllNotifications={() => navigate(`/w/${workspaceId}/notifications`)}
                     onBoardSocketEvent={handleLiveBoardSocketEvent}
-                    isActivityOpen={isActivityOpen}
-                    onCloseActivity={() => setIsActivityOpen(false)}
                   />
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-app">

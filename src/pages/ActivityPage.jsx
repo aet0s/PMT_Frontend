@@ -26,7 +26,9 @@ import {
   ExternalLink,
   Layers,
   Sparkles,
-  X
+  X,
+  Copy,
+  UserCheck
 } from 'lucide-react';
 import { getWorkspaceActivity } from '../api/workspaces';
 import { formatDate, formatRelativeTime } from '../lib/dateFormat';
@@ -47,9 +49,9 @@ const ACTION_CATEGORIES = [
 ];
 
 const CATEGORY_ACTION_MAP = {
-  tasks: ['created_card', 'moved_card', 'marked_complete', 'marked_incomplete', 'deleted_card', 'archived_card', 'unarchived_card'],
+  tasks: ['created_card', 'copied_card', 'card.copied', 'moved_card', 'marked_complete', 'completed_card', 'marked_incomplete', 'deleted_card', 'archived_card', 'unarchived_card', 'due_date_changed'],
   comments: ['added_comment'],
-  members: ['member_added', 'member_removed'],
+  members: ['member_added', 'member_removed', 'assigner_added', 'assigner_removed'],
   attachments: ['attachment_added'],
   labels: ['label_added', 'label_removed']
 };
@@ -62,6 +64,14 @@ function getActionMeta(actionType) {
         icon: PlusCircle,
         badgeClass: 'bg-primary-tint text-primary-text border-primary/20',
         verb: 'created task'
+      };
+    case 'copied_card':
+    case 'card.copied':
+      return {
+        label: 'Copied Task',
+        icon: Copy,
+        badgeClass: 'bg-info-tint text-info-text border-info/20',
+        verb: 'copied task'
       };
     case 'moved_card':
       return {
@@ -112,6 +122,20 @@ function getActionMeta(actionType) {
         icon: UserMinus,
         badgeClass: 'bg-danger-tint text-danger-text border-danger/20',
         verb: 'unassigned'
+      };
+    case 'assigner_added':
+      return {
+        label: 'Assigner Added',
+        icon: UserCheck,
+        badgeClass: 'bg-primary-tint text-primary-text border-primary/20',
+        verb: 'added assigner to'
+      };
+    case 'assigner_removed':
+      return {
+        label: 'Assigner Removed',
+        icon: UserMinus,
+        badgeClass: 'bg-danger-tint text-danger-text border-danger/20',
+        verb: 'removed assigner from'
       };
     case 'label_added':
       return {
@@ -215,25 +239,17 @@ export default function ActivityPage({ workspace }) {
       else setIsLoading(true);
 
       try {
-        const actionTypes = CATEGORY_ACTION_MAP[selectedCategory];
-        const actionParam = actionTypes ? actionTypes[0] : 'all'; // Default single type or 'all'
-
         const res = await getWorkspaceActivity(workspace.id, {
           page: targetPage,
           limit: 20,
           boardId: selectedBoardId || null,
-          actionType: actionParam,
+          category: selectedCategory,
           search: debouncedSearch
         });
 
-        // Filter client-side if a multi-action category was picked
-        let list = res.activities || [];
-        if (actionTypes && actionTypes.length > 1) {
-          list = list.filter((a) => actionTypes.includes(a.action_type));
-        }
-
+        const list = res.activities || [];
         setActivities(list);
-        setPagination(res.pagination || { page: targetPage, limit: 20, total: list.length, total_pages: 1, has_more: false });
+        setPagination(res.pagination || { page: targetPage, limit: 20, total: res.pagination?.total || list.length, total_pages: res.pagination?.total_pages || 1, has_more: Boolean(res.pagination?.has_more) });
         if (res.boards && res.boards.length > 0) {
           setBoards(res.boards);
         }
@@ -560,6 +576,23 @@ export default function ActivityPage({ workspace }) {
                         {act.action_type === 'attachment_added' && act.meta?.file_name && (
                           <span className="ml-1 font-medium text-info font-mono text-[11px]">
                             {act.meta.file_name}
+                          </span>
+                        )}
+
+                        {/* Assigner context */}
+                        {(act.action_type === 'assigner_added' || act.action_type === 'assigner_removed') && act.meta?.assigner_name && (
+                          <span className="ml-1 font-semibold text-text-primary">
+                            {act.meta.assigner_name}
+                          </span>
+                        )}
+
+                        {/* Copied task context */}
+                        {(act.action_type === 'copied_card' || act.action_type === 'card.copied' || act.meta?.copied_from) && (
+                          <span className="inline-flex items-center gap-1.5 ml-1">
+                            <span className="text-text-muted">from</span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-surface-muted text-text-secondary font-medium text-[11px] border border-border/80">
+                              {act.meta?.copied_from || act.meta?.source_card_title || 'original task'}
+                            </span>
                           </span>
                         )}
                       </div>

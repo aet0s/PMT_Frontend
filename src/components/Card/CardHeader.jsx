@@ -12,7 +12,8 @@ export default function CardHeader({
   onCopyCard,
   onDeleteCard,
   onClose,
-  canModify = true
+  canModify = true,
+  canComplete = true
 }) {
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
@@ -59,14 +60,19 @@ export default function CardHeader({
             <MenuGroup label="Move to List">
               {boardLists.map((l) => {
                 const isSelected = l.id === card.list_id;
+                const isDisallowedDone = Boolean(l.is_done_list) && !canComplete && !isSelected;
                 return (
                   <MenuItem
                     key={l.id}
-                    onClick={() => onMoveList(l.id)}
-                    className={isSelected ? 'bg-primary-tint text-primary font-semibold' : ''}
+                    onClick={() => !isDisallowedDone && onMoveList(l.id)}
+                    disabled={isDisallowedDone}
+                    title={isDisallowedDone ? 'Only assigners can move cards to Done' : undefined}
+                    className={`${isSelected ? 'bg-primary-tint text-primary font-semibold' : ''} ${
+                      isDisallowedDone ? 'opacity-40 cursor-not-allowed' : ''
+                    }`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span>{l.name}</span>
+                      <span className={isDisallowedDone ? 'text-text-muted' : ''}>{l.name}</span>
                       {isSelected && (
                         <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                       )}

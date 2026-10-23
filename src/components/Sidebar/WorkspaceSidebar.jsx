@@ -24,7 +24,6 @@ import {
   Home,
   Users,
   User,
-  Activity,
   BarChart3,
   Check,
   X,
@@ -35,7 +34,8 @@ import {
   MapPin,
   Sparkles,
   CalendarCheck,
-  Search
+  Search,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function WorkspaceSidebar({
@@ -173,13 +173,13 @@ export default function WorkspaceSidebar({
   const canEditWs = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit'));
   const canCreateWs = isOwner || hasPermission('workspace.create') || hasPermission('workspace.edit');
   const canDeleteWs = isOwner || hasPermission('workspace.delete');
-  const canViewRoadmap = isOwner || hasPermission('project.view') || hasPermission('task.view');
   const canViewSprint = isOwner || hasPermission('project.view') || hasPermission('task.view');
   const canViewIssues = isOwner || hasPermission('task.view');
   const canViewActivity = isOwner || hasPermission('activity.view');
   const canViewMembers = !isMemberOrBelow && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
   const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_team') || hasPermission('report.view_all') || hasPermission('report.export') || hasPermission('role.view'));
   const canViewDailyTracker = isOwner || hasPermission('daily_tracker.view');
+  const canViewAudit = !isMemberOrBelow && (isOwner || hasPermission('audit.view'));
   const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit') || hasPermission('workspace.edit_settings'));
 
   const openRenameDialog = () => {
@@ -201,21 +201,17 @@ export default function WorkspaceSidebar({
     location.pathname === `/w/${activeWorkspace?.id}/home` ||
     location.pathname === `/w/${activeWorkspace?.id}` ||
     location.pathname === `/w/${activeWorkspace?.id}/`;
-  const isRoadmapActive = location.pathname.endsWith('/calendar') || location.pathname.endsWith('/roadmap');
+  const isMyTasksActive = location.pathname.endsWith('/my-tasks');
   const isSprintActive = location.pathname.endsWith('/board') || location.pathname.endsWith('/sprint');
   const isIssuesActive = location.pathname.endsWith('/list') || location.pathname.endsWith('/issues');
   const isReportActive = location.pathname.endsWith('/reports');
-  const isReleasesActive =
-    !location.pathname.includes('/settings') &&
-    !location.pathname.includes('/profile') &&
-    !location.pathname.includes('/account') &&
-    (location.pathname === `/w/${activeWorkspace?.id}/activity` || location.pathname.endsWith('/activity'));
   const isWorkspaceMembersActive =
     !location.pathname.includes('/settings') &&
     (location.pathname.endsWith('/members') || location.pathname.endsWith('/workspace-members'));
   const isCompanyMembersActive =
     !location.pathname.includes('/settings') && location.pathname.endsWith('/company-members');
   const isDailyTrackerActive = location.pathname.endsWith('/daily-tracker');
+  const isAuditActive = location.pathname.endsWith('/audit');
   const isSettingsActive = location.pathname.includes('/settings');
   const isAccountSettingsActive = location.pathname.includes('/account');
 
@@ -620,26 +616,31 @@ export default function WorkspaceSidebar({
               <span>Dashboard</span>
             </NavLink>
 
-            {/* Roadmap / Calendar */}
-            {canViewRoadmap && (
-              <NavLink
-                to={
-                  fallbackBoardId
-                    ? `/w/${activeWorkspace?.id}/p/${fallbackBoardId}/calendar`
-                    : `/w/${activeWorkspace?.id}/roadmap`
-                }
-                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-                className={() =>
-                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isRoadmapActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                  }`
-                }
-              >
-                <Calendar className="w-4.5 h-4.5 shrink-0" />
-                <span>Roadmap</span>
-              </NavLink>
-            )}
+            {/* My Tasks */}
+            <NavLink
+              to={`/w/${activeWorkspace?.id}/my-tasks`}
+              onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+              className={() =>
+                `w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isMyTasksActive
+                  ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`
+              }
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <CheckSquare className="w-4.5 h-4.5 shrink-0" />
+                <span className="truncate">My Tasks</span>
+              </div>
+              {activeWorkspace?.assigned_tasks_count > 0 && (
+                <span
+                  className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-danger text-white shrink-0 shadow-2xs"
+                  title={`${activeWorkspace.assigned_tasks_count} assigned task${activeWorkspace.assigned_tasks_count > 1 ? 's' : ''}`}
+                >
+                  {activeWorkspace.assigned_tasks_count > 99 ? '99+' : activeWorkspace.assigned_tasks_count}
+                </span>
+              )}
+            </NavLink>
+
 
             {/* Report */}
             {canViewReports && (
@@ -679,22 +680,6 @@ export default function WorkspaceSidebar({
               </NavLink>
             )}
 
-            {/* Releases / Activity */}
-            {canViewActivity && (
-              <NavLink
-                to={`/w/${activeWorkspace?.id}/activity`}
-                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
-                className={() =>
-                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isReleasesActive
-                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                  }`
-                }
-              >
-                <Activity className="w-4.5 h-4.5 shrink-0" />
-                <span>Releases</span>
-              </NavLink>
-            )}
 
             {/* Workspace Members */}
             {canViewMembers && (
@@ -820,6 +805,25 @@ export default function WorkspaceSidebar({
                   <span className="flex items-center gap-2.5 truncate">
                     <CalendarCheck className="w-4.5 h-4.5 text-primary shrink-0" />
                     <span>Daily Tracker</span>
+                  </span>
+                </NavLink>
+              )}
+
+              {/* Audit Log */}
+              {canViewAudit && (
+                <NavLink
+                  to={`/w/${activeWorkspace?.id}/audit`}
+                  onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                  className={() =>
+                    `w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors cursor-pointer ${isAuditActive
+                      ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                    }`
+                  }
+                >
+                  <span className="flex items-center gap-2.5 truncate">
+                    <ShieldCheck className="w-4.5 h-4.5 text-primary shrink-0" />
+                    <span>Audit Log</span>
                   </span>
                 </NavLink>
               )}
