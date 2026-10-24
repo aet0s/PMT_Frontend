@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-20T14:08:39.295Z",
-  "totalPermissions": 151,
+  "generatedAt": "2026-10-24T06:35:34.856Z",
+  "totalPermissions": 152,
   "permissions": [
     {
       "key": "company.view",
@@ -82,7 +82,15 @@
       "key": "workspace.archive",
       "module": "workspace",
       "label": "Archive Workspace",
-      "description": "Archive or restore workspaces",
+      "description": "Archive workspaces",
+      "scope": "company",
+      "dangerous": false
+    },
+    {
+      "key": "workspace.restore",
+      "module": "workspace",
+      "label": "Restore Workspace",
+      "description": "Restore archived workspaces",
       "scope": "company",
       "dangerous": false
     },
@@ -1281,7 +1289,10 @@
       "planned": true
     }
   ],
-  "aliases": {},
+  "aliases": {
+    "workspace.restore": "workspace.archive",
+    "project.restore": "project.archive"
+  },
   "prerequisites": {
     "task.create": [
       "task.view",
@@ -1529,6 +1540,9 @@
     "workspace.archive": [
       "workspace.view"
     ],
+    "workspace.restore": [
+      "workspace.view"
+    ],
     "audit.view": [
       "workspace.view"
     ],
@@ -1568,6 +1582,7 @@
         "workspace.edit",
         "workspace.delete",
         "workspace.archive",
+        "workspace.restore",
         "team.view",
         "team.create",
         "team.edit",
@@ -1726,6 +1741,7 @@
         "workspace.create",
         "workspace.edit",
         "workspace.archive",
+        "workspace.restore",
         "team.view",
         "team.create",
         "team.edit",

@@ -58,8 +58,7 @@ export default function SettingsPage({
   const canAccessSettings =
     !isMemberOrBelow &&
     (isOwner ||
-    hasPermission('workspace.edit') ||
-    hasPermission('workspace.edit_settings'));
+    hasPermission('workspace.edit'));
 
   // Tab definitions with icons and permission requirements
   const allTabs = useMemo(

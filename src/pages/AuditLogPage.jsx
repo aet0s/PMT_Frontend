@@ -834,7 +834,7 @@ export default function AuditLogPage({ workspace }) {
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-border bg-surface-muted/90 backdrop-blur-xs text-[11px] font-bold text-text-secondary uppercase tracking-wider sticky top-0 z-10 select-none">
+              <tr className="border-b border-border bg-surface-muted text-[11px] font-bold text-text-secondary uppercase tracking-wider sticky top-0 z-10 select-none">
                 <th className="py-3 px-4 w-44">Timestamp</th>
                 <th className="py-3 px-4 w-52">Actor</th>
                 <th className="py-3 px-4">Action & Narrative</th>

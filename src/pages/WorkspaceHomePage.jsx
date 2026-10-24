@@ -78,8 +78,8 @@ export default function WorkspaceHomePage({
 
   const canCreateBoard = !isMemberOrBelow && (isOwner || hasPermission('project.create'));
   const canViewMembers = !isMemberOrBelow && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
-  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_team') || hasPermission('report.view_all') || hasPermission('report.export') || hasPermission('role.view'));
-  const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit') || hasPermission('workspace.edit_settings'));
+  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_project') || hasPermission('role.view'));
+  const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit'));
   const canViewArchive = !isMemberOrBelow && (isOwner || hasPermission('archive.view'));
 
   const visibleQuickActionCount = [canViewMembers, canViewReports, canViewSettings, canViewArchive].filter(Boolean).length;

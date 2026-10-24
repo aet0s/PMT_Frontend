@@ -1589,7 +1589,7 @@ export default function Board({
       {/* 1. Backdrop on < xl */}
       {isRightPanelOpen && (
         <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 xl:hidden transition-opacity"
+          className="fixed inset-0 bg-text-primary/40 z-50 xl:hidden transition-opacity"
           onClick={() => setIsRightPanelOpen(false)}
           aria-hidden="true"
         />

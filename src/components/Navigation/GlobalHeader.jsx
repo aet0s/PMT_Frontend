@@ -55,7 +55,7 @@ export default function GlobalHeader({
   const roleName = String(userRole?.name || '').toLowerCase();
   const isTopLevel = userRank >= 40 || ['owner', 'admin', 'project manager', 'team lead'].includes(roleName);
 
-  const canEditBoard = propCanEditBoard ?? (isTopLevel || hasPermission('project.edit_settings') || hasPermission('project.edit'));
+  const canEditBoard = propCanEditBoard ?? (isTopLevel || hasPermission('project.edit_settings'));
   const canDeleteBoard = propCanDeleteBoard ?? (isTopLevel || hasPermission('project.delete'));
   const canArchiveBoard = propCanArchiveBoard ?? (isTopLevel || hasPermission('project.archive') || canEditBoard);
   const canViewActivity = hasPermission('activity.view');

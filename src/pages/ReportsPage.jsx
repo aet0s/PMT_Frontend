@@ -50,7 +50,7 @@ export default function ReportsPage({ workspace }) {
   const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
   const isOwner = roleName === 'owner' || roleName === 'super admin';
   const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
-  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_team') || hasPermission('report.view_all') || hasPermission('report.export') || hasPermission('role.view'));
+  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_project') || hasPermission('role.view'));
 
   const getBoardUrl = (boardId, cardId = null) => {
     const wsId = workspace?.id;

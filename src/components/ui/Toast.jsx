@@ -90,36 +90,36 @@ function ToastItem({ toast, onDismiss }) {
 
   const THEME_STYLES = {
     info: {
-      card: 'bg-[#EFF6FF] border-[#BFDBFE] border-l-4 border-l-[#2563EB] shadow-xl shadow-blue-500/15',
-      iconBox: 'bg-[#DBEAFE] border-[#BFDBFE] text-[#2563EB]',
-      title: 'text-[#1E3A8A]',
-      message: 'text-[#1E40AF]',
-      closeBtn: 'text-[#60A5FA] hover:text-[#1E3A8A] hover:bg-[#DBEAFE]',
-      action: 'text-[#2563EB] hover:text-[#1D4ED8]'
+      card: 'bg-surface border-info/30 border-l-4 border-l-info shadow-xl shadow-info/10',
+      iconBox: 'bg-info-tint border border-info/30 text-info',
+      title: 'text-text-primary',
+      message: 'text-text-secondary',
+      closeBtn: 'text-text-muted hover:text-text-primary hover:bg-surface-muted',
+      action: 'text-info hover:text-info-hover'
     },
     success: {
-      card: 'bg-[#F0FDF4] border-[#BBF7D0] border-l-4 border-l-[#16A34A] shadow-xl shadow-emerald-500/15',
-      iconBox: 'bg-[#DCFCE7] border-[#BBF7D0] text-[#16A34A]',
-      title: 'text-[#14532D]',
-      message: 'text-[#166534]',
-      closeBtn: 'text-[#4ADE80] hover:text-[#14532D] hover:bg-[#DCFCE7]',
-      action: 'text-[#16A34A] hover:text-[#15803D]'
+      card: 'bg-surface border-success/30 border-l-4 border-l-success shadow-xl shadow-success/10',
+      iconBox: 'bg-success-tint border border-success/30 text-success',
+      title: 'text-text-primary',
+      message: 'text-text-secondary',
+      closeBtn: 'text-text-muted hover:text-text-primary hover:bg-surface-muted',
+      action: 'text-success hover:text-success-hover'
     },
     warning: {
-      card: 'bg-[#FFFBEB] border-[#FDE68A] border-l-4 border-l-[#D97706] shadow-xl shadow-amber-500/15',
-      iconBox: 'bg-[#FEF3C7] border-[#FDE68A] text-[#D97706]',
-      title: 'text-[#78350F]',
-      message: 'text-[#92400E]',
-      closeBtn: 'text-[#FBBF24] hover:text-[#78350F] hover:bg-[#FEF3C7]',
-      action: 'text-[#D97706] hover:text-[#B45309]'
+      card: 'bg-surface border-warning/30 border-l-4 border-l-warning shadow-xl shadow-warning/10',
+      iconBox: 'bg-warning-tint border border-warning/30 text-warning',
+      title: 'text-text-primary',
+      message: 'text-text-secondary',
+      closeBtn: 'text-text-muted hover:text-text-primary hover:bg-surface-muted',
+      action: 'text-warning hover:text-warning-hover'
     },
     error: {
-      card: 'bg-[#FEF2F2] border-[#FECACA] border-l-4 border-l-[#DC2626] shadow-xl shadow-rose-500/15',
-      iconBox: 'bg-[#FEE2E2] border-[#FECACA] text-[#DC2626]',
-      title: 'text-[#7F1D1D]',
-      message: 'text-[#991B1B]',
-      closeBtn: 'text-[#F87171] hover:text-[#7F1D1D] hover:bg-[#FEE2E2]',
-      action: 'text-[#DC2626] hover:text-[#B91C1C]'
+      card: 'bg-surface border-danger/30 border-l-4 border-l-danger shadow-xl shadow-danger/10',
+      iconBox: 'bg-danger-tint border border-danger/30 text-danger',
+      title: 'text-text-primary',
+      message: 'text-text-secondary',
+      closeBtn: 'text-text-muted hover:text-text-primary hover:bg-surface-muted',
+      action: 'text-danger hover:text-danger-hover'
     }
   };
 
@@ -136,7 +136,7 @@ function ToastItem({ toast, onDismiss }) {
     <div
       role="status"
       aria-live="polite"
-      className={`pointer-events-auto flex items-start gap-3 p-3.5 border rounded-xl shadow-xl backdrop-blur-md animate-toast-in text-left transition-all max-w-sm w-full ${style.card}`}
+      className={`pointer-events-auto flex items-start gap-3 p-3.5 border rounded-xl shadow-xl animate-toast-in text-left transition-all max-w-sm w-full ${style.card}`}
     >
       <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 shadow-2xs ${style.iconBox}`}>
         {ICONS[type] || ICONS.info}

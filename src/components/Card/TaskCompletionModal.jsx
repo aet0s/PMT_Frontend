@@ -97,9 +97,9 @@ export default function TaskCompletionModal({
             type="button"
             onClick={handleSubmit}
             disabled={!isLengthValid || isSubmitting}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white shadow-sm transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all cursor-pointer ${
               isLengthValid && !isSubmitting
-                ? 'bg-success hover:bg-success/90 active:scale-[0.98]'
+                ? 'bg-success text-white hover:bg-success/90 active:scale-[0.98]'
                 : 'bg-surface-muted text-text-muted border border-border cursor-not-allowed opacity-60'
             }`}
           >

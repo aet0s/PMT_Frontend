@@ -177,10 +177,10 @@ export default function WorkspaceSidebar({
   const canViewIssues = isOwner || hasPermission('task.view');
   const canViewActivity = isOwner || hasPermission('activity.view');
   const canViewMembers = !isMemberOrBelow && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
-  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_team') || hasPermission('report.view_all') || hasPermission('report.export') || hasPermission('role.view'));
+  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_project') || hasPermission('role.view'));
   const canViewDailyTracker = isOwner || hasPermission('daily_tracker.view');
   const canViewAudit = !isMemberOrBelow && (isOwner || hasPermission('audit.view'));
-  const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit') || hasPermission('workspace.edit_settings'));
+  const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit'));
 
   const openRenameDialog = () => {
     setWorkspaceRenameValue(activeWorkspace?.name || '');
