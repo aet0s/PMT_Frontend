@@ -57,7 +57,7 @@ export default function GlobalHeader({
 
   const canEditBoard = propCanEditBoard ?? (isTopLevel || hasPermission('project.edit_settings'));
   const canDeleteBoard = propCanDeleteBoard ?? (isTopLevel || hasPermission('project.delete'));
-  const canArchiveBoard = propCanArchiveBoard ?? (isTopLevel || hasPermission('project.archive') || canEditBoard);
+  const canArchiveBoard = propCanArchiveBoard ?? (isTopLevel || hasPermission('project.archive'));
   const canViewActivity = hasPermission('activity.view');
 
   // Search input state (bound to URL ?search=)
@@ -421,8 +421,8 @@ export default function GlobalHeader({
               </button>
             )}
 
-            {/* Board Actions Overflow Menu (Archive, Delete, Rename) */}
-            {(onArchiveBoard || onDeleteBoard || onUpdateBoard || canEditBoard || canDeleteBoard || canArchiveBoard) && (
+            {/* Board Actions Overflow Menu (Archive, Delete, Rename) - STRICTLY GATED BY RBAC PERMISSIONS */}
+            {((canEditBoard && onUpdateBoard) || (canArchiveBoard && onArchiveBoard) || (canDeleteBoard && onDeleteBoard)) && (
               <div className="relative" ref={boardMenuRef}>
                 <button
                   type="button"
@@ -436,7 +436,7 @@ export default function GlobalHeader({
 
                 {isBoardMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 py-1.5 text-text-primary animate-sassy-dropdown">
-                    {(canEditBoard || onUpdateBoard) && (
+                    {canEditBoard && onUpdateBoard && (
                       <button
                         type="button"
                         onClick={() => {
@@ -449,7 +449,7 @@ export default function GlobalHeader({
                         Rename Board
                       </button>
                     )}
-                    {(canArchiveBoard || onArchiveBoard) && (
+                    {canArchiveBoard && onArchiveBoard && (
                       <button
                         type="button"
                         onClick={() => {
@@ -462,7 +462,7 @@ export default function GlobalHeader({
                         Archive Board
                       </button>
                     )}
-                    {(canDeleteBoard || onDeleteBoard) && (
+                    {canDeleteBoard && onDeleteBoard && (
                       <button
                         type="button"
                         onClick={() => {

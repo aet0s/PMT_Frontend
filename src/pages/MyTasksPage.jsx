@@ -16,7 +16,8 @@ import {
   X,
   RotateCcw,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Briefcase
 } from 'lucide-react';
 import { getWorkspaceMyTasks } from '../api/workspaces';
 import { useAuth } from '../hooks/useAuth';
@@ -103,7 +104,8 @@ export default function MyTasksPage({
   // Tab State: 'assigned' | 'delegated' | 'completed'
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'assigned');
 
-  // Filter States
+  // Filter States - Default Workspace is 'all' (selected all workspace)
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(searchParams.get('workspaceId') || 'all');
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedBoardId, setSelectedBoardId] = useState('all');
@@ -131,7 +133,6 @@ export default function MyTasksPage({
 
   // Load Tasks from Server with Server-Side Pagination & Filtering
   const loadMyTasks = useCallback(async (isSilent = false) => {
-    if (!workspace?.id) return;
     if (!isSilent) setLoading(true);
     else setRefreshing(true);
     setError(null);
@@ -141,6 +142,7 @@ export default function MyTasksPage({
         page: currentPage,
         limit: 20,
         tab: activeTab,
+        workspaceId: selectedWorkspaceId,
         boardId: selectedBoardId,
         stage: selectedStage,
         search: debouncedSearch.trim()
@@ -149,7 +151,7 @@ export default function MyTasksPage({
         params.userId = selectedUserId;
       }
 
-      const data = await getWorkspaceMyTasks(workspace.id, params);
+      const data = await getWorkspaceMyTasks(selectedWorkspaceId, params);
       setTasksData(data || {});
       setCards(data?.cards || []);
       setPagination(data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
@@ -160,7 +162,7 @@ export default function MyTasksPage({
       setLoading(false);
       setRefreshing(false);
     }
-  }, [workspace?.id, currentPage, activeTab, selectedBoardId, selectedStage, debouncedSearch, selectedUserId, isOwner]);
+  }, [selectedWorkspaceId, currentPage, activeTab, selectedBoardId, selectedStage, debouncedSearch, selectedUserId, isOwner]);
 
   useEffect(() => {
     loadMyTasks();
@@ -203,6 +205,19 @@ export default function MyTasksPage({
     }, { replace: true });
   };
 
+  // Switch Workspace Filter
+  const handleWorkspaceChange = (newWsId) => {
+    setSelectedWorkspaceId(newWsId);
+    setSelectedBoardId('all');
+    setCurrentPage(1);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (newWsId && newWsId !== 'all') next.set('workspaceId', newWsId);
+      else next.delete('workspaceId');
+      return next;
+    }, { replace: true });
+  };
+
   // Switch Tab
   const handleTabChange = (newTab) => {
     setActiveTab(newTab);
@@ -219,34 +234,68 @@ export default function MyTasksPage({
   const handleResetFilters = () => {
     setSearchInput('');
     setDebouncedSearch('');
+    setSelectedWorkspaceId('all');
     setSelectedBoardId('all');
     setSelectedStage('all');
     setCurrentPage(1);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('workspaceId');
+      return next;
+    }, { replace: true });
   };
 
   const hasActiveFilters = Boolean(
     searchInput.trim() ||
+    selectedWorkspaceId !== 'all' ||
     selectedBoardId !== 'all' ||
     selectedStage !== 'all'
   );
 
   // Card click: navigate directly to that board and open card modal
   const handleCardClick = (card) => {
+    const targetWsId = card.workspace_id || (workspace?.id ? String(workspace.id) : null);
     if (onCardClick) {
-      onCardClick({ id: card.id, board_id: card.board_id, workspace_id: workspace.id });
-    } else {
-      navigate(`/w/${workspace.id}/p/${card.board_id}/board?card=${card.id}`);
+      onCardClick({ id: card.id, board_id: card.board_id, workspace_id: targetWsId });
+    } else if (targetWsId) {
+      navigate(`/w/${targetWsId}/p/${card.board_id}/board?card=${card.id}`);
     }
   };
+
+  // Workspace dropdown options
+  const workspaceOptions = useMemo(() => {
+    const list = [{ value: 'all', label: 'All Workspaces' }];
+    const wsMap = new Map();
+    (workspaces || []).forEach((w) => {
+      if (w?.id) wsMap.set(String(w.id), w.name || `Workspace #${w.id}`);
+    });
+    (tasksData?.workspaces || []).forEach((w) => {
+      if (w?.id) wsMap.set(String(w.id), w.name || `Workspace #${w.id}`);
+    });
+    if (workspace?.id && !wsMap.has(String(workspace.id))) {
+      wsMap.set(String(workspace.id), workspace.name || `Workspace #${workspace.id}`);
+    }
+    wsMap.forEach((name, id) => {
+      list.push({ value: id, label: name });
+    });
+    return list;
+  }, [workspaces, tasksData?.workspaces, workspace]);
 
   // Dropdown options
   const boardOptions = useMemo(() => {
     const list = [{ value: 'all', label: 'All Projects & Boards' }];
     (tasksData.boards || []).forEach((b) => {
-      list.push({ value: String(b.id), label: b.name });
+      if (selectedWorkspaceId === 'all' || !b.workspace_id || String(b.workspace_id) === String(selectedWorkspaceId)) {
+        list.push({
+          value: String(b.id),
+          label: selectedWorkspaceId === 'all' && b.workspace_name
+            ? `${b.workspace_name} • ${b.name}`
+            : b.name
+        });
+      }
     });
     return list;
-  }, [tasksData.boards]);
+  }, [tasksData.boards, selectedWorkspaceId]);
 
   const stageOptions = [
     { value: 'all', label: 'All Stages' },
@@ -589,6 +638,18 @@ export default function MyTasksPage({
                 )}
               </div>
 
+              {/* Workspace Filter */}
+              <div className="w-44 sm:w-48">
+                <Select
+                  options={workspaceOptions}
+                  value={selectedWorkspaceId}
+                  onChange={handleWorkspaceChange}
+                  size="sm"
+                  aria-label="Filter by workspace"
+                  placeholder="All Workspaces"
+                />
+              </div>
+
               {/* Board / Project Filter */}
               <div className="w-48 sm:w-52">
                 <Select
@@ -600,6 +661,7 @@ export default function MyTasksPage({
                   }}
                   size="sm"
                   aria-label="Filter by project or board"
+                  placeholder="All Projects & Boards"
                 />
               </div>
 
@@ -879,6 +941,16 @@ function BoardCardItem({ card, onCardClick, workspaceId }) {
           <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
             Task #{card.task_number || card.id}
           </span>
+
+          {card.workspace_name && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 truncate max-w-[120px]"
+              title={`Workspace: ${card.workspace_name}`}
+            >
+              <Briefcase className="w-2.5 h-2.5 shrink-0 text-primary" />
+              <span className="truncate">{card.workspace_name}</span>
+            </span>
+          )}
 
           {card.board_name && (
             <span

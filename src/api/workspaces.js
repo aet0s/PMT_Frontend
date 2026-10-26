@@ -269,15 +269,16 @@ export function getWorkspaceAuditExportUrl(workspaceId, filters = {}) {
   return `/api/workspaces/${workspaceId}/audit-events/export?${params.toString()}`;
 }
 
-export async function getWorkspaceMyTasks(workspaceId, params = {}) {
+export async function getWorkspaceMyTasks(workspaceId = 'all', params = {}) {
+  const targetWs = workspaceId || 'all';
   const query = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && v !== '' && v !== 'all') {
+    if (v !== undefined && v !== null && v !== '' && (k === 'workspaceId' || v !== 'all')) {
       query.set(k, String(v));
     }
   }
   const qStr = query.toString() ? `?${query.toString()}` : '';
-  return apiFetch(`/api/workspaces/${workspaceId}/my-tasks${qStr}`);
+  return apiFetch(`/api/workspaces/${targetWs}/my-tasks${qStr}`);
 }
 
 
