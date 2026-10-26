@@ -5,7 +5,7 @@ import Board from '../components/Board/Board';
 import ConfirmModal from '../components/shared/ConfirmModal';
 import Spinner from '../components/ui/Spinner';
 import { useAuth } from '../hooks/useAuth';
-import { getTenantItem, setTenantItem, removeTenantItem } from '../lib/storage';
+import { getTenantItem, setTenantItem, removeTenantItem, getUserPref, setUserPref } from '../lib/storage';
 
 import { safeLazy } from '../lib/safeLazy';
 
@@ -108,18 +108,28 @@ export default function BoardPage() {
     boardsRef.current = boards;
   }, [boards]);
 
-  // Sidebar Collapse State (tenant namespaced)
+  // Sidebar Collapse State (persisted across all boards & workspaces)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    return getTenantItem(user?.tenant_id, 'sidebar_collapsed', false);
+    return getUserPref('sidebar_collapsed', false);
   });
 
   const handleToggleSidebarCollapse = () => {
     setIsSidebarCollapsed((prev) => {
       const next = !prev;
-      setTenantItem(user?.tenant_id, 'sidebar_collapsed', next);
+      setUserPref('sidebar_collapsed', next);
       return next;
     });
   };
+
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'taskflow_pref_sidebar_collapsed') {
+        setIsSidebarCollapsed(getUserPref('sidebar_collapsed', false));
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Custom Confirm Modal state
   const [confirmDialog, setConfirmDialog] = useState({
@@ -375,16 +385,24 @@ export default function BoardPage() {
   }, [urlBoardId, loadActiveBoard]);
 
   // Auto-archive completed tasks if policy is configured (default 7 days)
+  // Throttled: runs at most once every 30 minutes per workspace session to eliminate redundant network & audit noise
   useEffect(() => {
     if (!activeWorkspace?.id) return;
+    const wsId = activeWorkspace.id;
+    const throttleKey = `last_auto_archive_${wsId}`;
+    const lastRun = Number(sessionStorage.getItem(throttleKey) || 0);
+    const now = Date.now();
+    if (now - lastRun < 30 * 60 * 1000) return; // 30-minute cooldown
+
     const defaults =
       activeWorkspace?.settings?.workspace_defaults ||
       activeWorkspace?.settings?.project_defaults ||
-      getTenantItem(`ws_defaults_${activeWorkspace.id}`, 'settings', null);
+      getTenantItem(`ws_defaults_${wsId}`, 'settings', null);
     const archiveSetting = defaults?.autoArchiveDays ?? '7';
     if (archiveSetting && archiveSetting !== 'never') {
       const days = Number(archiveSetting);
-      autoArchiveWorkspaceCards(activeWorkspace.id, days)
+      sessionStorage.setItem(throttleKey, String(now));
+      autoArchiveWorkspaceCards(wsId, days)
         .then((res) => {
           if (res?.archived_count > 0 && urlBoardId) {
             loadActiveBoard(urlBoardId, true);
@@ -392,7 +410,7 @@ export default function BoardPage() {
         })
         .catch(() => {});
     }
-  }, [activeWorkspace?.id, activeWorkspace?.settings?.workspace_defaults, activeWorkspace?.settings?.project_defaults, urlBoardId, loadActiveBoard]);
+  }, [activeWorkspace?.id, activeWorkspace?.settings?.workspace_defaults, activeWorkspace?.settings?.project_defaults]);
 
   // Handle /calendar route at workspace level:
   // If boards exist, seamlessly navigate to the project's calendar view.
@@ -2279,6 +2297,7 @@ export default function BoardPage() {
                   </Suspense>
                 ) : boardData ? (
                   <Board
+                    key={boardData.id}
                     board={boardData}
                     boards={boards}
                     workspace={activeWorkspace}

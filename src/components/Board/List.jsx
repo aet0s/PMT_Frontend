@@ -23,7 +23,8 @@ export default function List({
   highlightedCardId = null,
   remoteDraggedCardIds = new Set(),
   isRemoteDragging = false,
-  taskNumberMap
+  taskNumberMap,
+  focusMode = false
 }) {
   const {
     attributes,
@@ -389,6 +390,7 @@ export default function List({
               onCopyCard={onCopyCard}
               isHighlighted={highlightedCardId === card.id}
               isRemoteDragging={remoteDraggedCardIds.has(card.id)}
+              focusMode={focusMode}
             />
           ))}
         </SortableContext>

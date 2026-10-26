@@ -68,6 +68,26 @@ export default function MyTasksPage({
     socket = sockCtx?.socket;
   } catch {}
 
+  // Data States
+  const [tasksData, setTasksData] = useState({
+    user: null,
+    canSwitchMember: false,
+    teamMembers: [],
+    boards: [],
+    summary: {
+      total_assigned: 0,
+      active_count: 0,
+      todo: 0,
+      in_progress: 0,
+      review: 0,
+      completed: 0,
+      overdue: 0,
+      due_soon: 0,
+      assigned_by_me: 0,
+      completion_rate: 0
+    }
+  });
+
   // Owner check for member switcher
   const roleStr = (userRole?.name || workspace?.role || '').toLowerCase();
   const isOwner =
@@ -94,29 +114,11 @@ export default function MyTasksPage({
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
 
-  // Data States
+  // Data Loading & Status States
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [cards, setCards] = useState([]);
-  const [tasksData, setTasksData] = useState({
-    user: null,
-    canSwitchMember: false,
-    teamMembers: [],
-    boards: [],
-    summary: {
-      total_assigned: 0,
-      active_count: 0,
-      todo: 0,
-      in_progress: 0,
-      review: 0,
-      completed: 0,
-      overdue: 0,
-      due_soon: 0,
-      assigned_by_me: 0,
-      completion_rate: 0
-    }
-  });
 
   // Debounce search input (300ms)
   useEffect(() => {
@@ -438,156 +440,202 @@ export default function MyTasksPage({
       {/* ======================================================== */}
       {/* 2. TABS, SEARCH & FILTER TOOLBAR                         */}
       {/* ======================================================== */}
-      <div className="px-4 sm:px-6 lg:px-8 py-3 bg-surface border-b border-border/60 shrink-0">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Main Tabs */}
-          <div className="flex items-center gap-1.5 p-1 bg-surface-muted rounded-xl border border-border/60 shrink-0 overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => handleTabChange('assigned')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'assigned'
-                  ? 'bg-surface text-primary shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              <CheckSquare className="w-3.5 h-3.5" />
-              <span>Assigned to Me ({tasksData.summary?.total_assigned || 0})</span>
-            </button>
+      <div className="px-4 sm:px-6 lg:px-8 py-3 bg-surface border-b border-border/60 shrink-0 shadow-2xs space-y-2.5">
+        <div className="max-w-7xl mx-auto space-y-2.5">
+          {/* Top Row: Navigation Tabs (Left) + Member Switcher & View Switcher (Right) */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Main Tabs */}
+            <div className="flex items-center gap-1 p-1 bg-surface-muted/90 rounded-xl border border-border/60 shrink-0 overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => handleTabChange('assigned')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'assigned'
+                    ? 'bg-surface text-primary shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <CheckSquare className="w-3.5 h-3.5" />
+                <span>Assigned to Me</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    activeTab === 'assigned'
+                      ? 'bg-primary-tint text-primary-text'
+                      : 'bg-surface/80 text-text-muted'
+                  }`}
+                >
+                  {tasksData.summary?.total_assigned || 0}
+                </span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => handleTabChange('delegated')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'delegated'
-                  ? 'bg-surface text-primary shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Assigned by Me ({tasksData.summary?.assigned_by_me || 0})</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange('delegated')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'delegated'
+                    ? 'bg-surface text-primary shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Assigned by Me</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    activeTab === 'delegated'
+                      ? 'bg-primary-tint text-primary-text'
+                      : 'bg-surface/80 text-text-muted'
+                  }`}
+                >
+                  {tasksData.summary?.assigned_by_me || 0}
+                </span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => handleTabChange('completed')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'completed'
-                  ? 'bg-surface text-primary shadow-xs'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Completed Work ({tasksData.summary?.completed || 0})</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => handleTabChange('completed')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'completed'
+                    ? 'bg-surface text-primary shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Completed Work</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    activeTab === 'completed'
+                      ? 'bg-success-tint text-success-text'
+                      : 'bg-surface/80 text-text-muted'
+                  }`}
+                >
+                  {tasksData.summary?.completed || 0}
+                </span>
+              </button>
+            </div>
 
-          {/* Search, Global Dropdowns & View Toggle */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Search Input */}
-            <div className="relative min-w-[170px] sm:min-w-[200px]">
-              <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search tasks..."
-                className="w-full pl-8 pr-7 py-1.5 bg-surface-muted border border-border/80 rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-              />
-              {searchInput && (
+            {/* Right: Team Member Switcher (strictly Owner only) & View Switcher */}
+            <div className="flex items-center gap-2.5 shrink-0 self-end md:self-auto">
+              {canShowMemberSwitcher && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-text-muted hidden lg:inline">Viewing:</span>
+                  <div className="w-48 sm:w-56">
+                    <Select
+                      options={memberOptions}
+                      value={selectedUserId}
+                      onChange={handleSelectUser}
+                      size="sm"
+                      aria-label="Switch team member"
+                      placeholder="Switch Team Member"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {canShowMemberSwitcher && <div className="h-5 w-px bg-border/60 hidden sm:block" />}
+
+              {/* View Mode Toggle: Grouped vs List */}
+              <div className="flex items-center p-0.5 bg-surface-muted rounded-xl border border-border/60 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setSearchInput('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-0.5 cursor-pointer"
+                  onClick={() => setViewMode('grouped')}
+                  title="Grouped by workflow stage"
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                    viewMode === 'grouped'
+                      ? 'bg-surface text-primary shadow-xs font-bold'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
                 >
-                  <X className="w-3 h-3" />
+                  <Kanban className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-[11px]">Board</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  title="Compact flat list view"
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                    viewMode === 'list'
+                      ? 'bg-surface text-primary shadow-xs font-bold'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  <LayoutList className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-[11px]">List</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Sub Row: Search & Filters (Clean, Aligned Row) */}
+          <div className="pt-2 border-t border-border/40 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+              {/* Search Input */}
+              <div className="relative w-full sm:w-64 max-w-xs">
+                <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search tasks..."
+                  className="w-full pl-8 pr-7 py-1.5 bg-surface-muted/80 border border-border/70 rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                />
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchInput('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-0.5 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* Board / Project Filter */}
+              <div className="w-48 sm:w-52">
+                <Select
+                  options={boardOptions}
+                  value={selectedBoardId}
+                  onChange={(val) => {
+                    setSelectedBoardId(val);
+                    setCurrentPage(1);
+                  }}
+                  size="sm"
+                  aria-label="Filter by project or board"
+                />
+              </div>
+
+              {/* Stage Filter (visible on Assigned tab) */}
+              {activeTab === 'assigned' && (
+                <div className="w-36 sm:w-40">
+                  <Select
+                    options={stageOptions}
+                    value={selectedStage}
+                    onChange={(val) => {
+                      setSelectedStage(val);
+                      setCurrentPage(1);
+                    }}
+                    size="sm"
+                    aria-label="Filter by stage"
+                  />
+                </div>
+              )}
+
+              {/* Reset Filter Button */}
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-danger/30 bg-danger/5 hover:bg-danger/10 text-xs font-semibold text-danger transition-colors cursor-pointer"
+                  title="Reset active filters"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset Filters</span>
                 </button>
               )}
             </div>
 
-            {/* Board Filter - Global Select */}
-            <div className="w-44 sm:w-52">
-              <Select
-                options={boardOptions}
-                value={selectedBoardId}
-                onChange={(val) => {
-                  setSelectedBoardId(val);
-                  setCurrentPage(1);
-                }}
-                size="sm"
-                aria-label="Filter by project or board"
-              />
-            </div>
-
-            {/* Stage Filter - Global Select (visible on Assigned tab) */}
-            {activeTab === 'assigned' && (
-              <div className="w-36 sm:w-40">
-                <Select
-                  options={stageOptions}
-                  value={selectedStage}
-                  onChange={(val) => {
-                    setSelectedStage(val);
-                    setCurrentPage(1);
-                  }}
-                  size="sm"
-                  aria-label="Filter by stage"
-                />
-              </div>
-            )}
-
-            {/* Switch Member Dropdown - Global Select (strictly Owner only) */}
-            {canShowMemberSwitcher && (
-              <div className="w-48 sm:w-56">
-                <Select
-                  options={memberOptions}
-                  value={selectedUserId}
-                  onChange={handleSelectUser}
-                  size="sm"
-                  aria-label="Switch team member"
-                  placeholder="Switch Team Member"
-                />
-              </div>
-            )}
-
-            {/* Reset Filter Button */}
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-border/80 bg-surface hover:bg-surface-muted text-xs font-semibold text-text-secondary hover:text-primary transition-colors cursor-pointer"
-                title="Reset active filters"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span className="hidden sm:inline">Reset</span>
-              </button>
-            )}
-
-            {/* View Mode Toggle: Grouped vs List */}
-            <div className="flex items-center p-0.5 bg-surface-muted rounded-xl border border-border/60 shrink-0">
-              <button
-                type="button"
-                onClick={() => setViewMode('grouped')}
-                title="Grouped by workflow stage"
-                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                  viewMode === 'grouped'
-                    ? 'bg-surface text-primary shadow-xs font-bold'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                <Kanban className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                title="Compact flat list"
-                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                  viewMode === 'list'
-                    ? 'bg-surface text-primary shadow-xs font-bold'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                <LayoutList className="w-3.5 h-3.5" />
-              </button>
+            {/* Right: Showing Tasks Count Indicator */}
+            <div className="text-xs text-text-muted font-medium whitespace-nowrap ml-auto">
+              Showing <span className="font-bold text-text-primary">{pagination.total || cards.length}</span> {pagination.total === 1 ? 'task' : 'tasks'}
             </div>
           </div>
         </div>

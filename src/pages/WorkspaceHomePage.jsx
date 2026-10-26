@@ -35,6 +35,7 @@ import { getBoardBgClass, getBoardStyle } from '../lib/palettes';
 import { getTimeBasedGreeting, fetchServerGreeting, getCurrentServerDate } from '../lib/serverTime';
 import { getFileUrl } from '../api/config';
 import { usePermissions } from '../context/PermissionContext';
+import { getUserPref, setUserPref } from '../lib/storage';
 
 function formatBoardDate(dateStr) {
   if (!dateStr) return 'Recently';
@@ -89,11 +90,7 @@ export default function WorkspaceHomePage({
   const [sortBy, setSortBy] = useState('recent');
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'pinned' | 'with_tasks' | 'empty'
   const [viewMode, setViewMode] = useState(() => {
-    try {
-      return localStorage.getItem('taskflow_dashboard_view_mode') || 'grid';
-    } catch {
-      return 'grid';
-    }
+    return getUserPref('dashboard_view_mode', 'grid');
   });
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -116,9 +113,7 @@ export default function WorkspaceHomePage({
   // Persist view mode preference
   const handleToggleViewMode = (mode) => {
     setViewMode(mode);
-    try {
-      localStorage.setItem('taskflow_dashboard_view_mode', mode);
-    } catch {}
+    setUserPref('dashboard_view_mode', mode);
   };
 
   // Toggle pinned/default board

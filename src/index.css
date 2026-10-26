@@ -631,42 +631,90 @@
 /* -------------------------------------------------------------------------- */
 /* Soft Curved Bottom Border Accents for 4 Default Lists & Default Cards       */
 /* -------------------------------------------------------------------------- */
-.card-status-todo,
+.card-status-todo {
+  border-color: var(--color-border) !important;
+  border-bottom: 3.5px solid var(--color-status-todo) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05), 0 4px 14px -2px rgba(59, 130, 246, 0.16) !important;
+}
+
 .list-status-todo {
   border-bottom: 3.5px solid var(--color-status-todo) !important;
   box-shadow: 0 4px 14px -2px rgba(59, 130, 246, 0.16);
 }
 
-.card-status-in-progress,
+.card-status-in-progress {
+  border-color: var(--color-border) !important;
+  border-bottom: 3.5px solid var(--color-status-in-progress) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05), 0 4px 14px -2px rgba(245, 158, 11, 0.16) !important;
+}
+
 .list-status-in-progress {
   border-bottom: 3.5px solid var(--color-status-in-progress) !important;
   box-shadow: 0 4px 14px -2px rgba(245, 158, 11, 0.16);
 }
 
-.card-status-review,
+.card-status-review {
+  border-color: var(--color-border) !important;
+  border-bottom: 3.5px solid var(--color-status-review) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05), 0 4px 14px -2px rgba(139, 92, 246, 0.16) !important;
+}
+
 .list-status-review {
   border-bottom: 3.5px solid var(--color-status-review) !important;
   box-shadow: 0 4px 14px -2px rgba(139, 92, 246, 0.16);
 }
 
-.card-status-done,
+.card-status-done {
+  border-color: var(--color-border) !important;
+  border-bottom: 3.5px solid var(--color-status-done) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05), 0 4px 14px -2px rgba(16, 185, 129, 0.16) !important;
+}
+
 .list-status-done {
   border-bottom: 3.5px solid var(--color-status-done) !important;
   box-shadow: 0 4px 14px -2px rgba(16, 185, 129, 0.16);
 }
 
 .card-status-todo:hover {
-  box-shadow: 0 8px 22px -2px rgba(59, 130, 246, 0.22);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08), 0 8px 22px -2px rgba(59, 130, 246, 0.22) !important;
 }
 
 .card-status-in-progress:hover {
-  box-shadow: 0 8px 22px -2px rgba(245, 158, 11, 0.22);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08), 0 8px 22px -2px rgba(245, 158, 11, 0.22) !important;
 }
 
 .card-status-review:hover {
-  box-shadow: 0 8px 22px -2px rgba(139, 92, 246, 0.22);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08), 0 8px 22px -2px rgba(139, 92, 246, 0.22) !important;
 }
 
 .card-status-done:hover {
-  box-shadow: 0 8px 22px -2px rgba(16, 185, 129, 0.22);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08), 0 8px 22px -2px rgba(16, 185, 129, 0.22) !important;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Full Border Accents for Focused Cards in "Focus My Cards" Mode             */
+/* -------------------------------------------------------------------------- */
+.card-fullborder-todo {
+  border: 2.5px solid var(--color-status-todo) !important;
+  box-shadow: 0 0 0 1px var(--color-status-todo), 0 4px 16px -2px rgba(59, 130, 246, 0.25) !important;
+}
+
+.card-fullborder-in_progress {
+  border: 2.5px solid var(--color-status-in-progress) !important;
+  box-shadow: 0 0 0 1px var(--color-status-in-progress), 0 4px 16px -2px rgba(245, 158, 11, 0.25) !important;
+}
+
+.card-fullborder-review {
+  border: 2.5px solid var(--color-status-review) !important;
+  box-shadow: 0 0 0 1px var(--color-status-review), 0 4px 16px -2px rgba(139, 92, 246, 0.25) !important;
+}
+
+.card-fullborder-done {
+  border: 2.5px solid var(--color-status-done) !important;
+  box-shadow: 0 0 0 1px var(--color-status-done), 0 4px 16px -2px rgba(16, 185, 129, 0.25) !important;
+}
+
+.card-fullborder-default {
+  border: 2.5px solid var(--color-primary) !important;
+  box-shadow: 0 0 0 1px var(--color-primary), 0 4px 16px -2px rgba(37, 99, 235, 0.25) !important;
+}

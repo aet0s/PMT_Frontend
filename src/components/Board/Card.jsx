@@ -31,11 +31,26 @@ export default function Card({
   onCopyCard,
   isOverlay = false,
   isHighlighted = false,
-  isRemoteDragging = false
+  isRemoteDragging = false,
+  focusMode = false
 }) {
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
-  const isCardCreator = Boolean(card?.created_by && user?.id && Number(card.created_by) === Number(user.id));
+  const currentUserId = user?.id ? Number(user.id) : null;
+  const isAssignee = Boolean(
+    currentUserId &&
+    (card?.members || []).some((m) => Number(m.id || m.user_id) === currentUserId)
+  );
+  const isAssigner = Boolean(
+    currentUserId && (
+      (card?.assigners || []).some((a) => Number(a.id || a.user_id) === currentUserId) ||
+      (card?.created_by && Number(card.created_by) === currentUserId) ||
+      (card?.creator_id && Number(card.creator_id) === currentUserId)
+    )
+  );
+  const isMyCard = isAssignee || isAssigner;
+
+  const isCardCreator = Boolean(card?.created_by && currentUserId && Number(card.created_by) === currentUserId);
   const canDeleteCard = hasPermission('task.delete') || (hasPermission('task.delete_own') && isCardCreator);
   const canCopyCard = hasPermission('task.duplicate') || hasPermission('task.create');
   const canArchiveCard = hasPermission('task.archive') || hasPermission('task.edit');
@@ -151,22 +166,58 @@ export default function Card({
         if (e.target.closest('button[aria-label="Card actions"]') || e.defaultPrevented) return;
         onClick?.();
       }}
-      className={`group relative bg-surface border border-border/80 rounded-2xl p-4 transition-all duration-200 cursor-pointer select-none space-y-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
-        statusConfig
+      className={`group relative bg-surface border border-border/80 rounded-2xl p-4 transition-all duration-200 cursor-pointer select-none space-y-3 shadow-xs hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
+        focusMode
+          ? isMyCard
+            ? `${
+                statusConfig?.key
+                  ? `card-fullborder-${statusConfig.key}`
+                  : 'card-fullborder-default'
+              } opacity-100 scale-[1.01] bg-surface z-10 hover:-translate-y-0.5`
+            : 'border-border/60 opacity-35 hover:opacity-100 hover:scale-[1.005] saturate-50 hover:saturate-100'
+          : statusConfig
           ? `${statusConfig.cardClass} hover:border-t-primary/40 hover:border-x-primary/40 hover:-translate-y-0.5`
-          : 'hover:border-primary/40 shadow-[0_2px_10px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.08)] hover:-translate-y-0.5'
+          : 'border-border/80 hover:border-primary/40 shadow-xs hover:shadow-md hover:-translate-y-0.5'
       } ${
         isOverlay ? 'shadow-2xl border-primary ring-2 ring-primary/20 scale-105 rotate-1 z-50 bg-surface' : ''
       } ${
         isHighlighted ? 'ring-2 ring-primary border-primary shadow-lg animate-pulse' : ''
       }`}
     >
-      {/* Top Header: Label Pill & Action Menu */}
+      {/* Top Header: Label Pill, Role Badge & Action Menu */}
       <div className="flex items-center justify-between gap-2 min-h-[24px]">
         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
             Task #{taskNumber ?? card.task_number ?? 1}
           </span>
+          {/* Focused My Card Role Badge: only shown in Focus Mode */}
+          {focusMode && isMyCard && (
+            <span
+              title={
+                isAssignee && isAssigner
+                  ? 'You are both an assigner and assignee on this task'
+                  : isAssignee
+                  ? 'You are assigned to this task'
+                  : 'You assigned / created this task'
+              }
+              className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 shadow-2xs border transition-all ${
+                isAssignee && isAssigner
+                  ? 'bg-primary-tint text-primary-text border-primary/30'
+                  : isAssignee
+                  ? 'bg-success-tint text-success-text border-success/30'
+                  : 'bg-info-tint text-info-text border-info/30'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-current" />
+              <span>
+                {isAssignee && isAssigner
+                  ? 'Mine (Both)'
+                  : isAssignee
+                  ? 'Assigned to you'
+                  : 'Assigned by you'}
+              </span>
+            </span>
+          )}
           {card.labels && card.labels.length > 0 &&
             card.labels.map((l) => (
               <LabelPill key={l.id} name={l.name} color={l.color} size="sm" />

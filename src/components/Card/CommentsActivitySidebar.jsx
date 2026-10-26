@@ -9,7 +9,7 @@ import {
   ToggleRight,
   FileEdit
 } from 'lucide-react';
-import { getDraft, setDraft, clearDraft, getTenantItem, setTenantItem } from '../../lib/storage';
+import { getDraft, setDraft, clearDraft, getUserPref, setUserPref } from '../../lib/storage';
 
 export default function CommentsActivitySidebar({
   card,
@@ -22,14 +22,18 @@ export default function CommentsActivitySidebar({
   const canComment = hasPermission('comment.create');
 
   const [showDetails, setShowDetails] = useState(() =>
-    Boolean(getTenantItem(user?.tenant_id, 'card_show_details', false))
+    Boolean(getUserPref('card_show_details', false))
   );
 
-  // Sync preference if user/tenant changes
   useEffect(() => {
-    const saved = getTenantItem(user?.tenant_id, 'card_show_details', false);
-    setShowDetails(Boolean(saved));
-  }, [user?.tenant_id]);
+    const handleStorageChange = (e) => {
+      if (e.key === 'taskflow_pref_card_show_details') {
+        setShowDetails(Boolean(getUserPref('card_show_details', false)));
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
   const [commentText, setCommentText] = useState('');
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -177,7 +181,7 @@ export default function CommentsActivitySidebar({
           onClick={() => {
             const nextVal = !showDetails;
             setShowDetails(nextVal);
-            setTenantItem(user?.tenant_id, 'card_show_details', nextVal);
+            setUserPref('card_show_details', nextVal);
           }}
           className="flex items-center gap-1.5 text-xs font-medium text-text-secondary hover:text-text-primary cursor-pointer"
         >

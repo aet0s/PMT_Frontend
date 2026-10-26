@@ -29,7 +29,7 @@ import { useSocket } from '../../context/SocketProvider';
 import { usePermissions } from '../../context/PermissionContext';
 import { useAuth } from '../../hooks/useAuth';
 import { matchesCardFilter } from '../../lib/filterCards';
-import { getTenantItem } from '../../lib/storage';
+import { getTenantItem, setTenantItem, getUserPref, setUserPref } from '../../lib/storage';
 import RightContextPanel from './RightContextPanel';
 import { getBoardWorkspaceMembers, addBoardMemberById } from '../../api/boards';
 import { useToast } from '../ui/Toast';
@@ -93,7 +93,23 @@ export default function Board({
   const { user } = useAuth();
   const [activeId, setActiveId] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  // Right Calendar/Tasks Panel Shutter state (persisted across all boards & workspaces)
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(() => {
+    return getUserPref('right_panel_open', true);
+  });
+
+  const handleToggleRightPanel = () => {
+    setIsRightPanelOpen((prev) => {
+      const next = !prev;
+      setUserPref('right_panel_open', next);
+      return next;
+    });
+  };
+
+  const handleCloseRightPanel = () => {
+    setIsRightPanelOpen(false);
+    setUserPref('right_panel_open', false);
+  };
 
   const { workspaceId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -108,6 +124,59 @@ export default function Board({
   const filterStatus = searchParams.get('status') || 'all';
 
   const [isDetailedFilterOpen, setIsDetailedFilterOpen] = useState(false);
+  const [isFocusMyCards, setIsFocusMyCards] = useState(() => {
+    return getUserPref('focus_my_cards', false);
+  });
+
+  // Keep settings synchronized when user navigates between boards or across browser tabs
+  useEffect(() => {
+    setIsRightPanelOpen(getUserPref('right_panel_open', true));
+    setIsFocusMyCards(getUserPref('focus_my_cards', false));
+  }, [board?.id]);
+
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'taskflow_pref_right_panel_open') {
+        setIsRightPanelOpen(getUserPref('right_panel_open', true));
+      }
+      if (e.key === 'taskflow_pref_focus_my_cards') {
+        setIsFocusMyCards(getUserPref('focus_my_cards', false));
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const toggleFocusMyCards = () => {
+    setIsFocusMyCards((prev) => {
+      const next = !prev;
+      setUserPref('focus_my_cards', next);
+      setSearchParams((sp) => {
+        const n = new URLSearchParams(sp);
+        if (next) n.set('focus', 'me');
+        else n.delete('focus');
+        return n;
+      });
+      return next;
+    });
+  };
+
+  const myCardsCount = useMemo(() => {
+    if (!user?.id || !board?.lists) return 0;
+    const uid = Number(user.id);
+    let count = 0;
+    board.lists.forEach((list) => {
+      (list.cards || []).forEach((c) => {
+        const isAssignee = (c.members || []).some((m) => Number(m.id || m.user_id) === uid);
+        const isAssigner =
+          (c.assigners || []).some((a) => Number(a.id || a.user_id) === uid) ||
+          (c.created_by && Number(c.created_by) === uid) ||
+          (c.creator_id && Number(c.creator_id) === uid);
+        if (isAssignee || isAssigner) count++;
+      });
+    });
+    return count;
+  }, [board?.lists, user?.id]);
 
   const setSearchQuery = (val) => {
     setSearchParams((prev) => {
@@ -1163,6 +1232,36 @@ export default function Board({
                 />
               </div>
 
+              {/* 1-Click "Focus My Cards" Spotlight Toggle Button */}
+              <button
+                type="button"
+                onClick={toggleFocusMyCards}
+                aria-pressed={isFocusMyCards}
+                aria-label="Toggle Focus My Cards mode"
+                title={
+                  isFocusMyCards
+                    ? 'Focus My Cards is ON: Your cards are spotlighted while other cards are dimmed'
+                    : 'Spotlight your cards: Highlights cards assigned to or by you and dims other cards'
+                }
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${
+                  isFocusMyCards
+                    ? 'bg-primary text-white border-primary shadow-xs ring-2 ring-primary/30'
+                    : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary hover:border-primary/50'
+                }`}
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isFocusMyCards ? 'text-white' : 'text-primary'}`} />
+                <span>Focus My Cards</span>
+                {myCardsCount > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      isFocusMyCards ? 'bg-white text-primary' : 'bg-primary-tint text-primary-text'
+                    }`}
+                  >
+                    {myCardsCount}
+                  </span>
+                )}
+              </button>
+
               {/* Detailed Filters Toggle Button */}
               <button
                 type="button"
@@ -1205,7 +1304,7 @@ export default function Board({
               {/* Calendar Toggle Button on < xl (< 1280px) */}
               <button
                 type="button"
-                onClick={() => setIsRightPanelOpen((prev) => !prev)}
+                onClick={handleToggleRightPanel}
                 aria-label="Toggle Calendar & Tasks sidebar"
                 title="Calendar & Tasks"
                 className={`flex xl:hidden items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${
@@ -1469,6 +1568,7 @@ export default function Board({
                       highlightedCardId={highlightedCardId}
                       remoteDraggedCardIds={remoteDraggedCardIds}
                       isRemoteDragging={remoteDraggedListIds.has(list.id)}
+                      focusMode={isFocusMyCards}
                     />
                   ));
                 })()}
@@ -1572,7 +1672,7 @@ export default function Board({
       {/* Shutter Toggle Circle Button (Positioned over the right edge in both open and closed states) */}
       <button
         type="button"
-        onClick={() => setIsRightPanelOpen((prev) => !prev)}
+        onClick={handleToggleRightPanel}
         title={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
         aria-label={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
         className="flex absolute right-0 xl:-right-4.5 top-1/2 -translate-y-1/2 z-40 items-center justify-center w-8 h-8 xl:w-9 xl:h-9 rounded-full bg-surface border border-border shadow-md hover:shadow-lg hover:border-primary/60 hover:bg-surface-muted text-text-secondary hover:text-primary transition-all duration-200 cursor-pointer group hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -1590,7 +1690,7 @@ export default function Board({
       {isRightPanelOpen && (
         <div
           className="fixed inset-0 bg-text-primary/40 z-50 xl:hidden transition-opacity"
-          onClick={() => setIsRightPanelOpen(false)}
+          onClick={handleCloseRightPanel}
           aria-hidden="true"
         />
       )}

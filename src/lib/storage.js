@@ -89,3 +89,40 @@ export function clearDraft(tenantId, cardId, type) {
     console.warn('sessionStorage clearDraft failed:', e);
   }
 }
+
+/**
+ * Global User Preferences:
+ * Persistent settings across all workspaces, boards, and sessions
+ * (e.g., right sidebar open/closed, focus my cards, sidebar collapsed, etc.)
+ */
+export function getUserPref(key, defaultValue = null) {
+  try {
+    const val = localStorage.getItem(`taskflow_pref_${key}`);
+    if (val === null) return defaultValue;
+    try {
+      return JSON.parse(val);
+    } catch {
+      return val;
+    }
+  } catch {
+    return defaultValue;
+  }
+}
+
+export function setUserPref(key, value) {
+  try {
+    const fullKey = `taskflow_pref_${key}`;
+    localStorage.setItem(fullKey, typeof value === 'string' ? value : JSON.stringify(value));
+  } catch (e) {
+    console.warn(`Failed to set user preference "${key}":`, e);
+  }
+}
+
+export function removeUserPref(key) {
+  try {
+    localStorage.removeItem(`taskflow_pref_${key}`);
+  } catch (e) {
+    console.warn(`Failed to remove user preference "${key}":`, e);
+  }
+}
+

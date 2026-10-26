@@ -168,6 +168,10 @@ export function buildReadableSentence(event) {
     case 'audit.integrity_verify':
     case 'audit.verified':
       return `${actor} verified audit chain integrity (${event.outcome || 'success'})`;
+    case 'workspace.auto_archive':
+      return `${actor} auto-archived ${meta.archivedCount || meta.archived_count || ''} completed task(s) (${meta.days || 7}d policy)`;
+    case 'api.mutation':
+      return `${actor} called API endpoint '${meta.route || title}'`;
     default:
       return `${actor} performed ${event.action} on ${event.entity_type} '${title}'`;
   }
