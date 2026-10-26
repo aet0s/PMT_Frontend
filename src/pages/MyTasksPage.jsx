@@ -151,7 +151,10 @@ export default function MyTasksPage({
         params.userId = selectedUserId;
       }
 
-      const data = await getWorkspaceMyTasks(selectedWorkspaceId, params);
+      const requestWsId = (selectedWorkspaceId && selectedWorkspaceId !== 'all')
+        ? selectedWorkspaceId
+        : (workspace?.id || 'all');
+      const data = await getWorkspaceMyTasks(requestWsId, params);
       setTasksData(data || {});
       setCards(data?.cards || []);
       setPagination(data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
@@ -162,7 +165,7 @@ export default function MyTasksPage({
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedWorkspaceId, currentPage, activeTab, selectedBoardId, selectedStage, debouncedSearch, selectedUserId, isOwner]);
+  }, [selectedWorkspaceId, currentPage, activeTab, selectedBoardId, selectedStage, debouncedSearch, selectedUserId, isOwner, workspace?.id]);
 
   useEffect(() => {
     loadMyTasks();
