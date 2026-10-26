@@ -10,7 +10,8 @@ export default function QuickAddRow({
   onOpenMembers,
   onOpenAssigners,
   onOpenCheckin,
-  canModify = true
+  canModify = true,
+  canManageAssigners = true
 }) {
   const { hasPermission } = usePermissions();
   const labelsBtnRef = useRef(null);
@@ -26,7 +27,7 @@ export default function QuickAddRow({
 
   return (
     <div className="flex flex-wrap items-center gap-2 select-none">
-      {(canAssignMembers || canEditCard) && (
+      {canManageAssigners && (canAssignMembers || canEditCard) && (
         <button
           ref={assignersBtnRef}
           type="button"

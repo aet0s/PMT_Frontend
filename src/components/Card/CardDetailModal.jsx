@@ -73,6 +73,7 @@ export default function CardDetailModal({
   const isAssigner = user && (card.assigners || []).some((a) => Number(a.id) === Number(user.id));
   const canModifyCard = isTopLevel || isCreator || isAssignee || isAssigner;
   const canCompleteCard = isTopLevel || isAssigner;
+  const canManageAssigners = isTopLevel || isAssigner;
 
   const handleOpenDates = (anchorRef) => {
     setActiveAnchorRef(anchorRef);
@@ -240,6 +241,7 @@ export default function CardDetailModal({
               onOpenAssigners={handleOpenAssigners}
               onOpenCheckin={() => setIsCheckinModalOpen(true)}
               canModify={canModifyCard}
+              canManageAssigners={canManageAssigners}
             />
 
             {/* Rendered Selected Labels, Assigners & Assignees */}
@@ -356,6 +358,9 @@ export default function CardDetailModal({
         cardMembers={card.assigners || []}
         boardMembers={boardMembers}
         onToggleMember={(userId) => onToggleAssigner && onToggleAssigner(card.id, userId)}
+        canManageAll={canManageAssigners}
+        currentUserId={user?.id}
+        cardAssigners={card.assigners || []}
       />
 
       <MembersPopover
@@ -367,6 +372,9 @@ export default function CardDetailModal({
         cardMembers={card.members || []}
         boardMembers={boardMembers}
         onToggleMember={(userId) => onToggleMember(card.id, userId)}
+        canManageAll={canManageAssigners}
+        currentUserId={user?.id}
+        cardAssigners={card.assigners || []}
       />
 
       <ChecklistPopover
