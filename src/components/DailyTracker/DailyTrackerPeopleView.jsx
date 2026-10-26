@@ -30,6 +30,7 @@ import Badge from '../ui/Badge';
 import Spinner from '../ui/Spinner';
 import { Modal } from '../ui/Modal';
 import { usePermissions } from '../../context/PermissionContext';
+import { useAuth } from '../../hooks/useAuth';
 import QuickCheckinModal from './QuickCheckinModal';
 
 export default function DailyTrackerPeopleView({
@@ -37,9 +38,21 @@ export default function DailyTrackerPeopleView({
   selectedDate,
   onCardClick
 }) {
-  const { hasPermission } = usePermissions();
-  const canReview = hasPermission('checkin.review');
-  const canManageLeave = hasPermission('leave.approve') || hasPermission('workspace.edit');
+  const { hasPermission, userRole } = usePermissions();
+  const { user } = useAuth();
+
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || user?.company_role || user?.role || '')?.toLowerCase();
+  const userRank = Number(userRole?.rank || 0);
+
+  const isOwnerOrManager =
+    ['owner', 'super admin', 'admin', 'project manager'].includes(roleName) ||
+    userRank >= 40 ||
+    Boolean(user?.is_company_owner) ||
+    user?.company_role === 'owner' ||
+    user?.company_role === 'admin';
+
+  const canReview = isOwnerOrManager || hasPermission('checkin.review');
+  const canManageLeave = isOwnerOrManager || hasPermission('leave.approve') || hasPermission('workspace.edit');
 
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState([]);

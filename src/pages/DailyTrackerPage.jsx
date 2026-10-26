@@ -33,6 +33,7 @@ import Spinner from '../components/ui/Spinner';
 import Select from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
 import { usePermissions } from '../context/PermissionContext';
+import { useAuth } from '../hooks/useAuth';
 import DailyTrackerPeopleView from '../components/DailyTracker/DailyTrackerPeopleView';
 import { getServerNow } from '../lib/dateFormat';
 
@@ -49,9 +50,21 @@ export default function DailyTrackerPage({
   workspaces = [],
   onCardClick
 }) {
-  const { hasPermission } = usePermissions();
-  const canViewDailyTracker = hasPermission('daily_tracker.view');
-  const canViewPeople = hasPermission('daily_tracker.view_people');
+  const { hasPermission, userRole, loading: permsLoading } = usePermissions();
+  const { user } = useAuth();
+
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || user?.company_role || user?.role || '')?.toLowerCase();
+  const userRank = Number(userRole?.rank || 0);
+
+  const isOwnerOrManager =
+    ['owner', 'super admin', 'admin', 'project manager'].includes(roleName) ||
+    userRank >= 40 ||
+    Boolean(user?.is_company_owner) ||
+    user?.company_role === 'owner' ||
+    user?.company_role === 'admin';
+
+  const canViewDailyTracker = isOwnerOrManager || hasPermission('daily_tracker.view');
+  const canViewPeople = isOwnerOrManager || hasPermission('daily_tracker.view_people');
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -324,6 +337,15 @@ export default function DailyTrackerPage({
       setPreviewLoading(false);
     }
   };
+
+  if ((permsLoading || !workspace) && !canViewDailyTracker) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
+        <Spinner size="lg" />
+        <p className="text-xs font-semibold text-text-secondary">Verifying permissions...</p>
+      </div>
+    );
+  }
 
   if (!canViewDailyTracker) {
     return (

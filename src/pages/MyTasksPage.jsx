@@ -324,24 +324,27 @@ export default function MyTasksPage({
     return list;
   }, [tasksData.teamMembers, authUser]);
 
-  // Grouped Cards by Stage for structured view
+  // Grouped Cards by Stage for 4-list Board view
   const groupedCards = useMemo(() => {
     const groups = {
-      in_progress: [],
       todo: [],
+      in_progress: [],
       review: [],
       done: []
     };
 
     cards.forEach((c) => {
-      if (c.is_complete || c.stage === 'done') {
+      const stage = (c.stage || '').toLowerCase().trim();
+      const listName = (c.list_name || '').toLowerCase().trim();
+
+      if (c.is_complete || stage === 'done' || listName.includes('done') || listName.includes('completed')) {
         groups.done.push(c);
-      } else if (c.stage === 'review') {
+      } else if (stage === 'review' || listName.includes('review') || listName.includes('qa')) {
         groups.review.push(c);
-      } else if (c.stage === 'todo') {
-        groups.todo.push(c);
-      } else {
+      } else if (stage === 'in_progress' || listName.includes('progress') || listName.includes('doing') || listName.includes('wip')) {
         groups.in_progress.push(c);
+      } else {
+        groups.todo.push(c);
       }
     });
 
@@ -358,7 +361,7 @@ export default function MyTasksPage({
       {/* 1. STATS OVERVIEW CARDS                                   */}
       {/* ======================================================== */}
       <div className="px-4 sm:px-6 lg:px-8 py-3.5 border-b border-border/40 bg-surface/50 shrink-0">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <div className="max-w-[1680px] mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
           {/* 1. Total Assigned */}
           <div
             onClick={() => { handleTabChange('assigned'); setSelectedStage('all'); }}
@@ -493,7 +496,7 @@ export default function MyTasksPage({
       {/* 2. TABS, SEARCH & FILTER TOOLBAR                         */}
       {/* ======================================================== */}
       <div className="px-4 sm:px-6 lg:px-8 py-3 bg-surface border-b border-border/60 shrink-0 shadow-2xs space-y-2.5">
-        <div className="max-w-7xl mx-auto space-y-2.5">
+        <div className="max-w-[1680px] mx-auto space-y-2.5">
           {/* Top Row: Navigation Tabs (Left) + Member Switcher & View Switcher (Right) */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             {/* Main Tabs */}
@@ -707,7 +710,7 @@ export default function MyTasksPage({
 
         {/* Owner-Inspection Banner if viewing someone else */}
         {!isViewingSelf && targetUser && (
-          <div className="max-w-7xl mx-auto mt-2.5 flex items-center justify-between px-3.5 py-2 bg-primary/10 border border-primary/20 rounded-xl text-xs font-medium text-primary">
+          <div className="max-w-[1680px] mx-auto mt-2.5 flex items-center justify-between px-3.5 py-2 bg-primary/10 border border-primary/20 rounded-xl text-xs font-medium text-primary">
             <div className="flex items-center gap-2">
               <Avatar src={targetUser.avatar_url} name={targetUser.name} size="xs" />
               <span>Viewing work dashboard for <strong>{targetUser.name}</strong> ({targetUser.role_name || 'Member'})</span>
@@ -727,7 +730,7 @@ export default function MyTasksPage({
       {/* 3. MAIN TASK CONTENT AREA                                 */}
       {/* ======================================================== */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="max-w-[1680px] mx-auto space-y-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-28 text-text-muted">
               <Spinner className="w-8 h-8 text-primary mb-3" />
@@ -763,70 +766,72 @@ export default function MyTasksPage({
                 </button>
               )}
             </div>
-          ) : viewMode === 'grouped' && activeTab === 'assigned' && selectedStage === 'all' ? (
-            /* Grouped View (In Progress -> To Do -> In Review -> Done) */
-            <div className="space-y-6">
-              {/* SECTION: In Progress */}
-              {groupedCards.in_progress.length > 0 && (
-                <TaskSection
-                  title="In Progress"
-                  icon={Flame}
-                  count={groupedCards.in_progress.length}
-                  themeClass="text-amber-500 bg-amber-500/10 border-amber-500/20"
-                  cards={groupedCards.in_progress}
-                  onCardClick={handleCardClick}
-                  workspaceId={workspace.id}
-                />
-              )}
-
-              {/* SECTION: To Do / Backlog */}
-              {groupedCards.todo.length > 0 && (
-                <TaskSection
-                  title="To Do & Upcoming"
-                  icon={Clock}
-                  count={groupedCards.todo.length}
-                  themeClass="text-indigo-500 bg-indigo-500/10 border-indigo-500/20"
-                  cards={groupedCards.todo}
-                  onCardClick={handleCardClick}
-                  workspaceId={workspace.id}
-                />
-              )}
-
-              {/* SECTION: Review & QA */}
-              {groupedCards.review.length > 0 && (
-                <TaskSection
-                  title="In Review & QA"
-                  icon={CheckSquare}
-                  count={groupedCards.review.length}
-                  themeClass="text-purple-500 bg-purple-500/10 border-purple-500/20"
-                  cards={groupedCards.review}
-                  onCardClick={handleCardClick}
-                  workspaceId={workspace.id}
-                />
-              )}
-
-              {/* SECTION: Completed */}
-              {groupedCards.done.length > 0 && (
-                <TaskSection
-                  title="Completed"
-                  icon={CheckCircle2}
-                  count={groupedCards.done.length}
-                  themeClass="text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
-                  cards={groupedCards.done}
-                  onCardClick={handleCardClick}
-                  workspaceId={workspace.id}
-                />
-              )}
+          ) : viewMode === 'grouped' && (activeTab === 'assigned' || activeTab === 'delegated') && selectedStage === 'all' ? (
+            /* 4-List Board Page Design (To Do -> In Progress -> In Review -> Completed) */
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 items-start">
+              <TaskBoardColumn
+                title="To Do"
+                icon={Clock}
+                count={groupedCards.todo.length}
+                statusKey="todo"
+                headerClass="list-status-todo"
+                cards={groupedCards.todo}
+                onCardClick={handleCardClick}
+                workspaceId={workspace?.id}
+              />
+              <TaskBoardColumn
+                title="In Progress"
+                icon={Flame}
+                count={groupedCards.in_progress.length}
+                statusKey="in_progress"
+                headerClass="list-status-in-progress"
+                cards={groupedCards.in_progress}
+                onCardClick={handleCardClick}
+                workspaceId={workspace?.id}
+              />
+              <TaskBoardColumn
+                title="In Review"
+                icon={CheckSquare}
+                count={groupedCards.review.length}
+                statusKey="review"
+                headerClass="list-status-review"
+                cards={groupedCards.review}
+                onCardClick={handleCardClick}
+                workspaceId={workspace?.id}
+              />
+              <TaskBoardColumn
+                title="Completed"
+                icon={CheckCircle2}
+                count={groupedCards.done.length}
+                statusKey="done"
+                headerClass="list-status-done"
+                cards={groupedCards.done}
+                onCardClick={handleCardClick}
+                workspaceId={workspace?.id}
+              />
             </div>
-          ) : (
-            /* Flat List View */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          ) : activeTab === 'completed' && viewMode === 'grouped' ? (
+            /* 3rd Tab: Completed Work - Small board card design in a 4-column responsive grid */
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
               {cards.map((card) => (
                 <BoardCardItem
                   key={card.id}
                   card={card}
                   onCardClick={handleCardClick}
-                  workspaceId={workspace.id}
+                  workspaceId={workspace?.id}
+                />
+              ))}
+            </div>
+          ) : (
+            /* Flat / Filtered / List View */
+            <div className={viewMode === 'list' ? 'space-y-2' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 items-start'}>
+              {cards.map((card) => (
+                <BoardCardItem
+                  key={card.id}
+                  card={card}
+                  onCardClick={handleCardClick}
+                  workspaceId={workspace?.id}
+                  isListView={viewMode === 'list'}
                 />
               ))}
             </div>
@@ -875,32 +880,42 @@ export default function MyTasksPage({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Subcomponent: Section Block for Grouped View
+// Subcomponent: TaskBoardColumn - Matches Board List.jsx design
 // ─────────────────────────────────────────────────────────────────────────────
-function TaskSection({ title, icon: Icon, count, themeClass, cards, onCardClick, workspaceId }) {
+function TaskBoardColumn({ title, count, headerClass, icon: Icon, cards, onCardClick, workspaceId }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className={`p-1.5 rounded-lg border flex items-center justify-center shrink-0 ${themeClass}`}>
-          <Icon className="w-4 h-4" />
+    <div className="w-full flex flex-col min-w-0">
+      {/* Column Header matching Board page List.jsx */}
+      <div
+        className={`bg-surface border border-border-strong/70 rounded-2xl px-4 py-3 flex items-center justify-between select-none shadow-xs mb-3 transition-all ${headerClass}`}
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {Icon && <Icon className="w-4 h-4 shrink-0 text-text-primary" />}
+          <h3 className="text-base sm:text-[17px] font-extrabold text-text-primary truncate">
+            {title}
+          </h3>
+          <span className="text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs bg-surface-muted text-text-secondary border-border-strong/50">
+            {count}
+          </span>
         </div>
-        <h2 className="text-sm font-bold text-text-primary tracking-tight">
-          {title}
-        </h2>
-        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-surface-muted text-text-secondary border border-border/60">
-          {count}
-        </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-        {cards.map((card) => (
-          <BoardCardItem
-            key={card.id}
-            card={card}
-            onCardClick={onCardClick}
-            workspaceId={workspaceId}
-          />
-        ))}
+      {/* Cards List Stack */}
+      <div className="space-y-3">
+        {cards.length > 0 ? (
+          cards.map((card) => (
+            <BoardCardItem
+              key={card.id}
+              card={card}
+              onCardClick={onCardClick}
+              workspaceId={workspaceId}
+            />
+          ))
+        ) : (
+          <div className="py-10 px-4 rounded-2xl border border-dashed border-border/70 bg-surface/30 text-center flex flex-col items-center justify-center">
+            <span className="text-xs font-semibold text-text-muted">No tasks in {title}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -909,7 +924,7 @@ function TaskSection({ title, icon: Icon, count, themeClass, cards, onCardClick,
 // ─────────────────────────────────────────────────────────────────────────────
 // Subcomponent: BoardCardItem - Matches Board Card.jsx design exactly
 // ─────────────────────────────────────────────────────────────────────────────
-function BoardCardItem({ card, onCardClick, workspaceId }) {
+function BoardCardItem({ card, onCardClick, workspaceId, isListView = false }) {
   const status = getCardDefaultStatus(card, card.list_name);
   const statusConfig = getListStatusConfig(status);
   const dueDateInfo = formatCardDueDate(card.due_date, card.is_complete);
@@ -921,6 +936,59 @@ function BoardCardItem({ card, onCardClick, workspaceId }) {
     ? card.description.replace(/<[^>]*>/g, '').trim()
     : '';
 
+  // Compact List View Row
+  if (isListView) {
+    return (
+      <div
+        tabIndex={0}
+        role="button"
+        onClick={() => onCardClick?.(card)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onCardClick?.(card);
+          }
+        }}
+        className="group bg-surface border border-border/80 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-4 hover:border-primary/40 hover:shadow-xs transition-all cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {card.is_complete ? (
+            <span className="w-5 h-5 rounded-full bg-success text-white flex items-center justify-center shrink-0 shadow-2xs">
+              <Check className="w-3.5 h-3.5 stroke-[3]" />
+            </span>
+          ) : (
+            <span className="text-[11px] font-bold text-text-muted shrink-0 min-w-10">
+              #{card.task_number || card.id}
+            </span>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <h4 className={`text-xs sm:text-sm font-bold truncate ${card.is_complete ? 'line-through text-text-muted' : 'text-text-primary group-hover:text-primary transition-colors'}`}>
+              {card.title}
+            </h4>
+            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-text-muted flex-wrap">
+              {card.workspace_name && <span>{card.workspace_name}</span>}
+              {card.board_name && <span>• {card.board_name}</span>}
+              {card.list_name && <span className="text-text-secondary">• {card.list_name}</span>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          {dueDateInfo && (
+            <span className={`text-[11px] font-semibold ${dueDateInfo.isOverdue ? 'text-danger' : 'text-text-muted'}`}>
+              {dueDateInfo.text}
+            </span>
+          )}
+          {card.members && card.members.length > 0 && (
+            <Avatar name={card.members[0].name} src={card.members[0].avatar_url} size="xs" />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Small Board Card Design matching Board Card.jsx
   return (
     <div
       tabIndex={0}
@@ -932,22 +1000,22 @@ function BoardCardItem({ card, onCardClick, workspaceId }) {
           onCardClick?.(card);
         }
       }}
-      className={`group relative bg-surface border border-border/80 rounded-2xl p-4 transition-all duration-200 cursor-pointer select-none space-y-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
+      className={`group relative bg-surface border border-border/80 rounded-2xl p-3.5 transition-all duration-200 cursor-pointer select-none space-y-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
         statusConfig
-          ? `${statusConfig.cardClass} hover:border-t-primary/40 hover:border-x-primary/40 hover:-translate-y-0.5`
-          : 'hover:border-primary/40 shadow-[0_2px_10px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_20px_rgba(37,99,235,0.08)] hover:-translate-y-0.5'
+          ? `${statusConfig.cardClass} hover:border-t-primary/40 hover:border-x-primary/40`
+          : 'border-border/80 hover:border-primary/40'
       }`}
     >
-      {/* Top Header: Task Number, Board Tag, Labels & Status Badge */}
-      <div className="flex items-center justify-between gap-2 min-h-[24px]">
+      {/* Top Header: Task Number, Workspace / Board Badges & Labels */}
+      <div className="flex items-center justify-between gap-1.5 min-h-[22px]">
         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-          <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
+          <span className="text-[10.5px] font-bold text-text-muted uppercase tracking-wider">
             Task #{card.task_number || card.id}
           </span>
 
           {card.workspace_name && (
             <span
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 truncate max-w-[120px]"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-primary/10 text-primary border border-primary/20 truncate max-w-[100px]"
               title={`Workspace: ${card.workspace_name}`}
             >
               <Briefcase className="w-2.5 h-2.5 shrink-0 text-primary" />
@@ -957,7 +1025,7 @@ function BoardCardItem({ card, onCardClick, workspaceId }) {
 
           {card.board_name && (
             <span
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-surface-muted text-text-secondary border border-border/60 truncate max-w-[130px]"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-surface-muted text-text-secondary border border-border/60 truncate max-w-[110px]"
               title={`Board: ${card.board_name}`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
@@ -973,7 +1041,7 @@ function BoardCardItem({ card, onCardClick, workspaceId }) {
 
         {card.list_name && (
           <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase shrink-0 ${
+            className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold tracking-wide uppercase shrink-0 ${
               card.is_complete
                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                 : card.stage === 'in_progress'
@@ -991,12 +1059,12 @@ function BoardCardItem({ card, onCardClick, workspaceId }) {
       {/* Card Title & Complete Status */}
       <div className="flex items-start gap-2">
         {card.is_complete && (
-          <span className="mt-0.5 w-4.5 h-4.5 rounded-full bg-success text-white flex items-center justify-center shrink-0 shadow-2xs">
-            <Check className="w-3.5 h-3.5 stroke-[3]" />
+          <span className="mt-0.5 w-4 h-4 rounded-full bg-success text-white flex items-center justify-center shrink-0 shadow-2xs">
+            <Check className="w-3 h-3 stroke-[3]" />
           </span>
         )}
         <h4
-          className={`text-[15px] sm:text-base font-bold leading-snug break-words transition-colors ${
+          className={`text-[13.5px] sm:text-[14px] font-bold leading-snug break-words transition-colors ${
             card.is_complete
               ? 'line-through text-text-muted'
               : 'text-text-primary group-hover:text-primary'
@@ -1008,7 +1076,7 @@ function BoardCardItem({ card, onCardClick, workspaceId }) {
 
       {/* Description Snippet */}
       {descriptionSnippet && (
-        <p className="text-xs sm:text-[13px] text-text-secondary line-clamp-2 leading-relaxed">
+        <p className="text-[11.5px] text-text-secondary line-clamp-2 leading-relaxed">
           {descriptionSnippet}
         </p>
       )}
@@ -1036,19 +1104,19 @@ function BoardCardItem({ card, onCardClick, workspaceId }) {
               )}
             </div>
           ) : (
-            <div className="w-5.5 h-5.5 rounded-full border border-dashed border-border flex items-center justify-center text-[10px] text-text-muted">
+            <div className="w-5 h-5 rounded-full border border-dashed border-border flex items-center justify-center text-[9px] text-text-muted">
               —
             </div>
           )}
         </div>
 
         {/* Metadata: Due Date, Checklist, Comments */}
-        <div className="flex items-center gap-2.5 text-xs text-text-muted font-medium">
+        <div className="flex items-center gap-2 text-xs text-text-muted font-medium">
           {/* Due Date badge */}
           {dueDateInfo && (
             <div
               title={dueDateInfo.title}
-              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${
                 dueDateInfo.isComplete
                   ? 'bg-success-tint text-success-text'
                   : dueDateInfo.isOverdue
@@ -1058,23 +1126,23 @@ function BoardCardItem({ card, onCardClick, workspaceId }) {
                   : 'bg-surface-muted text-text-secondary'
               }`}
             >
-              <Calendar className="w-3.5 h-3.5" />
+              <Calendar className="w-3 h-3" />
               <span>{dueDateInfo.text}</span>
             </div>
           )}
 
           {/* Checklist progress */}
           {hasChecklist && (
-            <span className="flex items-center gap-1 text-[11px] font-medium text-text-secondary">
-              <CheckSquare className="w-3.5 h-3.5 text-text-muted" />
+            <span className="flex items-center gap-1 text-[10.5px] font-medium text-text-secondary">
+              <CheckSquare className="w-3 h-3 text-text-muted" />
               <span>{checklist.completed}/{checklist.total}</span>
             </span>
           )}
 
           {/* Comments count */}
           {card.comment_count > 0 && (
-            <span className="flex items-center gap-1 text-[11px] text-text-muted">
-              <MessageSquare className="w-3 h-3 text-text-muted" />
+            <span className="flex items-center gap-1 text-[10.5px] text-text-muted">
+              <MessageSquare className="w-2.5 h-2.5 text-text-muted" />
               <span>{card.comment_count}</span>
             </span>
           )}
