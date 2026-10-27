@@ -16,7 +16,8 @@ import {
   Briefcase,
   Lock,
   Sparkles,
-  Activity
+  Activity,
+  Eye
 } from 'lucide-react';
 import Avatar from '../../../components/ui/Avatar';
 import Button from '../../../components/ui/Button';
@@ -25,6 +26,7 @@ import Badge from '../../../components/ui/Badge';
 import { useToast } from '../../../components/ui/Toast';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import MemberAuditModal from '../../../components/Members/MemberAuditModal';
+import ProfilePreviewModal from '../../../components/shared/ProfilePreviewModal';
 import {
   getWorkspaceMembers,
   getWorkspaceRoles,
@@ -58,6 +60,7 @@ export default function MembersTab({ workspace, onOpenInvite }) {
   const [resendingEmailId, setResendingEmailId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [auditMember, setAuditMember] = useState(null);
+  const [previewMember, setPreviewMember] = useState(null);
 
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -409,7 +412,24 @@ export default function MembersTab({ workspace, onOpenInvite }) {
                 >
                   {/* Left: User Identity + Access details */}
                   <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <Avatar name={member.name} src={member.avatar_url || member.avatar} user={member} size="md" className="shrink-0 mt-0.5" />
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMember(member)}
+                      className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full shrink-0 mt-0.5"
+                      title={`Click to preview ${member.name}'s profile photo`}
+                      aria-label={`Preview ${member.name}'s profile picture`}
+                    >
+                      <Avatar
+                        name={member.name}
+                        src={member.avatar_url || member.avatar}
+                        user={member}
+                        size="md"
+                        className="transition-transform group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary/60 group-hover:shadow-xs"
+                      />
+                      <div className="absolute inset-0 rounded-full bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                        <Eye className="w-4 h-4 drop-shadow-xs" />
+                      </div>
+                    </button>
                     <div className="min-w-0 space-y-1.5 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-bold text-text-primary truncate">{member.name}</span>
@@ -661,6 +681,13 @@ export default function MembersTab({ workspace, onOpenInvite }) {
         onClose={() => setAuditMember(null)}
         member={auditMember}
         workspaceId={workspace?.id}
+      />
+
+      {/* Profile Image Preview Modal */}
+      <ProfilePreviewModal
+        isOpen={Boolean(previewMember)}
+        onClose={() => setPreviewMember(null)}
+        member={previewMember}
       />
     </div>
   );

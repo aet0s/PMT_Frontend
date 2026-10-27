@@ -8,9 +8,11 @@ import {
   Trash2,
   Shield,
   AlertTriangle,
-  Activity
+  Activity,
+  Eye
 } from 'lucide-react';
 import MemberAuditModal from '../components/Members/MemberAuditModal';
+import ProfilePreviewModal from '../components/shared/ProfilePreviewModal';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -47,6 +49,7 @@ export default function MembersPage({ workspace }) {
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [auditMember, setAuditMember] = useState(null);
+  const [previewMember, setPreviewMember] = useState(null);
 
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -233,7 +236,24 @@ export default function MembersPage({ workspace }) {
                       {/* Name & Avatar */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3 min-w-[180px]">
-                          <Avatar name={member.name} src={member.avatar_url || member.avatar} user={member} size="sm" />
+                          <button
+                            type="button"
+                            onClick={() => setPreviewMember(member)}
+                            className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full shrink-0"
+                            title={`Click to preview ${member.name}'s profile photo`}
+                            aria-label={`Preview ${member.name}'s profile picture`}
+                          >
+                            <Avatar
+                              name={member.name}
+                              src={member.avatar_url || member.avatar}
+                              user={member}
+                              size="sm"
+                              className="transition-transform group-hover:scale-110 group-hover:ring-2 group-hover:ring-primary/60 group-hover:shadow-xs"
+                            />
+                            <div className="absolute inset-0 rounded-full bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                              <Eye className="w-3 h-3 drop-shadow-xs" />
+                            </div>
+                          </button>
                           <div className="min-w-0">
                             <span className="font-bold text-text-primary block truncate">
                               {member.name}
@@ -331,6 +351,13 @@ export default function MembersPage({ workspace }) {
         onClose={() => setAuditMember(null)}
         member={auditMember}
         workspaceId={workspace?.id}
+      />
+
+      {/* Profile Image Preview Modal (Owner only) */}
+      <ProfilePreviewModal
+        isOpen={Boolean(previewMember)}
+        onClose={() => setPreviewMember(null)}
+        member={previewMember}
       />
     </div>
   );

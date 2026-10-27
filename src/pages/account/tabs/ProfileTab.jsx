@@ -1,6 +1,6 @@
 // client/src/pages/account/tabs/ProfileTab.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Mail, Camera, Trash2, Check, Shield, Calendar, Sparkles, Info } from 'lucide-react';
+import { User, Mail, Camera, Trash2, Check, Shield, Calendar, Sparkles, Info, Eye } from 'lucide-react';
 import Avatar from '../../../components/ui/Avatar';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -9,6 +9,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { uploadAvatar } from '../../../api/auth';
 import { formatDate } from '../../../lib/dateFormat';
 import ImageCropModal from '../../../components/shared/ImageCropModal';
+import ProfilePreviewModal from '../../../components/shared/ProfilePreviewModal';
 
 export default function ProfileTab({ setFormDirty }) {
   const toast = useToast();
@@ -20,6 +21,7 @@ export default function ProfileTab({ setFormDirty }) {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [cropFile, setCropFile] = useState(null);
   const [isCropOpen, setIsCropOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -123,7 +125,22 @@ export default function ProfileTab({ setFormDirty }) {
             </p>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 pt-2">
-              <Avatar name={user?.name || 'User'} src={user?.avatar_url} size="xl" />
+              <button
+                type="button"
+                onClick={() => setIsPreviewOpen(true)}
+                className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full"
+                title="Click to preview full photo"
+              >
+                <Avatar
+                  name={user?.name || 'User'}
+                  src={user?.avatar_url}
+                  size="xl"
+                  className="transition-transform group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary/60 group-hover:shadow-md"
+                />
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                  <Eye className="w-5 h-5 drop-shadow-md" />
+                </div>
+              </button>
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <input
@@ -274,6 +291,12 @@ export default function ProfileTab({ setFormDirty }) {
         description="Position and scale your photo to fit the circular profile picture."
         onConfirm={handleCropConfirmed}
         isProcessing={isUploadingAvatar}
+      />
+
+      <ProfilePreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        member={user}
       />
     </div>
   );
