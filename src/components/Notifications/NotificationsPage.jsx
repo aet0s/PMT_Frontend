@@ -199,6 +199,8 @@ export default function NotificationsPage({
 
   const getCategoryIcon = (eventType = '', legacyType = '') => {
     const type = eventType || legacyType;
+    if (type === 'card.submitted_for_review') return <Clock className="w-4 h-4 text-purple-500" />;
+    if (type === 'card.changes_requested') return <RefreshCw className="w-4 h-4 text-amber-500" />;
     if (type.startsWith('checklist')) return <CheckSquare className="w-4 h-4 text-success" />;
     if (type === 'comment.mention' || type === 'mention') return <AtSign className="w-4 h-4 text-warning" />;
     if (type.startsWith('comment')) return <MessageSquare className="w-4 h-4 text-info" />;

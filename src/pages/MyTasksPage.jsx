@@ -17,11 +17,7 @@ import {
   RotateCcw,
   Sparkles,
   MessageSquare,
-  Briefcase,
-  TrendingUp,
-  Zap,
-  Target,
-  Layers
+  Briefcase
 } from 'lucide-react';
 import { getWorkspaceMyTasks } from '../api/workspaces';
 import { useAuth } from '../hooks/useAuth';
@@ -115,7 +111,6 @@ export default function MyTasksPage({
   const [selectedBoardId, setSelectedBoardId] = useState('all');
   const [selectedStage, setSelectedStage] = useState('all'); // 'all' | 'in_progress' | 'todo' | 'review' | 'done' | 'overdue'
   const [viewMode, setViewMode] = useState('grouped'); // 'grouped' | 'list'
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -361,140 +356,128 @@ export default function MyTasksPage({
   const isViewingSelf = !selectedUserId || Number(selectedUserId) === Number(authUser?.id);
   const canShowMemberSwitcher = Boolean(isOwner && tasksData.canSwitchMember);
 
+  // The 6 interactive stat cards (Total Assigned, In Progress, To Do, Overdue, Completed, Assigned by Me)
+  const statCardItems = useMemo(() => [
+    {
+      id: 'total',
+      label: 'Total Assigned',
+      count: tasksData.summary?.total_assigned || 0,
+      subtext: `${tasksData.summary?.completion_rate || 0}% done`,
+      icon: CheckSquare,
+      iconColor: 'text-primary',
+      countColor: 'text-text-primary',
+      isActive: activeTab === 'assigned' && selectedStage === 'all',
+      activeClass: 'bg-primary/5 border-primary ring-1 ring-primary/20',
+      hoverClass: 'hover:border-primary/40',
+      onClick: () => { handleTabChange('assigned'); setSelectedStage('all'); }
+    },
+    {
+      id: 'in_progress',
+      label: 'In Progress',
+      count: tasksData.summary?.in_progress || 0,
+      subtext: 'active now',
+      icon: Flame,
+      iconColor: 'text-amber-500',
+      countColor: 'text-amber-600 dark:text-amber-400',
+      isActive: activeTab === 'assigned' && selectedStage === 'in_progress',
+      activeClass: 'bg-amber-500/10 border-amber-500 ring-1 ring-amber-500/20',
+      hoverClass: 'hover:border-amber-500/40',
+      onClick: () => { handleTabChange('assigned'); setSelectedStage('in_progress'); }
+    },
+    {
+      id: 'todo',
+      label: 'To Do',
+      count: tasksData.summary?.todo || 0,
+      subtext: 'backlog',
+      icon: Clock,
+      iconColor: 'text-indigo-500',
+      countColor: 'text-indigo-600 dark:text-indigo-400',
+      isActive: activeTab === 'assigned' && selectedStage === 'todo',
+      activeClass: 'bg-indigo-500/10 border-indigo-500 ring-1 ring-indigo-500/20',
+      hoverClass: 'hover:border-indigo-500/40',
+      onClick: () => { handleTabChange('assigned'); setSelectedStage('todo'); }
+    },
+    {
+      id: 'overdue',
+      label: 'Overdue',
+      count: tasksData.summary?.overdue || 0,
+      subtext: 'past due',
+      icon: AlertCircle,
+      iconColor: (tasksData.summary?.overdue || 0) > 0 ? 'text-danger' : 'text-text-muted',
+      countColor: (tasksData.summary?.overdue || 0) > 0 ? 'text-danger' : 'text-text-primary',
+      isActive: selectedStage === 'overdue',
+      activeClass: 'bg-danger/10 border-danger ring-1 ring-danger/20',
+      hoverClass: 'hover:border-danger/40',
+      onClick: () => { handleTabChange('assigned'); setSelectedStage('overdue'); }
+    },
+    {
+      id: 'completed',
+      label: 'Completed',
+      count: tasksData.summary?.completed || 0,
+      subtext: 'milestones',
+      icon: CheckCircle2,
+      iconColor: 'text-emerald-500',
+      countColor: 'text-emerald-600 dark:text-emerald-400',
+      isActive: activeTab === 'completed',
+      activeClass: 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500/20',
+      hoverClass: 'hover:border-emerald-500/40',
+      onClick: () => handleTabChange('completed')
+    },
+    {
+      id: 'assigned_by_me',
+      label: 'Assigned by Me',
+      count: tasksData.summary?.assigned_by_me || 0,
+      subtext: 'delegated',
+      icon: Sparkles,
+      iconColor: 'text-purple-500',
+      countColor: 'text-purple-600 dark:text-purple-400',
+      isActive: activeTab === 'delegated',
+      activeClass: 'bg-purple-500/10 border-purple-500 ring-1 ring-purple-500/20',
+      hoverClass: 'hover:border-purple-500/40',
+      onClick: () => handleTabChange('delegated')
+    }
+  ], [tasksData.summary, activeTab, selectedStage, handleTabChange]);
+
+  const renderStatCards = (isSidebar = false) => {
+    return statCardItems.map((item) => {
+      const Icon = item.icon;
+      return (
+        <div
+          key={item.id}
+          onClick={item.onClick}
+          className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
+            item.isActive
+              ? item.activeClass
+              : `bg-surface border-border/70 ${item.hoverClass}`
+          }`}
+        >
+          <div className="flex items-center justify-between text-text-muted mb-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider truncate mr-1">
+              {item.label}
+            </span>
+            <Icon className={`w-4 h-4 shrink-0 ${item.iconColor}`} />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className={`text-xl sm:text-2xl font-black ${item.countColor}`}>
+              {item.count}
+            </span>
+            <span className="text-[11px] font-semibold text-text-muted truncate">
+              {item.subtext}
+            </span>
+          </div>
+        </div>
+      );
+    });
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app select-none">
       {/* ======================================================== */}
-      {/* 1. STATS OVERVIEW CARDS                                   */}
+      {/* 1. STATS OVERVIEW CARDS (Top on <=16" screens, Right on 22"+ screens) */}
       {/* ======================================================== */}
-      <div className="px-4 sm:px-6 lg:px-8 py-3.5 border-b border-border/40 bg-surface/50 shrink-0">
+      <div className="min-[1650px]:hidden px-4 sm:px-6 lg:px-8 py-3.5 border-b border-border/40 bg-surface/50 shrink-0">
         <div className="max-w-[1680px] mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {/* 1. Total Assigned */}
-          <div
-            onClick={() => { handleTabChange('assigned'); setSelectedStage('all'); }}
-            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
-              activeTab === 'assigned' && selectedStage === 'all'
-                ? 'bg-primary/5 border-primary ring-1 ring-primary/20'
-                : 'bg-surface border-border/70 hover:border-primary/40'
-            }`}
-          >
-            <div className="flex items-center justify-between text-text-muted mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Total Assigned</span>
-              <CheckSquare className="w-4 h-4 text-primary" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl sm:text-2xl font-black text-text-primary">
-                {tasksData.summary?.total_assigned || 0}
-              </span>
-              <span className="text-[11px] font-semibold text-text-muted">
-                {tasksData.summary?.completion_rate || 0}% done
-              </span>
-            </div>
-          </div>
-
-          {/* 2. In Progress */}
-          <div
-            onClick={() => { handleTabChange('assigned'); setSelectedStage('in_progress'); }}
-            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
-              activeTab === 'assigned' && selectedStage === 'in_progress'
-                ? 'bg-amber-500/10 border-amber-500 ring-1 ring-amber-500/20'
-                : 'bg-surface border-border/70 hover:border-amber-500/40'
-            }`}
-          >
-            <div className="flex items-center justify-between text-text-muted mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">In Progress</span>
-              <Flame className="w-4 h-4 text-amber-500" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">
-                {tasksData.summary?.in_progress || 0}
-              </span>
-              <span className="text-[11px] font-semibold text-text-muted">active now</span>
-            </div>
-          </div>
-
-          {/* 3. To Do */}
-          <div
-            onClick={() => { handleTabChange('assigned'); setSelectedStage('todo'); }}
-            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
-              activeTab === 'assigned' && selectedStage === 'todo'
-                ? 'bg-indigo-500/10 border-indigo-500 ring-1 ring-indigo-500/20'
-                : 'bg-surface border-border/70 hover:border-indigo-500/40'
-            }`}
-          >
-            <div className="flex items-center justify-between text-text-muted mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">To Do</span>
-              <Clock className="w-4 h-4 text-indigo-500" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400">
-                {tasksData.summary?.todo || 0}
-              </span>
-              <span className="text-[11px] font-semibold text-text-muted">backlog</span>
-            </div>
-          </div>
-
-          {/* 4. Overdue */}
-          <div
-            onClick={() => { handleTabChange('assigned'); setSelectedStage('overdue'); }}
-            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
-              selectedStage === 'overdue'
-                ? 'bg-danger/10 border-danger ring-1 ring-danger/20'
-                : 'bg-surface border-border/70 hover:border-danger/40'
-            }`}
-          >
-            <div className="flex items-center justify-between text-text-muted mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Overdue</span>
-              <AlertCircle className={`w-4 h-4 ${(tasksData.summary?.overdue || 0) > 0 ? 'text-danger' : 'text-text-muted'}`} />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-xl sm:text-2xl font-black ${(tasksData.summary?.overdue || 0) > 0 ? 'text-danger' : 'text-text-primary'}`}>
-                {tasksData.summary?.overdue || 0}
-              </span>
-              <span className="text-[11px] font-semibold text-text-muted">past due</span>
-            </div>
-          </div>
-
-          {/* 5. Completed */}
-          <div
-            onClick={() => handleTabChange('completed')}
-            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
-              activeTab === 'completed'
-                ? 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500/20'
-                : 'bg-surface border-border/70 hover:border-emerald-500/40'
-            }`}
-          >
-            <div className="flex items-center justify-between text-text-muted mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Completed</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                {tasksData.summary?.completed || 0}
-              </span>
-              <span className="text-[11px] font-semibold text-text-muted">milestones</span>
-            </div>
-          </div>
-
-          {/* 6. Assigned by Me */}
-          <div
-            onClick={() => handleTabChange('delegated')}
-            className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
-              activeTab === 'delegated'
-                ? 'bg-purple-500/10 border-purple-500 ring-1 ring-purple-500/20'
-                : 'bg-surface border-border/70 hover:border-purple-500/40'
-            }`}
-          >
-            <div className="flex items-center justify-between text-text-muted mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Assigned by Me</span>
-              <Sparkles className="w-4 h-4 text-purple-500" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400">
-                {tasksData.summary?.assigned_by_me || 0}
-              </span>
-              <span className="text-[11px] font-semibold text-text-muted">delegated</span>
-            </div>
-          </div>
+          {renderStatCards(false)}
         </div>
       </div>
 
@@ -623,21 +606,6 @@ export default function MyTasksPage({
                   <span className="hidden sm:inline text-[11px]">List</span>
                 </button>
               </div>
-
-              {/* Work Metrics & Velocity Panel Toggle Button */}
-              <button
-                type="button"
-                onClick={() => setIsRightPanelOpen((prev) => !prev)}
-                title={isRightPanelOpen ? 'Hide Work Metrics & Velocity panel' : 'Show Work Metrics & Velocity panel'}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-all cursor-pointer ${
-                  isRightPanelOpen
-                    ? 'bg-primary-tint border-primary/30 text-primary shadow-2xs font-bold'
-                    : 'bg-surface border-border/70 text-text-muted hover:text-text-primary hover:bg-surface-muted'
-                }`}
-              >
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline text-[11px]">Metrics</span>
-              </button>
             </div>
           </div>
 
@@ -762,8 +730,8 @@ export default function MyTasksPage({
               {error}
             </div>
           ) : (
-            <div className="flex items-start gap-6 relative">
-              {/* Left Main Task Content Area (Columns, List, Completed Grid, etc.) */}
+            <div className="flex items-start justify-center gap-6 relative">
+              {/* Left Task Content Area (Columns, List, Completed Grid, etc.) */}
               <div className="flex-1 min-w-0 space-y-6">
                 {cards.length === 0 ? (
                   /* Empty State */
@@ -792,8 +760,8 @@ export default function MyTasksPage({
                     )}
                   </div>
                 ) : viewMode === 'grouped' && (activeTab === 'assigned' || activeTab === 'delegated') && selectedStage === 'all' ? (
-                  /* 3-List Board Page Design (To Do -> In Progress -> In Review) with fixed board column widths */
-                  <div className="flex items-start gap-5 overflow-x-auto pb-6 max-w-full">
+                  /* 3-List Board Page Design (To Do -> In Progress -> In Review) centered horizontally */
+                  <div className="w-fit mx-auto max-w-full flex items-start gap-5 overflow-x-auto pb-6 px-1">
                     <TaskBoardColumn
                       title="To Do"
                       icon={Clock}
@@ -826,8 +794,8 @@ export default function MyTasksPage({
                     />
                   </div>
                 ) : activeTab === 'completed' && viewMode === 'grouped' ? (
-                  /* 3rd Tab: Completed Work - Small board card design with card width matching Board columns */
-                  <div className="flex flex-wrap items-start gap-5 pb-6 max-w-full">
+                  /* 3rd Tab: Completed Work - Small board card design centered */
+                  <div className="flex flex-wrap items-start justify-center gap-5 pb-6 px-1">
                     {cards.map((card) => (
                       <div key={card.id} className="w-[300px] sm:w-[320px] lg:w-[340px] shrink-0">
                         <BoardCardItem
@@ -852,8 +820,8 @@ export default function MyTasksPage({
                     ))}
                   </div>
                 ) : (
-                  /* Filtered Stage Board View - Cards matching Board column width */
-                  <div className="flex flex-wrap items-start gap-5 pb-6 max-w-full">
+                  /* Filtered Stage Board View - Cards matching Board column width centered */
+                  <div className="flex flex-wrap items-start justify-center gap-5 pb-6 px-1">
                     {cards.map((card) => (
                       <div key={card.id} className="w-[300px] sm:w-[320px] lg:w-[340px] shrink-0">
                         <BoardCardItem
@@ -902,282 +870,14 @@ export default function MyTasksPage({
                 )}
               </div>
 
-              {/* Right Side Widget Panel: My Work Metrics & Velocity Dashboard (Visible across all tabs & stages, scrolls naturally) */}
-              {isRightPanelOpen && (
-                <WorkMetricsDashboardCard
-                  summary={tasksData.summary || {}}
-                  cards={cards}
-                  onCardClick={handleCardClick}
-                />
-              )}
+              {/* Right Side: The 6 Stat Cards in the Right-Side Whitespace on 22"+ Screens (1650px+) */}
+              <div className="hidden min-[1650px]:block w-72 2xl:w-80 shrink-0 sticky top-4 self-start">
+                <div className="grid grid-cols-2 gap-2.5">
+                  {renderStatCards(true)}
+                </div>
+              </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Subcomponent: WorkMetricsDashboardCard - Personal Workload & Velocity Analytics
-// ─────────────────────────────────────────────────────────────────────────────
-function WorkMetricsDashboardCard({ summary = {}, cards = [], onCardClick }) {
-  const completionRate = summary.completion_rate ?? (
-    summary.total_assigned > 0
-      ? Math.round(((summary.completed || 0) / summary.total_assigned) * 100)
-      : 0
-  );
-
-  // Workload grouped by Project / Board
-  const projectBreakdown = useMemo(() => {
-    const map = {};
-    cards.forEach((c) => {
-      const bName = c.board_name || 'General Project';
-      if (!map[bName]) {
-        map[bName] = {
-          name: bName,
-          workspaceName: c.workspace_name,
-          color: c.board_bg || '#6366f1',
-          total: 0,
-          completed: 0,
-          inProgress: 0
-        };
-      }
-      map[bName].total++;
-      if (c.is_complete) map[bName].completed++;
-      if (c.stage === 'in_progress') map[bName].inProgress++;
-    });
-    return Object.values(map)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 4);
-  }, [cards]);
-
-  // Upcoming Milestones / Urgent Tasks
-  const upcomingMilestones = useMemo(() => {
-    return cards
-      .filter((c) => !c.is_complete && (c.is_overdue || c.due_date))
-      .sort((a, b) => {
-        if (a.is_overdue && !b.is_overdue) return -1;
-        if (!a.is_overdue && b.is_overdue) return 1;
-        return new Date(a.due_date || 0) - new Date(b.due_date || 0);
-      })
-      .slice(0, 3);
-  }, [cards]);
-
-  // SVG circular progress calculation (r = 34, stroke = 7, circ = 2 * PI * 34 = 213.63)
-  const radius = 34;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, completionRate)) / 100) * circumference;
-
-  return (
-    <div className="w-80 lg:w-88 xl:w-96 shrink-0 hidden md:block sticky top-4 self-start">
-      <div className="bg-surface border border-border/80 rounded-3xl p-5 shadow-xs space-y-5 select-none max-h-[calc(100vh-140px)] overflow-y-auto no-scrollbar">
-        {/* Header: Title, Icon & Live Badge */}
-        <div className="flex items-center justify-between pb-1 border-b border-border/50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-2xs">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-extrabold text-text-primary leading-tight">
-                Work Metrics & Velocity
-              </h3>
-              <p className="text-[11px] text-text-muted font-medium">Personal Workload Analytics</p>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-tint text-success-text border border-success/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-            Active
-          </span>
-        </div>
-
-        {/* 1. Completion Rate Circular Ring & Key Counters */}
-        <div className="bg-surface-muted/50 border border-border/60 rounded-2xl p-4 flex items-center gap-4">
-          {/* Radial Ring */}
-          <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
-            <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 88 88">
-              <circle
-                cx="44"
-                cy="44"
-                r={radius}
-                stroke="currentColor"
-                strokeWidth="7"
-                fill="transparent"
-                className="text-border/40"
-              />
-              <circle
-                cx="44"
-                cy="44"
-                r={radius}
-                stroke="currentColor"
-                strokeWidth="7"
-                fill="transparent"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                className="text-primary transition-all duration-700 ease-out"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-base font-black text-text-primary leading-none">
-                {completionRate}%
-              </span>
-              <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-0.5">
-                Done
-              </span>
-            </div>
-          </div>
-
-          {/* Micro Summary Counters Grid */}
-          <div className="flex-1 grid grid-cols-2 gap-2 text-left">
-            <div className="p-2 rounded-xl bg-surface border border-border/50">
-              <span className="text-[10px] font-bold uppercase text-text-muted block">Total</span>
-              <span className="text-sm font-black text-text-primary">{summary.total_assigned || cards.length}</span>
-            </div>
-            <div className="p-2 rounded-xl bg-surface border border-border/50">
-              <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400 block">Done</span>
-              <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{summary.completed || 0}</span>
-            </div>
-            <div className="p-2 rounded-xl bg-surface border border-border/50">
-              <span className="text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400 block">Active</span>
-              <span className="text-sm font-black text-amber-600 dark:text-amber-400">{summary.active_count || cards.length}</span>
-            </div>
-            <div className="p-2 rounded-xl bg-surface border border-border/50">
-              <span className={`text-[10px] font-bold uppercase block ${(summary.overdue || 0) > 0 ? 'text-danger' : 'text-text-muted'}`}>
-                Overdue
-              </span>
-              <span className={`text-sm font-black ${(summary.overdue || 0) > 0 ? 'text-danger' : 'text-text-muted'}`}>
-                {summary.overdue || 0}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Workload Breakdown by Project */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
-              <Layers className="w-3.5 h-3.5 text-primary" />
-              <span>Project Workload</span>
-            </div>
-            <span className="text-[11px] font-medium text-text-muted">
-              {projectBreakdown.length} {projectBreakdown.length === 1 ? 'project' : 'projects'}
-            </span>
-          </div>
-
-          <div className="space-y-2.5">
-            {projectBreakdown.length > 0 ? (
-              projectBreakdown.map((proj) => {
-                const pct = proj.total > 0 ? Math.round((proj.completed / proj.total) * 100) : 0;
-                return (
-                  <div key={proj.name} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-text-secondary truncate max-w-[190px]" title={proj.name}>
-                        {proj.name}
-                      </span>
-                      <span className="text-[11px] font-bold text-text-muted shrink-0">
-                        {proj.total} {proj.total === 1 ? 'task' : 'tasks'} ({pct}%)
-                      </span>
-                    </div>
-                    {/* Multi-segment progress track */}
-                    <div className="h-1.5 w-full bg-surface-muted rounded-full overflow-hidden flex">
-                      <div
-                        style={{ width: `${pct}%` }}
-                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                        title={`${proj.completed} completed`}
-                      />
-                      <div
-                        style={{ width: `${proj.total > 0 ? Math.round((proj.inProgress / proj.total) * 100) : 0}%` }}
-                        className="h-full bg-amber-500 transition-all duration-500"
-                        title={`${proj.inProgress} in progress`}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-xs text-text-muted italic py-1">No active projects found.</p>
-            )}
-          </div>
-        </div>
-
-        {/* 3. Upcoming Milestones & Deadlines */}
-        <div className="space-y-3 pt-1 border-t border-border/50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
-              <Target className="w-3.5 h-3.5 text-primary" />
-              <span>Upcoming Milestones</span>
-            </div>
-            {(summary.due_soon > 0 || summary.overdue > 0) && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/10 text-warning-text border border-warning/20">
-                {(summary.due_soon || 0) + (summary.overdue || 0)} priority
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            {upcomingMilestones.length > 0 ? (
-              upcomingMilestones.map((card) => {
-                const dueDateInfo = formatCardDueDate(card.due_date, card.is_complete);
-                return (
-                  <div
-                    key={card.id}
-                    onClick={() => onCardClick?.(card)}
-                    className="p-2.5 rounded-xl border border-border/70 hover:border-primary/40 bg-surface hover:bg-surface-muted transition-all cursor-pointer group shadow-2xs"
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                        #{card.task_number || card.id}
-                      </span>
-                      {dueDateInfo && (
-                        <span
-                          className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 ${
-                            dueDateInfo.isOverdue
-                              ? 'bg-danger-tint text-danger-text'
-                              : dueDateInfo.isDueSoon
-                              ? 'bg-warning-tint text-warning-text'
-                              : 'bg-surface-muted text-text-secondary'
-                          }`}
-                        >
-                          <Clock className="w-2.5 h-2.5" />
-                          {dueDateInfo.text}
-                        </span>
-                      )}
-                    </div>
-                    <h4 className="text-xs font-bold text-text-primary group-hover:text-primary transition-colors truncate">
-                      {card.title}
-                    </h4>
-                    {card.board_name && (
-                      <span className="text-[10.5px] text-text-muted mt-0.5 truncate block">
-                        • {card.board_name}
-                      </span>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              <div className="p-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-center flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  All milestones on schedule! 🎉
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 4. Velocity Status Banner */}
-        <div className="pt-2 border-t border-border/50">
-          <div className="p-3 rounded-2xl bg-primary/5 border border-primary/15 flex items-center gap-2.5">
-            <Zap className="w-4 h-4 text-primary shrink-0" />
-            <p className="text-[11px] font-medium text-text-secondary leading-snug">
-              {completionRate >= 80
-                ? 'High velocity! You have closed out the majority of assigned tasks.'
-                : (summary.overdue || 0) > 0
-                ? `Attention: You have ${summary.overdue} overdue task(s) requiring follow-up.`
-                : 'Steady momentum! Keep progressing active tasks toward review.'}
-            </p>
-          </div>
         </div>
       </div>
     </div>
