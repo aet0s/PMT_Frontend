@@ -1249,7 +1249,7 @@ export default function Board({
                     : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary hover:border-primary/50'
                 }`}
               >
-                <Sparkles className={`w-3.5 h-3.5 ${isFocusMyCards ? 'text-white' : 'text-primary'}`} />
+                <Sparkles className={`w-3.5 h-3.5 ${isFocusMyCards ? 'text-primary-foreground' : 'text-primary'}`} />
                 <span>Focus My Cards</span>
                 {myCardsCount > 0 && (
                   <span

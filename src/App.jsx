@@ -12,11 +12,13 @@ import {
 import { AlertTriangle } from 'lucide-react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { NotificationSoundProvider } from './context/NotificationSoundContext';
+import { PushNotificationProvider } from './context/PushNotificationContext';
 import { SocketProvider } from './context/SocketProvider';
 import { ToastProvider } from './components/ui/Toast';
 import { ThemeProvider } from './context/ThemeContext';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { UnsavedChangesProvider } from './context/UnsavedChangesContext';
+import PushNotificationBanner from './components/Notifications/PushNotificationBanner';
 import Spinner from './components/ui/Spinner';
 import { getTenantItem, setTenantItem, removeTenantItem } from './lib/storage';
 import { getWorkspaces } from './api/workspaces';
@@ -215,6 +217,7 @@ function RootLayout() {
   return (
     <UnsavedChangesProvider>
       <NavigationManager />
+      <PushNotificationBanner />
       <Suspense fallback={<LoadingScreen />}>
         <Outlet />
       </Suspense>
@@ -386,9 +389,11 @@ export default function App() {
         <ToastProvider>
           <AuthProvider>
             <NotificationSoundProvider>
-              <SocketProvider>
-                <RouterProvider router={router} future={{ v7_startTransition: true }} />
-              </SocketProvider>
+              <PushNotificationProvider>
+                <SocketProvider>
+                  <RouterProvider router={router} future={{ v7_startTransition: true }} />
+                </SocketProvider>
+              </PushNotificationProvider>
             </NotificationSoundProvider>
           </AuthProvider>
         </ToastProvider>

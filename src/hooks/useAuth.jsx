@@ -121,6 +121,21 @@ export function AuthProvider({ children }) {
 
   const logoutUser = async () => {
     try {
+      // Revoke current device push subscription on server before clearing sessions
+      try {
+        const deviceId = typeof localStorage !== 'undefined' ? localStorage.getItem('taskflow_push_device_id') : null;
+        const pushToken = typeof localStorage !== 'undefined' ? localStorage.getItem('taskflow_push_token') : null;
+        if (deviceId) {
+          const { revokeCurrentDeviceSubscription } = await import('../api/push');
+          await revokeCurrentDeviceSubscription({ device_id: deviceId, token: pushToken || undefined });
+        }
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('taskflow_push_token');
+        }
+      } catch (pushErr) {
+        // Push cleanup failure shouldn't prevent session logout
+      }
+
       await logout();
     } catch (err) {
       console.error('Logout error:', err);

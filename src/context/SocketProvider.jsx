@@ -242,6 +242,37 @@ export function SocketProvider({ children }) {
     };
   }, [socket, fetchSummary]);
 
+  // Activity / visibility heartbeat for Web Push active-user suppression (60s window)
+  useEffect(() => {
+    if (!socket) return;
+
+    const emitHeartbeat = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        const isFocused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+        if (isFocused) {
+          socket.emit('activity:heartbeat', { visible: true, focused: true });
+        }
+      }
+    };
+
+    emitHeartbeat();
+    const interval = setInterval(emitHeartbeat, 25000);
+
+    const onFocus = () => emitHeartbeat();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') emitHeartbeat();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [socket]);
+
   const markAsRead = async (id) => {
     try {
       await apiFetch(`/api/notifications/${id}/read`, { method: 'PATCH' });

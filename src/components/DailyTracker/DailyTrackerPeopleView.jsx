@@ -29,6 +29,7 @@ import Avatar from '../ui/Avatar';
 import Badge from '../ui/Badge';
 import Spinner from '../ui/Spinner';
 import { Modal } from '../ui/Modal';
+import { Select } from '../ui/Select';
 import { usePermissions } from '../../context/PermissionContext';
 import { useAuth } from '../../hooks/useAuth';
 import QuickCheckinModal from './QuickCheckinModal';
@@ -798,19 +799,15 @@ export default function DailyTrackerPeopleView({
             <label className="text-xs font-bold text-text-primary">
               Select Team Member <span className="text-danger">*</span>
             </label>
-            <select
+            <Select
               value={leaveUserId}
-              onChange={(e) => setLeaveUserId(e.target.value)}
-              required
-              className="w-full px-3 py-2 text-xs rounded-xl bg-surface border border-border text-text-primary outline-none focus:border-primary"
-            >
-              <option value="">-- Choose member --</option>
-              {people.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.role})
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setLeaveUserId(val)}
+              placeholder="-- Choose member --"
+              options={people.map((p) => ({
+                value: String(p.id),
+                label: `${p.name} (${p.role})`
+              }))}
+            />
           </div>
 
           <div className="space-y-1.5">

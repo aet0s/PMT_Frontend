@@ -1,12 +1,13 @@
 // client/src/components/ui/UserDropdown.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Settings, LogOut, Bell, BellOff } from 'lucide-react';
+import { User, Settings, LogOut, Bell, BellOff, Laptop } from 'lucide-react';
 import Avatar from './Avatar';
 import Switch from './Switch';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotificationSound } from '../../context/NotificationSoundContext';
+import { usePushNotifications } from '../../context/PushNotificationContext';
 import { usePermissions } from '../../context/PermissionContext';
 import { useToast } from './Toast';
 
@@ -15,6 +16,7 @@ export default function UserDropdown({ workspaceId, className = '', align = 'rig
   const dropdownRef = useRef(null);
   const { user, logoutUser } = useAuth();
   const { enabled: soundEnabled, setEnabled: setSoundEnabled } = useNotificationSound();
+  const { configured: pushConfigured, supported: pushSupported, enabled: pushEnabled, enable: enablePush, disable: disablePush, loading: pushLoading } = usePushNotifications();
   const { hasPermission } = usePermissions();
   const toast = useToast();
   const navigate = useNavigate();
@@ -156,6 +158,44 @@ export default function UserDropdown({ workspaceId, className = '', align = 'rig
                     checked={soundEnabled}
                     onChange={handleSoundToggle}
                     aria-label="Toggle notification sound"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Desktop Notifications Switch */}
+            {canManageSound && pushConfigured && (
+              <div
+                role="menuitem"
+                title={pushEnabled ? 'Desktop notifications enabled' : 'Desktop notifications disabled'}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-text-primary hover:bg-surface-muted transition-colors select-none"
+              >
+                <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                  <Laptop className={`w-4 h-4 shrink-0 ${pushEnabled ? 'text-primary' : 'text-text-muted'}`} />
+                  <span className="truncate">Desktop notifications</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-[10px] font-bold ${pushEnabled ? 'text-primary' : 'text-text-muted'}`}>
+                    {pushEnabled ? 'ON' : 'OFF'}
+                  </span>
+                  <Switch
+                    checked={pushEnabled}
+                    disabled={pushLoading || !pushSupported}
+                    onChange={async (checked) => {
+                      try {
+                        if (checked) {
+                          const ok = await enablePush();
+                          if (!ok) {
+                            toast.show('Notification permission was not granted', 'warning');
+                          }
+                        } else {
+                          await disablePush();
+                        }
+                      } catch (err) {
+                        toast.show(err.message || 'Failed to update desktop notifications', 'error');
+                      }
+                    }}
+                    aria-label="Toggle desktop notifications"
                   />
                 </div>
               </div>
