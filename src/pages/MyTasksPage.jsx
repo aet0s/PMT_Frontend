@@ -17,7 +17,11 @@ import {
   RotateCcw,
   Sparkles,
   MessageSquare,
-  Briefcase
+  Briefcase,
+  TrendingUp,
+  Zap,
+  Target,
+  Layers
 } from 'lucide-react';
 import { getWorkspaceMyTasks } from '../api/workspaces';
 import { useAuth } from '../hooks/useAuth';
@@ -111,6 +115,7 @@ export default function MyTasksPage({
   const [selectedBoardId, setSelectedBoardId] = useState('all');
   const [selectedStage, setSelectedStage] = useState('all'); // 'all' | 'in_progress' | 'todo' | 'review' | 'done' | 'overdue'
   const [viewMode, setViewMode] = useState('grouped'); // 'grouped' | 'list'
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -305,7 +310,6 @@ export default function MyTasksPage({
     { value: 'in_progress', label: 'In Progress' },
     { value: 'todo', label: 'To Do' },
     { value: 'review', label: 'In Review' },
-    { value: 'done', label: 'Completed' },
     { value: 'overdue', label: 'Overdue Only' }
   ];
 
@@ -324,22 +328,24 @@ export default function MyTasksPage({
     return list;
   }, [tasksData.teamMembers, authUser]);
 
-  // Grouped Cards by Stage for 4-list Board view
+  // Grouped Cards by Stage for 3-list Board view (To Do, In Progress, In Review)
   const groupedCards = useMemo(() => {
     const groups = {
       todo: [],
       in_progress: [],
-      review: [],
-      done: []
+      review: []
     };
 
     cards.forEach((c) => {
       const stage = (c.stage || '').toLowerCase().trim();
       const listName = (c.list_name || '').toLowerCase().trim();
 
+      // Skip completed tasks as they belong strictly in the dedicated Completed Work tab
       if (c.is_complete || stage === 'done' || listName.includes('done') || listName.includes('completed')) {
-        groups.done.push(c);
-      } else if (stage === 'review' || listName.includes('review') || listName.includes('qa')) {
+        return;
+      }
+
+      if (stage === 'review' || listName.includes('review') || listName.includes('qa')) {
         groups.review.push(c);
       } else if (stage === 'in_progress' || listName.includes('progress') || listName.includes('doing') || listName.includes('wip')) {
         groups.in_progress.push(c);
@@ -519,7 +525,7 @@ export default function MyTasksPage({
                       : 'bg-surface/80 text-text-muted'
                   }`}
                 >
-                  {tasksData.summary?.total_assigned || 0}
+                  {tasksData.summary?.active_count ?? tasksData.summary?.total_assigned ?? 0}
                 </span>
               </button>
 
@@ -617,6 +623,21 @@ export default function MyTasksPage({
                   <span className="hidden sm:inline text-[11px]">List</span>
                 </button>
               </div>
+
+              {/* Work Metrics & Velocity Panel Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setIsRightPanelOpen((prev) => !prev)}
+                title={isRightPanelOpen ? 'Hide Work Metrics & Velocity panel' : 'Show Work Metrics & Velocity panel'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-all cursor-pointer ${
+                  isRightPanelOpen
+                    ? 'bg-primary-tint border-primary/30 text-primary shadow-2xs font-bold'
+                    : 'bg-surface border-border/70 text-text-muted hover:text-text-primary hover:bg-surface-muted'
+                }`}
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline text-[11px]">Metrics</span>
+              </button>
             </div>
           </div>
 
@@ -740,139 +761,423 @@ export default function MyTasksPage({
             <div className="p-4 rounded-2xl bg-danger-tint border border-danger/30 text-danger text-xs text-center">
               {error}
             </div>
-          ) : cards.length === 0 ? (
-            /* Empty State */
-            <div className="text-center py-24 bg-surface border border-border/70 rounded-3xl p-8 max-w-lg mx-auto shadow-2xs">
-              <div className="w-14 h-14 rounded-2xl bg-primary-tint text-primary flex items-center justify-center mx-auto mb-4">
-                <CheckSquare className="w-7 h-7" />
-              </div>
-              <h3 className="text-base font-bold text-text-primary mb-1">No Tasks Found</h3>
-              <p className="text-xs text-text-secondary max-w-sm mx-auto mb-6">
-                {hasActiveFilters
-                  ? 'No tasks match your active filter criteria. Try clearing search or filters.'
-                  : activeTab === 'delegated'
-                  ? 'You have not delegated or assigned any cards in this workspace yet.'
-                  : activeTab === 'completed'
-                  ? 'No completed tasks recorded yet. Finished cards will show up here.'
-                  : 'You have zero active tasks assigned right now. You are all caught up!'}
-              </p>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                >
-                  Reset Filters
-                </button>
-              )}
-            </div>
-          ) : viewMode === 'grouped' && (activeTab === 'assigned' || activeTab === 'delegated') && selectedStage === 'all' ? (
-            /* 4-List Board Page Design (To Do -> In Progress -> In Review -> Completed) */
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 items-start">
-              <TaskBoardColumn
-                title="To Do"
-                icon={Clock}
-                count={groupedCards.todo.length}
-                statusKey="todo"
-                headerClass="list-status-todo"
-                cards={groupedCards.todo}
-                onCardClick={handleCardClick}
-                workspaceId={workspace?.id}
-              />
-              <TaskBoardColumn
-                title="In Progress"
-                icon={Flame}
-                count={groupedCards.in_progress.length}
-                statusKey="in_progress"
-                headerClass="list-status-in-progress"
-                cards={groupedCards.in_progress}
-                onCardClick={handleCardClick}
-                workspaceId={workspace?.id}
-              />
-              <TaskBoardColumn
-                title="In Review"
-                icon={CheckSquare}
-                count={groupedCards.review.length}
-                statusKey="review"
-                headerClass="list-status-review"
-                cards={groupedCards.review}
-                onCardClick={handleCardClick}
-                workspaceId={workspace?.id}
-              />
-              <TaskBoardColumn
-                title="Completed"
-                icon={CheckCircle2}
-                count={groupedCards.done.length}
-                statusKey="done"
-                headerClass="list-status-done"
-                cards={groupedCards.done}
-                onCardClick={handleCardClick}
-                workspaceId={workspace?.id}
-              />
-            </div>
-          ) : activeTab === 'completed' && viewMode === 'grouped' ? (
-            /* 3rd Tab: Completed Work - Small board card design in a 4-column responsive grid */
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
-              {cards.map((card) => (
-                <BoardCardItem
-                  key={card.id}
-                  card={card}
-                  onCardClick={handleCardClick}
-                  workspaceId={workspace?.id}
-                />
-              ))}
-            </div>
           ) : (
-            /* Flat / Filtered / List View */
-            <div className={viewMode === 'list' ? 'space-y-2' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 items-start'}>
-              {cards.map((card) => (
-                <BoardCardItem
-                  key={card.id}
-                  card={card}
+            <div className="flex items-start gap-6 relative">
+              {/* Left Main Task Content Area (Columns, List, Completed Grid, etc.) */}
+              <div className="flex-1 min-w-0 space-y-6">
+                {cards.length === 0 ? (
+                  /* Empty State */
+                  <div className="text-center py-24 bg-surface border border-border/70 rounded-3xl p-8 max-w-lg mx-auto shadow-2xs">
+                    <div className="w-14 h-14 rounded-2xl bg-primary-tint text-primary flex items-center justify-center mx-auto mb-4">
+                      <CheckSquare className="w-7 h-7" />
+                    </div>
+                    <h3 className="text-base font-bold text-text-primary mb-1">No Tasks Found</h3>
+                    <p className="text-xs text-text-secondary max-w-sm mx-auto mb-6">
+                      {hasActiveFilters
+                        ? 'No tasks match your active filter criteria. Try clearing search or filters.'
+                        : activeTab === 'delegated'
+                        ? 'You have not delegated or assigned any cards in this workspace yet.'
+                        : activeTab === 'completed'
+                        ? 'No completed tasks recorded yet. Finished cards will show up here.'
+                        : 'You have zero active tasks assigned right now. You are all caught up!'}
+                    </p>
+                    {hasActiveFilters && (
+                      <button
+                        type="button"
+                        onClick={handleResetFilters}
+                        className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                      >
+                        Reset Filters
+                      </button>
+                    )}
+                  </div>
+                ) : viewMode === 'grouped' && (activeTab === 'assigned' || activeTab === 'delegated') && selectedStage === 'all' ? (
+                  /* 3-List Board Page Design (To Do -> In Progress -> In Review) with fixed board column widths */
+                  <div className="flex items-start gap-5 overflow-x-auto pb-6 max-w-full">
+                    <TaskBoardColumn
+                      title="To Do"
+                      icon={Clock}
+                      count={groupedCards.todo.length}
+                      statusKey="todo"
+                      headerClass="list-status-todo"
+                      cards={groupedCards.todo}
+                      onCardClick={handleCardClick}
+                      workspaceId={workspace?.id}
+                    />
+                    <TaskBoardColumn
+                      title="In Progress"
+                      icon={Flame}
+                      count={groupedCards.in_progress.length}
+                      statusKey="in_progress"
+                      headerClass="list-status-in-progress"
+                      cards={groupedCards.in_progress}
+                      onCardClick={handleCardClick}
+                      workspaceId={workspace?.id}
+                    />
+                    <TaskBoardColumn
+                      title="In Review"
+                      icon={CheckSquare}
+                      count={groupedCards.review.length}
+                      statusKey="review"
+                      headerClass="list-status-review"
+                      cards={groupedCards.review}
+                      onCardClick={handleCardClick}
+                      workspaceId={workspace?.id}
+                    />
+                  </div>
+                ) : activeTab === 'completed' && viewMode === 'grouped' ? (
+                  /* 3rd Tab: Completed Work - Small board card design with card width matching Board columns */
+                  <div className="flex flex-wrap items-start gap-5 pb-6 max-w-full">
+                    {cards.map((card) => (
+                      <div key={card.id} className="w-[300px] sm:w-[320px] lg:w-[340px] shrink-0">
+                        <BoardCardItem
+                          card={card}
+                          onCardClick={handleCardClick}
+                          workspaceId={workspace?.id}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : viewMode === 'list' ? (
+                  /* Flat List View */
+                  <div className="space-y-2">
+                    {cards.map((card) => (
+                      <BoardCardItem
+                        key={card.id}
+                        card={card}
+                        onCardClick={handleCardClick}
+                        workspaceId={workspace?.id}
+                        isListView={true}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  /* Filtered Stage Board View - Cards matching Board column width */
+                  <div className="flex flex-wrap items-start gap-5 pb-6 max-w-full">
+                    {cards.map((card) => (
+                      <div key={card.id} className="w-[300px] sm:w-[320px] lg:w-[340px] shrink-0">
+                        <BoardCardItem
+                          card={card}
+                          onCardClick={handleCardClick}
+                          workspaceId={workspace?.id}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Server-Side Pagination Footer */}
+                {pagination.total > 0 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-border/60">
+                    <span className="text-xs text-text-secondary">
+                      Showing <span className="font-bold text-text-primary">{(pagination.page - 1) * pagination.limit + 1}</span>–<span className="font-bold text-text-primary">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="font-bold text-text-primary">{pagination.total}</span> tasks
+                    </span>
+
+                    {pagination.totalPages > 1 && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={pagination.page <= 1 || loading}
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-semibold text-text-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        >
+                          Previous
+                        </button>
+
+                        <span className="px-3 py-1.5 text-xs font-semibold text-text-primary">
+                          Page {pagination.page} of {pagination.totalPages}
+                        </span>
+
+                        <button
+                          type="button"
+                          disabled={pagination.page >= pagination.totalPages || loading}
+                          onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+                          className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-semibold text-text-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Right Side Widget Panel: My Work Metrics & Velocity Dashboard (Visible across all tabs & stages, scrolls naturally) */}
+              {isRightPanelOpen && (
+                <WorkMetricsDashboardCard
+                  summary={tasksData.summary || {}}
+                  cards={cards}
                   onCardClick={handleCardClick}
-                  workspaceId={workspace?.id}
-                  isListView={viewMode === 'list'}
                 />
-              ))}
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* 4. SERVER-SIDE PAGINATION FOOTER                          */}
-          {/* ======================================================== */}
-          {pagination.total > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-border/60">
-              <span className="text-xs text-text-secondary">
-                Showing <span className="font-bold text-text-primary">{(pagination.page - 1) * pagination.limit + 1}</span>–<span className="font-bold text-text-primary">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="font-bold text-text-primary">{pagination.total}</span> tasks
-              </span>
-
-              {pagination.totalPages > 1 && (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    disabled={pagination.page <= 1 || loading}
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-semibold text-text-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  >
-                    Previous
-                  </button>
-
-                  <span className="px-3 py-1.5 text-xs font-semibold text-text-primary">
-                    Page {pagination.page} of {pagination.totalPages}
-                  </span>
-
-                  <button
-                    type="button"
-                    disabled={pagination.page >= pagination.totalPages || loading}
-                    onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
-                    className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-semibold text-text-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  >
-                    Next
-                  </button>
-                </div>
               )}
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subcomponent: WorkMetricsDashboardCard - Personal Workload & Velocity Analytics
+// ─────────────────────────────────────────────────────────────────────────────
+function WorkMetricsDashboardCard({ summary = {}, cards = [], onCardClick }) {
+  const completionRate = summary.completion_rate ?? (
+    summary.total_assigned > 0
+      ? Math.round(((summary.completed || 0) / summary.total_assigned) * 100)
+      : 0
+  );
+
+  // Workload grouped by Project / Board
+  const projectBreakdown = useMemo(() => {
+    const map = {};
+    cards.forEach((c) => {
+      const bName = c.board_name || 'General Project';
+      if (!map[bName]) {
+        map[bName] = {
+          name: bName,
+          workspaceName: c.workspace_name,
+          color: c.board_bg || '#6366f1',
+          total: 0,
+          completed: 0,
+          inProgress: 0
+        };
+      }
+      map[bName].total++;
+      if (c.is_complete) map[bName].completed++;
+      if (c.stage === 'in_progress') map[bName].inProgress++;
+    });
+    return Object.values(map)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 4);
+  }, [cards]);
+
+  // Upcoming Milestones / Urgent Tasks
+  const upcomingMilestones = useMemo(() => {
+    return cards
+      .filter((c) => !c.is_complete && (c.is_overdue || c.due_date))
+      .sort((a, b) => {
+        if (a.is_overdue && !b.is_overdue) return -1;
+        if (!a.is_overdue && b.is_overdue) return 1;
+        return new Date(a.due_date || 0) - new Date(b.due_date || 0);
+      })
+      .slice(0, 3);
+  }, [cards]);
+
+  // SVG circular progress calculation (r = 34, stroke = 7, circ = 2 * PI * 34 = 213.63)
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, completionRate)) / 100) * circumference;
+
+  return (
+    <div className="w-80 lg:w-88 xl:w-96 shrink-0 hidden md:block sticky top-4 self-start">
+      <div className="bg-surface border border-border/80 rounded-3xl p-5 shadow-xs space-y-5 select-none max-h-[calc(100vh-140px)] overflow-y-auto no-scrollbar">
+        {/* Header: Title, Icon & Live Badge */}
+        <div className="flex items-center justify-between pb-1 border-b border-border/50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-2xs">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-text-primary leading-tight">
+                Work Metrics & Velocity
+              </h3>
+              <p className="text-[11px] text-text-muted font-medium">Personal Workload Analytics</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-tint text-success-text border border-success/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            Active
+          </span>
+        </div>
+
+        {/* 1. Completion Rate Circular Ring & Key Counters */}
+        <div className="bg-surface-muted/50 border border-border/60 rounded-2xl p-4 flex items-center gap-4">
+          {/* Radial Ring */}
+          <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
+            <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 88 88">
+              <circle
+                cx="44"
+                cy="44"
+                r={radius}
+                stroke="currentColor"
+                strokeWidth="7"
+                fill="transparent"
+                className="text-border/40"
+              />
+              <circle
+                cx="44"
+                cy="44"
+                r={radius}
+                stroke="currentColor"
+                strokeWidth="7"
+                fill="transparent"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                className="text-primary transition-all duration-700 ease-out"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-base font-black text-text-primary leading-none">
+                {completionRate}%
+              </span>
+              <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-0.5">
+                Done
+              </span>
+            </div>
+          </div>
+
+          {/* Micro Summary Counters Grid */}
+          <div className="flex-1 grid grid-cols-2 gap-2 text-left">
+            <div className="p-2 rounded-xl bg-surface border border-border/50">
+              <span className="text-[10px] font-bold uppercase text-text-muted block">Total</span>
+              <span className="text-sm font-black text-text-primary">{summary.total_assigned || cards.length}</span>
+            </div>
+            <div className="p-2 rounded-xl bg-surface border border-border/50">
+              <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400 block">Done</span>
+              <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{summary.completed || 0}</span>
+            </div>
+            <div className="p-2 rounded-xl bg-surface border border-border/50">
+              <span className="text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400 block">Active</span>
+              <span className="text-sm font-black text-amber-600 dark:text-amber-400">{summary.active_count || cards.length}</span>
+            </div>
+            <div className="p-2 rounded-xl bg-surface border border-border/50">
+              <span className={`text-[10px] font-bold uppercase block ${(summary.overdue || 0) > 0 ? 'text-danger' : 'text-text-muted'}`}>
+                Overdue
+              </span>
+              <span className={`text-sm font-black ${(summary.overdue || 0) > 0 ? 'text-danger' : 'text-text-muted'}`}>
+                {summary.overdue || 0}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Workload Breakdown by Project */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
+              <Layers className="w-3.5 h-3.5 text-primary" />
+              <span>Project Workload</span>
+            </div>
+            <span className="text-[11px] font-medium text-text-muted">
+              {projectBreakdown.length} {projectBreakdown.length === 1 ? 'project' : 'projects'}
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {projectBreakdown.length > 0 ? (
+              projectBreakdown.map((proj) => {
+                const pct = proj.total > 0 ? Math.round((proj.completed / proj.total) * 100) : 0;
+                return (
+                  <div key={proj.name} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-text-secondary truncate max-w-[190px]" title={proj.name}>
+                        {proj.name}
+                      </span>
+                      <span className="text-[11px] font-bold text-text-muted shrink-0">
+                        {proj.total} {proj.total === 1 ? 'task' : 'tasks'} ({pct}%)
+                      </span>
+                    </div>
+                    {/* Multi-segment progress track */}
+                    <div className="h-1.5 w-full bg-surface-muted rounded-full overflow-hidden flex">
+                      <div
+                        style={{ width: `${pct}%` }}
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        title={`${proj.completed} completed`}
+                      />
+                      <div
+                        style={{ width: `${proj.total > 0 ? Math.round((proj.inProgress / proj.total) * 100) : 0}%` }}
+                        className="h-full bg-amber-500 transition-all duration-500"
+                        title={`${proj.inProgress} in progress`}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-xs text-text-muted italic py-1">No active projects found.</p>
+            )}
+          </div>
+        </div>
+
+        {/* 3. Upcoming Milestones & Deadlines */}
+        <div className="space-y-3 pt-1 border-t border-border/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
+              <Target className="w-3.5 h-3.5 text-primary" />
+              <span>Upcoming Milestones</span>
+            </div>
+            {(summary.due_soon > 0 || summary.overdue > 0) && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/10 text-warning-text border border-warning/20">
+                {(summary.due_soon || 0) + (summary.overdue || 0)} priority
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {upcomingMilestones.length > 0 ? (
+              upcomingMilestones.map((card) => {
+                const dueDateInfo = formatCardDueDate(card.due_date, card.is_complete);
+                return (
+                  <div
+                    key={card.id}
+                    onClick={() => onCardClick?.(card)}
+                    className="p-2.5 rounded-xl border border-border/70 hover:border-primary/40 bg-surface hover:bg-surface-muted transition-all cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                        #{card.task_number || card.id}
+                      </span>
+                      {dueDateInfo && (
+                        <span
+                          className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 ${
+                            dueDateInfo.isOverdue
+                              ? 'bg-danger-tint text-danger-text'
+                              : dueDateInfo.isDueSoon
+                              ? 'bg-warning-tint text-warning-text'
+                              : 'bg-surface-muted text-text-secondary'
+                          }`}
+                        >
+                          <Clock className="w-2.5 h-2.5" />
+                          {dueDateInfo.text}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-xs font-bold text-text-primary group-hover:text-primary transition-colors truncate">
+                      {card.title}
+                    </h4>
+                    {card.board_name && (
+                      <span className="text-[10.5px] text-text-muted mt-0.5 truncate block">
+                        • {card.board_name}
+                      </span>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-center flex items-center justify-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  All milestones on schedule! 🎉
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 4. Velocity Status Banner */}
+        <div className="pt-2 border-t border-border/50">
+          <div className="p-3 rounded-2xl bg-primary/5 border border-primary/15 flex items-center gap-2.5">
+            <Zap className="w-4 h-4 text-primary shrink-0" />
+            <p className="text-[11px] font-medium text-text-secondary leading-snug">
+              {completionRate >= 80
+                ? 'High velocity! You have closed out the majority of assigned tasks.'
+                : (summary.overdue || 0) > 0
+                ? `Attention: You have ${summary.overdue} overdue task(s) requiring follow-up.`
+                : 'Steady momentum! Keep progressing active tasks toward review.'}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -884,7 +1189,7 @@ export default function MyTasksPage({
 // ─────────────────────────────────────────────────────────────────────────────
 function TaskBoardColumn({ title, count, headerClass, icon: Icon, cards, onCardClick, workspaceId }) {
   return (
-    <div className="w-full flex flex-col min-w-0">
+    <div className="w-[300px] sm:w-[320px] lg:w-[340px] shrink-0 flex flex-col min-w-0">
       {/* Column Header matching Board page List.jsx */}
       <div
         className={`bg-surface border border-border-strong/70 rounded-2xl px-4 py-3 flex items-center justify-between select-none shadow-xs mb-3 transition-all ${headerClass}`}
@@ -1000,7 +1305,7 @@ function BoardCardItem({ card, onCardClick, workspaceId, isListView = false }) {
           onCardClick?.(card);
         }
       }}
-      className={`group relative bg-surface border border-border/80 rounded-2xl p-3.5 transition-all duration-200 cursor-pointer select-none space-y-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
+      className={`w-full group relative bg-surface border border-border/80 rounded-2xl p-3.5 transition-all duration-200 cursor-pointer select-none space-y-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary shadow-xs hover:shadow-md hover:-translate-y-0.5 ${
         statusConfig
           ? `${statusConfig.cardClass} hover:border-t-primary/40 hover:border-x-primary/40`
           : 'border-border/80 hover:border-primary/40'
