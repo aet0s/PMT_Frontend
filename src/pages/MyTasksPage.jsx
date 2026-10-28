@@ -124,11 +124,12 @@ export default function MyTasksPage({
       setUserPref('mytasks_hide_completed', next);
       return next;
     });
+    setCurrentPage(1);
   };
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 1 });
 
   // Data Loading & Status States
   const [loading, setLoading] = useState(true);
@@ -154,12 +155,13 @@ export default function MyTasksPage({
     try {
       const params = {
         page: currentPage,
-        limit: 20,
+        limit: 50,
         tab: activeTab,
         workspaceId: selectedWorkspaceId,
         boardId: selectedBoardId,
         stage: selectedStage,
-        search: debouncedSearch.trim()
+        search: debouncedSearch.trim(),
+        hideCompleted: hideCompleted ? 'true' : 'false'
       };
       if (selectedUserId && isOwner) {
         params.userId = selectedUserId;
@@ -171,7 +173,7 @@ export default function MyTasksPage({
       const data = await getWorkspaceMyTasks(requestWsId, params);
       setTasksData(data || {});
       setCards(data?.cards || []);
-      setPagination(data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
+      setPagination(data?.pagination || { page: 1, limit: 50, total: 0, totalPages: 1 });
     } catch (err) {
       console.error('Failed to load my-tasks:', err);
       setError(err?.message || 'Failed to load tasks.');
@@ -179,7 +181,7 @@ export default function MyTasksPage({
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedWorkspaceId, currentPage, activeTab, selectedBoardId, selectedStage, debouncedSearch, selectedUserId, isOwner, workspace?.id]);
+  }, [selectedWorkspaceId, currentPage, activeTab, selectedBoardId, selectedStage, debouncedSearch, selectedUserId, isOwner, workspace?.id, hideCompleted]);
 
   useEffect(() => {
     loadMyTasks();
@@ -368,7 +370,7 @@ export default function MyTasksPage({
   const showTodo = selectedStage === 'all' || selectedStage === 'todo' || (selectedStage === 'overdue' && groupedCards.todo.length > 0);
   const showInProgress = selectedStage === 'all' || selectedStage === 'in_progress' || (selectedStage === 'overdue' && groupedCards.in_progress.length > 0);
   const showReview = selectedStage === 'all' || selectedStage === 'review' || (selectedStage === 'overdue' && groupedCards.review.length > 0);
-  const showCompleted = !hideCompleted && (selectedStage === 'all' || selectedStage === 'done' || selectedStage === 'completed' || (selectedStage === 'overdue' && groupedCards.completed.length > 0));
+  const showCompleted = (selectedStage === 'done' || selectedStage === 'completed') || (!hideCompleted && (selectedStage === 'all' || (selectedStage === 'overdue' && groupedCards.completed.length > 0)));
 
   const targetUser = tasksData.user || authUser;
   const isViewingSelf = !selectedUserId || Number(selectedUserId) === Number(authUser?.id);
@@ -570,27 +572,32 @@ export default function MyTasksPage({
               </div>
 
               {/* Hide / Show Completed Toggle */}
-              <button
-                type="button"
-                onClick={handleToggleHideCompleted}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                  hideCompleted
-                    ? 'border-primary/40 bg-primary/10 text-primary'
-                    : 'border-border/70 bg-surface-muted/60 text-text-secondary hover:text-text-primary'
-                }`}
-                title={
-                  hideCompleted
-                    ? 'Completed tasks are hidden from view. Click to show.'
-                    : 'Showing all tasks including completed. Click to hide.'
-                }
-              >
-                <CheckCircle2 className={`w-3.5 h-3.5 ${hideCompleted ? 'text-primary' : 'text-text-muted'}`} />
-                <span>
-                  {hideCompleted
-                    ? `Completed Hidden${groupedCards.completed.length > 0 ? ` (${groupedCards.completed.length})` : ''}`
-                    : 'Hide Completed'}
-                </span>
-              </button>
+              {(() => {
+                const hiddenCompletedCount = tasksData.summary?.tab_completed ?? tasksData.summary?.completed ?? 0;
+                return (
+                  <button
+                    type="button"
+                    onClick={handleToggleHideCompleted}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                      hideCompleted
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-border/70 bg-surface-muted/60 text-text-secondary hover:text-text-primary'
+                    }`}
+                    title={
+                      hideCompleted
+                        ? 'Completed tasks are hidden from view. Click to show.'
+                        : 'Showing all tasks including completed. Click to hide.'
+                    }
+                  >
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${hideCompleted ? 'text-primary' : 'text-text-muted'}`} />
+                    <span>
+                      {hideCompleted
+                        ? `Completed Hidden${hiddenCompletedCount > 0 ? ` (${hiddenCompletedCount})` : ''}`
+                        : 'Hide Completed'}
+                    </span>
+                  </button>
+                );
+              })()}
 
               {/* Reset Filter Button */}
               {hasActiveFilters && (
