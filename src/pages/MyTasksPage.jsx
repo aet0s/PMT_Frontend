@@ -598,7 +598,7 @@ export default function MyTasksPage({
       {/* ======================================================== */}
       {/* 3. MAIN TASK CONTENT AREA                                 */}
       {/* ======================================================== */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-6 xl:p-8">
         <div className="max-w-[1680px] mx-auto space-y-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-28 text-text-muted">
@@ -610,7 +610,7 @@ export default function MyTasksPage({
               {error}
             </div>
           ) : (
-            <div className="flex items-start justify-center gap-6 relative">
+            <div className="w-full relative">
               {/* Left Task Content Area (Columns, List, Completed Grid, etc.) */}
               <div className="flex-1 min-w-0 space-y-6">
                 {cards.length === 0 ? (
@@ -641,7 +641,7 @@ export default function MyTasksPage({
                   </div>
                 ) : viewMode === 'grouped' ? (
                   /* 4-List Board View (To Do -> In Progress -> In Review -> Completed) */
-                  <div className="w-fit mx-auto max-w-full flex items-start justify-center gap-5 overflow-x-auto pb-6 px-1">
+                  <div className="w-full flex items-start justify-start gap-4 sm:gap-5 overflow-x-auto pb-6 px-1 custom-scrollbar">
                     {showTodo && (
                       <TaskBoardColumn
                         title="To Do"
@@ -754,7 +754,7 @@ export default function MyTasksPage({
 // ─────────────────────────────────────────────────────────────────────────────
 function TaskBoardColumn({ title, count, headerClass, icon: Icon, cards, onCardClick, workspaceId }) {
   return (
-    <div className="w-[300px] sm:w-[320px] lg:w-[340px] shrink-0 flex flex-col min-w-0">
+    <div className="w-[280px] sm:w-[300px] lg:w-[315px] xl:w-[330px] shrink-0 flex flex-col min-w-0">
       {/* Column Header matching Board page List.jsx */}
       <div
         className={`bg-surface border border-border-strong/70 rounded-2xl px-4 py-3 flex items-center justify-between select-none shadow-xs mb-3 transition-all ${headerClass}`}
