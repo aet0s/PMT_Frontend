@@ -5,12 +5,15 @@ import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import Switch from '../../../components/ui/Switch';
 import { useToast } from '../../../components/ui/Toast';
-import { getTenantItem, setTenantItem } from '../../../lib/storage';
 import { updateWorkspace, autoArchiveWorkspaceCards } from '../../../api/workspaces';
+import { usePermissions } from '../../../context/PermissionContext';
 
 export default function ProjectTab({ workspace, onWorkspaceUpdated, setFormDirty }) {
   const toast = useToast();
+  const { hasPermission } = usePermissions();
   const workspaceId = workspace?.id;
+  const canArchive = hasPermission('task.archive');
+  const canEditWorkspace = hasPermission('workspace.edit') || hasPermission('project.edit_settings');
 
   const [wipLimitEnabled, setWipLimitEnabled] = useState(true);
   const [wipLimitMax, setWipLimitMax] = useState(5);
@@ -201,6 +204,8 @@ export default function ProjectTab({ workspace, onWorkspaceUpdated, setFormDirty
                   size="sm"
                   onClick={handleRunAutoArchiveNow}
                   isLoading={isArchiving}
+                  disabled={!canArchive}
+                  title={!canArchive ? 'Requires task.archive permission' : 'Trigger auto-archive sweep on demand'}
                   leftIcon={<Archive className="w-3.5 h-3.5" />}
                 >
                   Run Auto-Archive Now

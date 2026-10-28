@@ -29,6 +29,7 @@ import Spinner from '../components/ui/Spinner';
 import Select from '../components/ui/Select';
 import LabelPill from '../components/shared/LabelPill';
 import { getListStatusConfig, getCardDefaultStatus } from '../lib/listStatusColors';
+import { getUserPref, setUserPref } from '../lib/storage';
 import { format, isPast, isToday, isTomorrow } from 'date-fns';
 
 function formatCardDueDate(dueDateStr, isComplete) {
@@ -112,6 +113,18 @@ export default function MyTasksPage({
   const [selectedBoardId, setSelectedBoardId] = useState('all');
   const [selectedStage, setSelectedStage] = useState('all'); // 'all' | 'in_progress' | 'todo' | 'review' | 'done' | 'overdue'
   const [viewMode, setViewMode] = useState('grouped'); // 'grouped' | 'list'
+  const [hideCompleted, setHideCompleted] = useState(() => {
+    const saved = getUserPref('mytasks_hide_completed');
+    return saved !== null && saved !== undefined ? Boolean(saved) : true;
+  });
+
+  const handleToggleHideCompleted = () => {
+    setHideCompleted((prev) => {
+      const next = !prev;
+      setUserPref('mytasks_hide_completed', next);
+      return next;
+    });
+  };
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -355,7 +368,7 @@ export default function MyTasksPage({
   const showTodo = selectedStage === 'all' || selectedStage === 'todo' || (selectedStage === 'overdue' && groupedCards.todo.length > 0);
   const showInProgress = selectedStage === 'all' || selectedStage === 'in_progress' || (selectedStage === 'overdue' && groupedCards.in_progress.length > 0);
   const showReview = selectedStage === 'all' || selectedStage === 'review' || (selectedStage === 'overdue' && groupedCards.review.length > 0);
-  const showCompleted = selectedStage === 'all' || selectedStage === 'done' || selectedStage === 'completed' || (selectedStage === 'overdue' && groupedCards.completed.length > 0);
+  const showCompleted = !hideCompleted && (selectedStage === 'all' || selectedStage === 'done' || selectedStage === 'completed' || (selectedStage === 'overdue' && groupedCards.completed.length > 0));
 
   const targetUser = tasksData.user || authUser;
   const isViewingSelf = !selectedUserId || Number(selectedUserId) === Number(authUser?.id);
@@ -556,6 +569,29 @@ export default function MyTasksPage({
                 />
               </div>
 
+              {/* Hide / Show Completed Toggle */}
+              <button
+                type="button"
+                onClick={handleToggleHideCompleted}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                  hideCompleted
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-border/70 bg-surface-muted/60 text-text-secondary hover:text-text-primary'
+                }`}
+                title={
+                  hideCompleted
+                    ? 'Completed tasks are hidden from view. Click to show.'
+                    : 'Showing all tasks including completed. Click to hide.'
+                }
+              >
+                <CheckCircle2 className={`w-3.5 h-3.5 ${hideCompleted ? 'text-primary' : 'text-text-muted'}`} />
+                <span>
+                  {hideCompleted
+                    ? `Completed Hidden${groupedCards.completed.length > 0 ? ` (${groupedCards.completed.length})` : ''}`
+                    : 'Hide Completed'}
+                </span>
+              </button>
+
               {/* Reset Filter Button */}
               {hasActiveFilters && (
                 <button
@@ -694,15 +730,22 @@ export default function MyTasksPage({
                 ) : (
                   /* Flat List View */
                   <div className="space-y-2 max-w-4xl mx-auto">
-                    {cards.map((card) => (
-                      <BoardCardItem
-                        key={card.id}
-                        card={card}
-                        onCardClick={handleCardClick}
-                        workspaceId={workspace?.id}
-                        isListView={true}
-                      />
-                    ))}
+                    {cards
+                      .filter((c) => {
+                        if (!hideCompleted) return true;
+                        const stage = (c.stage || '').toLowerCase().trim();
+                        const listName = (c.list_name || '').toLowerCase().trim();
+                        return !(c.is_complete || stage === 'done' || stage === 'completed' || listName.includes('done') || listName.includes('completed'));
+                      })
+                      .map((card) => (
+                        <BoardCardItem
+                          key={card.id}
+                          card={card}
+                          onCardClick={handleCardClick}
+                          workspaceId={workspace?.id}
+                          isListView={true}
+                        />
+                      ))}
                   </div>
                 )}
 

@@ -20,6 +20,7 @@ export default function CardHeader({
   const isCardCreator = Boolean(card?.created_by && user?.id && Number(card.created_by) === Number(user.id));
   const canMoveCard = hasPermission('task.move') && canModify;
   const canEditCard = hasPermission('task.edit') && canModify;
+  const canArchiveCard = (hasPermission('task.archive') || hasPermission('task.edit')) && canModify;
   const canCreateCard = hasPermission('task.create');
   const canDeleteCard = (hasPermission('task.delete') || (hasPermission('task.delete_own') && isCardCreator)) && canModify;
 
@@ -97,7 +98,7 @@ export default function CardHeader({
 
       {/* Right: Actions Menu & Single Close X */}
       <div className="flex items-center gap-1.5">
-        {(canEditCard || canCreateCard || canDeleteCard) && (
+        {(canArchiveCard || canCreateCard || canDeleteCard) && (
           <Menu
             placement="bottom-end"
             trigger={
@@ -111,7 +112,7 @@ export default function CardHeader({
               </button>
             }
           >
-            {canEditCard && (
+            {canArchiveCard && (
               <MenuItem
                 icon={<Archive className="w-4 h-4 text-warning" />}
                 onClick={onArchiveCard}

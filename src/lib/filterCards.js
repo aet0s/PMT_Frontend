@@ -97,8 +97,9 @@ export function matchesCardFilter(card, {
 
   // Status filter
   if (filterStatus && filterStatus !== 'all') {
-    if (filterStatus === 'incomplete' && card.is_complete) return false;
-    if (filterStatus === 'completed' && !card.is_complete) return false;
+    const isDone = Boolean(card.is_complete || card.stage === 'done' || card.stage === 'completed');
+    if (filterStatus === 'incomplete' && isDone) return false;
+    if (filterStatus === 'completed' && !isDone) return false;
   }
 
   return true;

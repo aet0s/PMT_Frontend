@@ -58,7 +58,8 @@ import {
   RotateCcw,
   Filter,
   Tag,
-  Users
+  Users,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function Board({
@@ -1262,6 +1263,21 @@ export default function Board({
                 )}
               </button>
 
+              {/* Hide / Show Completed Quick Toggle */}
+              <button
+                type="button"
+                onClick={() => setFilterStatus(filterStatus === 'incomplete' ? 'all' : 'incomplete')}
+                title={filterStatus === 'incomplete' ? 'Completed cards are hidden. Click to show.' : 'Click to hide completed cards.'}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${
+                  filterStatus === 'incomplete'
+                    ? 'bg-primary-tint border-primary/40 text-primary-text shadow-xs'
+                    : 'bg-surface hover:bg-surface-hover border-border/80 text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <CheckCircle2 className={`w-3.5 h-3.5 ${filterStatus === 'incomplete' ? 'text-primary' : 'text-text-muted'}`} />
+                <span>{filterStatus === 'incomplete' ? 'Completed Hidden' : 'Hide Completed'}</span>
+              </button>
+
               {/* Detailed Filters Toggle Button */}
               <button
                 type="button"
@@ -1461,6 +1477,25 @@ export default function Board({
                       className="w-full text-xs font-medium"
                     />
                   </div>
+
+                  {/* 6. Filter by Status */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                      Status
+                    </label>
+                    <Select
+                      value={filterStatus || 'all'}
+                      onChange={(val) => setFilterStatus(val)}
+                      size="sm"
+                      aria-label="Detailed filter by status"
+                      options={[
+                        { value: 'all', label: 'All Tasks' },
+                        { value: 'incomplete', label: 'Active Only' },
+                        { value: 'completed', label: 'Completed Only' }
+                      ]}
+                      className="w-full text-xs font-medium"
+                    />
+                  </div>
                 </div>
 
                 {/* Active Filter Chips Bar */}
@@ -1508,6 +1543,15 @@ export default function Board({
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
                         <span>Assigner: {boardAssigners.find((a) => String(a.id) === String(filterAssignerId))?.name || filterAssignerId}</span>
                         <button type="button" onClick={() => setFilterAssignerId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove assigner filter">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+
+                    {filterStatus && filterStatus !== 'all' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                        <span>Status: {filterStatus === 'incomplete' ? 'Active Only' : 'Completed Only'}</span>
+                        <button type="button" onClick={() => setFilterStatus('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove status filter">
                           <X className="w-3 h-3" />
                         </button>
                       </span>
