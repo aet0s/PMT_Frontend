@@ -5,6 +5,7 @@ import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import Switch from '../../../components/ui/Switch';
 import { useToast } from '../../../components/ui/Toast';
+import { getTenantItem, setTenantItem } from '../../../lib/storage';
 import { updateWorkspace, autoArchiveWorkspaceCards } from '../../../api/workspaces';
 import { usePermissions } from '../../../context/PermissionContext';
 
