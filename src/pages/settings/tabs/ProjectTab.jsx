@@ -80,14 +80,19 @@ export default function ProjectTab({ workspace, onWorkspaceUpdated, setFormDirty
     if (!workspaceId) return;
     setIsArchiving(true);
     try {
-      const days = autoArchiveDays === 'never' ? 0 : Number(autoArchiveDays);
+      const days = autoArchiveDays === 'never' ? 7 : Number(autoArchiveDays);
       const res = await autoArchiveWorkspaceCards(workspaceId, days);
       const count = res?.archived_count ?? res?.archivedCount ?? 0;
       if (count > 0) {
         toast.show(`Auto-archived ${count} completed card(s)`, 'success');
         onWorkspaceUpdated?.({ ...workspace });
       } else {
-        toast.show('No completed cards matching archive criteria found', 'info');
+        toast.show(
+          days > 0
+            ? `No completed cards older than ${days} day(s) found`
+            : 'No completed cards found to archive',
+          'info'
+        );
       }
     } catch (err) {
       toast.show(err.message || 'Auto-archive failed', 'error');
@@ -175,9 +180,11 @@ export default function ProjectTab({ workspace, onWorkspaceUpdated, setFormDirty
                 }}
                 options={[
                   { value: 'never', label: 'Never auto-archive' },
+                  { value: '0', label: 'Immediate (Archive all completed cards)' },
+                  { value: '1', label: 'After 1 day of completion' },
+                  { value: '3', label: 'After 3 days of completion' },
                   { value: '7', label: 'After 7 days of completion (Default)' },
                   { value: '14', label: 'After 14 days of completion' },
-                  { value: '15', label: 'After 15 days of completion' },
                   { value: '30', label: 'After 30 days of completion' }
                 ]}
               />
