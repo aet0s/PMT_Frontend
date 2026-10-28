@@ -78,7 +78,7 @@ export default function WorkspaceHomePage({
   const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
 
   const canCreateBoard = !isMemberOrBelow && (isOwner || hasPermission('project.create'));
-  const canViewMembers = !isMemberOrBelow && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
+  const canViewMembers = !isMemberOrBelow && roleName !== 'project manager' && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
   const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_project') || hasPermission('role.view'));
   const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit'));
   const canViewArchive = !isMemberOrBelow && (isOwner || hasPermission('archive.view'));

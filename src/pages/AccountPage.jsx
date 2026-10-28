@@ -32,8 +32,10 @@ export default function AccountPage({ tab: propTab, workspace }) {
     return () => setDirty('accountForm', false);
   }, [formDirty, setDirty]);
 
-  const { hasPermission, loading: permissionsLoading } = usePermissions();
-  const canViewRoles = isWorkspaceContext && (permissionsLoading || hasPermission('role.view'));
+  const { hasPermission, userRole, loading: permissionsLoading } = usePermissions();
+  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
+  const isProjectManager = roleName === 'project manager';
+  const canViewRoles = isWorkspaceContext && !permissionsLoading && !isProjectManager && hasPermission('role.view');
   const effectiveWorkspace = workspace || (activeWsId ? { id: Number(activeWsId) } : null);
 
   const tabs = useMemo(

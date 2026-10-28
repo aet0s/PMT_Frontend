@@ -17,7 +17,8 @@ import {
   RotateCcw,
   Sparkles,
   MessageSquare,
-  Briefcase
+  Briefcase,
+  Layers
 } from 'lucide-react';
 import { getWorkspaceMyTasks } from '../api/workspaces';
 import { useAuth } from '../hooks/useAuth';
@@ -302,9 +303,10 @@ export default function MyTasksPage({
 
   const stageOptions = [
     { value: 'all', label: 'All Stages' },
-    { value: 'in_progress', label: 'In Progress' },
     { value: 'todo', label: 'To Do' },
+    { value: 'in_progress', label: 'In Progress' },
     { value: 'review', label: 'In Review' },
+    { value: 'done', label: 'Completed' },
     { value: 'overdue', label: 'Overdue Only' }
   ];
 
@@ -323,24 +325,22 @@ export default function MyTasksPage({
     return list;
   }, [tasksData.teamMembers, authUser]);
 
-  // Grouped Cards by Stage for 3-list Board view (To Do, In Progress, In Review)
+  // Grouped Cards by Stage for 4-list Board view (To Do, In Progress, In Review, Completed)
   const groupedCards = useMemo(() => {
     const groups = {
       todo: [],
       in_progress: [],
-      review: []
+      review: [],
+      completed: []
     };
 
     cards.forEach((c) => {
       const stage = (c.stage || '').toLowerCase().trim();
       const listName = (c.list_name || '').toLowerCase().trim();
 
-      // Skip completed tasks as they belong strictly in the dedicated Completed Work tab
-      if (c.is_complete || stage === 'done' || listName.includes('done') || listName.includes('completed')) {
-        return;
-      }
-
-      if (stage === 'review' || listName.includes('review') || listName.includes('qa')) {
+      if (c.is_complete || stage === 'done' || stage === 'completed' || listName.includes('done') || listName.includes('completed')) {
+        groups.completed.push(c);
+      } else if (stage === 'review' || listName.includes('review') || listName.includes('qa')) {
         groups.review.push(c);
       } else if (stage === 'in_progress' || listName.includes('progress') || listName.includes('doing') || listName.includes('wip')) {
         groups.in_progress.push(c);
@@ -352,166 +352,26 @@ export default function MyTasksPage({
     return groups;
   }, [cards]);
 
+  const showTodo = selectedStage === 'all' || selectedStage === 'todo' || (selectedStage === 'overdue' && groupedCards.todo.length > 0);
+  const showInProgress = selectedStage === 'all' || selectedStage === 'in_progress' || (selectedStage === 'overdue' && groupedCards.in_progress.length > 0);
+  const showReview = selectedStage === 'all' || selectedStage === 'review' || (selectedStage === 'overdue' && groupedCards.review.length > 0);
+  const showCompleted = selectedStage === 'all' || selectedStage === 'done' || selectedStage === 'completed' || (selectedStage === 'overdue' && groupedCards.completed.length > 0);
+
   const targetUser = tasksData.user || authUser;
   const isViewingSelf = !selectedUserId || Number(selectedUserId) === Number(authUser?.id);
   const canShowMemberSwitcher = Boolean(isOwner && tasksData.canSwitchMember);
 
-  // The 6 interactive stat cards (Total Assigned, In Progress, To Do, Overdue, Completed, Assigned by Me)
-  const statCardItems = useMemo(() => [
-    {
-      id: 'total',
-      label: 'Total Assigned',
-      count: tasksData.summary?.total_assigned || 0,
-      subtext: `${tasksData.summary?.completion_rate || 0}% done`,
-      icon: CheckSquare,
-      iconColor: 'text-primary',
-      countColor: 'text-text-primary',
-      isActive: activeTab === 'assigned' && selectedStage === 'all',
-      activeClass: 'bg-primary/5 border-primary ring-1 ring-primary/20',
-      hoverClass: 'hover:border-primary/40',
-      onClick: () => { handleTabChange('assigned'); setSelectedStage('all'); }
-    },
-    {
-      id: 'in_progress',
-      label: 'In Progress',
-      count: tasksData.summary?.in_progress || 0,
-      subtext: 'active now',
-      icon: Flame,
-      iconColor: 'text-amber-500',
-      countColor: 'text-amber-600 dark:text-amber-400',
-      isActive: activeTab === 'assigned' && selectedStage === 'in_progress',
-      activeClass: 'bg-amber-500/10 border-amber-500 ring-1 ring-amber-500/20',
-      hoverClass: 'hover:border-amber-500/40',
-      onClick: () => { handleTabChange('assigned'); setSelectedStage('in_progress'); }
-    },
-    {
-      id: 'todo',
-      label: 'To Do',
-      count: tasksData.summary?.todo || 0,
-      subtext: 'backlog',
-      icon: Clock,
-      iconColor: 'text-indigo-500',
-      countColor: 'text-indigo-600 dark:text-indigo-400',
-      isActive: activeTab === 'assigned' && selectedStage === 'todo',
-      activeClass: 'bg-indigo-500/10 border-indigo-500 ring-1 ring-indigo-500/20',
-      hoverClass: 'hover:border-indigo-500/40',
-      onClick: () => { handleTabChange('assigned'); setSelectedStage('todo'); }
-    },
-    {
-      id: 'overdue',
-      label: 'Overdue',
-      count: tasksData.summary?.overdue || 0,
-      subtext: 'past due',
-      icon: AlertCircle,
-      iconColor: (tasksData.summary?.overdue || 0) > 0 ? 'text-danger' : 'text-text-muted',
-      countColor: (tasksData.summary?.overdue || 0) > 0 ? 'text-danger' : 'text-text-primary',
-      isActive: selectedStage === 'overdue',
-      activeClass: 'bg-danger/10 border-danger ring-1 ring-danger/20',
-      hoverClass: 'hover:border-danger/40',
-      onClick: () => { handleTabChange('assigned'); setSelectedStage('overdue'); }
-    },
-    {
-      id: 'completed',
-      label: 'Completed',
-      count: tasksData.summary?.completed || 0,
-      subtext: 'milestones',
-      icon: CheckCircle2,
-      iconColor: 'text-emerald-500',
-      countColor: 'text-emerald-600 dark:text-emerald-400',
-      isActive: activeTab === 'completed',
-      activeClass: 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500/20',
-      hoverClass: 'hover:border-emerald-500/40',
-      onClick: () => handleTabChange('completed')
-    },
-    {
-      id: 'assigned_by_me',
-      label: 'Assigned by Me',
-      count: tasksData.summary?.assigned_by_me || 0,
-      subtext: 'delegated',
-      icon: Sparkles,
-      iconColor: 'text-purple-500',
-      countColor: 'text-purple-600 dark:text-purple-400',
-      isActive: activeTab === 'delegated',
-      activeClass: 'bg-purple-500/10 border-purple-500 ring-1 ring-purple-500/20',
-      hoverClass: 'hover:border-purple-500/40',
-      onClick: () => handleTabChange('delegated')
-    }
-  ], [tasksData.summary, activeTab, selectedStage, handleTabChange]);
-
-  const renderStatCards = (isSidebar = false) => {
-    return statCardItems.map((item) => {
-      const Icon = item.icon;
-      return (
-        <div
-          key={item.id}
-          onClick={item.onClick}
-          className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-2xs hover:shadow-xs ${
-            item.isActive
-              ? item.activeClass
-              : `bg-surface border-border/70 ${item.hoverClass}`
-          }`}
-        >
-          <div className="flex items-center justify-between text-text-muted mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider truncate mr-1">
-              {item.label}
-            </span>
-            <Icon className={`w-4 h-4 shrink-0 ${item.iconColor}`} />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className={`text-xl sm:text-2xl font-black ${item.countColor}`}>
-              {item.count}
-            </span>
-            <span className="text-[11px] font-semibold text-text-muted truncate">
-              {item.subtext}
-            </span>
-          </div>
-        </div>
-      );
-    });
-  };
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app select-none">
       {/* ======================================================== */}
-      {/* 1. STATS OVERVIEW CARDS (Top on <=16" screens, Right on 22"+ screens) */}
-      {/* ======================================================== */}
-      <div className="min-[1650px]:hidden px-4 sm:px-6 lg:px-8 py-3.5 border-b border-border/40 bg-surface/50 shrink-0">
-        <div className="max-w-[1680px] mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {renderStatCards(false)}
-        </div>
-      </div>
-
-      {/* ======================================================== */}
-      {/* 2. TABS, SEARCH & FILTER TOOLBAR                         */}
+      {/* 1. TABS, SEARCH & FILTER TOOLBAR                         */}
       {/* ======================================================== */}
       <div className="px-4 sm:px-6 lg:px-8 py-3 bg-surface border-b border-border/60 shrink-0 shadow-2xs space-y-2.5">
         <div className="max-w-[1680px] mx-auto space-y-2.5">
           {/* Top Row: Navigation Tabs (Left) + Member Switcher & View Switcher (Right) */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            {/* Main Tabs */}
+            {/* Main 3 Slider Tab Filters: Assigned by Me, Assigned to Me, Total */}
             <div className="flex items-center gap-1 p-1 bg-surface-muted/90 rounded-xl border border-border/60 shrink-0 overflow-x-auto">
-              <button
-                type="button"
-                onClick={() => handleTabChange('assigned')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'assigned'
-                    ? 'bg-surface text-primary shadow-xs'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                <CheckSquare className="w-3.5 h-3.5" />
-                <span>Assigned to Me</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    activeTab === 'assigned'
-                      ? 'bg-primary-tint text-primary-text'
-                      : 'bg-surface/80 text-text-muted'
-                  }`}
-                >
-                  {tasksData.summary?.active_count ?? tasksData.summary?.total_assigned ?? 0}
-                </span>
-              </button>
-
               <button
                 type="button"
                 onClick={() => handleTabChange('delegated')}
@@ -536,23 +396,45 @@ export default function MyTasksPage({
 
               <button
                 type="button"
-                onClick={() => handleTabChange('completed')}
+                onClick={() => handleTabChange('assigned')}
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'completed'
+                  activeTab === 'assigned'
                     ? 'bg-surface text-primary shadow-xs'
                     : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Completed Work</span>
+                <CheckSquare className="w-3.5 h-3.5" />
+                <span>Assigned to Me</span>
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    activeTab === 'completed'
-                      ? 'bg-success-tint text-success-text'
+                    activeTab === 'assigned'
+                      ? 'bg-primary-tint text-primary-text'
                       : 'bg-surface/80 text-text-muted'
                   }`}
                 >
-                  {tasksData.summary?.completed || 0}
+                  {tasksData.summary?.total_assigned || 0}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTabChange('total')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'total'
+                    ? 'bg-surface text-primary shadow-xs'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Total</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    activeTab === 'total'
+                      ? 'bg-primary-tint text-primary-text'
+                      : 'bg-surface/80 text-text-muted'
+                  }`}
+                >
+                  {tasksData.summary?.total_all ?? ((tasksData.summary?.total_assigned || 0) + (tasksData.summary?.assigned_by_me || 0))}
                 </span>
               </button>
             </div>
@@ -645,8 +527,8 @@ export default function MyTasksPage({
                 />
               </div>
 
-              {/* Board / Project Filter */}
-              <div className="w-48 sm:w-52">
+              {/* Board / Project Filter (Wide container to avoid text wrapping) */}
+              <div className="w-56 sm:w-64 md:w-72 lg:w-80 min-w-[200px]">
                 <Select
                   options={boardOptions}
                   value={selectedBoardId}
@@ -660,21 +542,19 @@ export default function MyTasksPage({
                 />
               </div>
 
-              {/* Stage Filter (visible on Assigned tab) */}
-              {activeTab === 'assigned' && (
-                <div className="w-36 sm:w-40">
-                  <Select
-                    options={stageOptions}
-                    value={selectedStage}
-                    onChange={(val) => {
-                      setSelectedStage(val);
-                      setCurrentPage(1);
-                    }}
-                    size="sm"
-                    aria-label="Filter by stage"
-                  />
-                </div>
-              )}
+              {/* Stage Filter - Active across all 3 tabs */}
+              <div className="w-36 sm:w-40">
+                <Select
+                  options={stageOptions}
+                  value={selectedStage}
+                  onChange={(val) => {
+                    setSelectedStage(val);
+                    setCurrentPage(1);
+                  }}
+                  size="sm"
+                  aria-label="Filter by stage"
+                />
+              </div>
 
               {/* Reset Filter Button */}
               {hasActiveFilters && (
@@ -745,8 +625,8 @@ export default function MyTasksPage({
                         ? 'No tasks match your active filter criteria. Try clearing search or filters.'
                         : activeTab === 'delegated'
                         ? 'You have not delegated or assigned any cards in this workspace yet.'
-                        : activeTab === 'completed'
-                        ? 'No completed tasks recorded yet. Finished cards will show up here.'
+                        : activeTab === 'total'
+                        ? 'No tasks found assigned to or by you in this workspace.'
                         : 'You have zero active tasks assigned right now. You are all caught up!'}
                     </p>
                     {hasActiveFilters && (
@@ -759,56 +639,61 @@ export default function MyTasksPage({
                       </button>
                     )}
                   </div>
-                ) : viewMode === 'grouped' && (activeTab === 'assigned' || activeTab === 'delegated') && selectedStage === 'all' ? (
-                  /* 3-List Board Page Design (To Do -> In Progress -> In Review) centered horizontally */
-                  <div className="w-fit mx-auto max-w-full flex items-start gap-5 overflow-x-auto pb-6 px-1">
-                    <TaskBoardColumn
-                      title="To Do"
-                      icon={Clock}
-                      count={groupedCards.todo.length}
-                      statusKey="todo"
-                      headerClass="list-status-todo"
-                      cards={groupedCards.todo}
-                      onCardClick={handleCardClick}
-                      workspaceId={workspace?.id}
-                    />
-                    <TaskBoardColumn
-                      title="In Progress"
-                      icon={Flame}
-                      count={groupedCards.in_progress.length}
-                      statusKey="in_progress"
-                      headerClass="list-status-in-progress"
-                      cards={groupedCards.in_progress}
-                      onCardClick={handleCardClick}
-                      workspaceId={workspace?.id}
-                    />
-                    <TaskBoardColumn
-                      title="In Review"
-                      icon={CheckSquare}
-                      count={groupedCards.review.length}
-                      statusKey="review"
-                      headerClass="list-status-review"
-                      cards={groupedCards.review}
-                      onCardClick={handleCardClick}
-                      workspaceId={workspace?.id}
-                    />
+                ) : viewMode === 'grouped' ? (
+                  /* 4-List Board View (To Do -> In Progress -> In Review -> Completed) */
+                  <div className="w-fit mx-auto max-w-full flex items-start justify-center gap-5 overflow-x-auto pb-6 px-1">
+                    {showTodo && (
+                      <TaskBoardColumn
+                        title="To Do"
+                        icon={Clock}
+                        count={groupedCards.todo.length}
+                        statusKey="todo"
+                        headerClass="list-status-todo"
+                        cards={groupedCards.todo}
+                        onCardClick={handleCardClick}
+                        workspaceId={workspace?.id}
+                      />
+                    )}
+                    {showInProgress && (
+                      <TaskBoardColumn
+                        title="In Progress"
+                        icon={Flame}
+                        count={groupedCards.in_progress.length}
+                        statusKey="in_progress"
+                        headerClass="list-status-in-progress"
+                        cards={groupedCards.in_progress}
+                        onCardClick={handleCardClick}
+                        workspaceId={workspace?.id}
+                      />
+                    )}
+                    {showReview && (
+                      <TaskBoardColumn
+                        title="In Review"
+                        icon={CheckSquare}
+                        count={groupedCards.review.length}
+                        statusKey="review"
+                        headerClass="list-status-review"
+                        cards={groupedCards.review}
+                        onCardClick={handleCardClick}
+                        workspaceId={workspace?.id}
+                      />
+                    )}
+                    {showCompleted && (
+                      <TaskBoardColumn
+                        title="Completed"
+                        icon={CheckCircle2}
+                        count={groupedCards.completed.length}
+                        statusKey="done"
+                        headerClass="list-status-done"
+                        cards={groupedCards.completed}
+                        onCardClick={handleCardClick}
+                        workspaceId={workspace?.id}
+                      />
+                    )}
                   </div>
-                ) : activeTab === 'completed' && viewMode === 'grouped' ? (
-                  /* 3rd Tab: Completed Work - Small board card design centered */
-                  <div className="flex flex-wrap items-start justify-center gap-5 pb-6 px-1">
-                    {cards.map((card) => (
-                      <div key={card.id} className="w-[300px] sm:w-[320px] lg:w-[340px] shrink-0">
-                        <BoardCardItem
-                          card={card}
-                          onCardClick={handleCardClick}
-                          workspaceId={workspace?.id}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : viewMode === 'list' ? (
+                ) : (
                   /* Flat List View */
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-w-4xl mx-auto">
                     {cards.map((card) => (
                       <BoardCardItem
                         key={card.id}
@@ -817,19 +702,6 @@ export default function MyTasksPage({
                         workspaceId={workspace?.id}
                         isListView={true}
                       />
-                    ))}
-                  </div>
-                ) : (
-                  /* Filtered Stage Board View - Cards matching Board column width centered */
-                  <div className="flex flex-wrap items-start justify-center gap-5 pb-6 px-1">
-                    {cards.map((card) => (
-                      <div key={card.id} className="w-[300px] sm:w-[320px] lg:w-[340px] shrink-0">
-                        <BoardCardItem
-                          card={card}
-                          onCardClick={handleCardClick}
-                          workspaceId={workspace?.id}
-                        />
-                      </div>
                     ))}
                   </div>
                 )}
@@ -868,13 +740,6 @@ export default function MyTasksPage({
                     )}
                   </div>
                 )}
-              </div>
-
-              {/* Right Side: The 6 Stat Cards in the Right-Side Whitespace on 22"+ Screens (1650px+) */}
-              <div className="hidden min-[1650px]:block w-72 2xl:w-80 shrink-0 sticky top-4 self-start">
-                <div className="grid grid-cols-2 gap-2.5">
-                  {renderStatCards(true)}
-                </div>
               </div>
             </div>
           )}

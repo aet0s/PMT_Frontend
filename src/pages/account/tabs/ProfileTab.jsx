@@ -128,14 +128,13 @@ export default function ProfileTab({ setFormDirty }) {
               <button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
-                className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full"
+                className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full transition-transform duration-200 hover:scale-105 hover:ring-2 hover:ring-primary/60 hover:shadow-md overflow-hidden shrink-0"
                 title="Click to preview full photo"
               >
                 <Avatar
                   name={user?.name || 'User'}
                   src={user?.avatar_url}
                   size="xl"
-                  className="transition-transform group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary/60 group-hover:shadow-md"
                 />
                 <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                   <Eye className="w-5 h-5 drop-shadow-md" />

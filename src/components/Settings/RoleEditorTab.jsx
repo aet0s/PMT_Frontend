@@ -555,14 +555,14 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
             <div className="max-h-[680px] overflow-y-auto w-full">
               <table className="w-full table-fixed text-left border-collapse">
                 <colgroup>
-                  <col style={{ width: `${permColPercent}%` }} />
+                  <col key="perm-col" style={{ width: `${permColPercent}%` }} />
                   {roles.map((r) => (
                     <col key={r.id} style={{ width: `${roleColPercent}%` }} />
                   ))}
                 </colgroup>
               <thead className="sticky top-0 z-20 bg-surface-muted border-b border-border text-xs">
                 <tr>
-                  <th className="p-3 px-4 text-text-secondary font-semibold uppercase tracking-wider text-[11px] border-r border-border">
+                  <th key="col-header-perm" className="p-3 px-4 text-text-secondary font-semibold uppercase tracking-wider text-[11px] border-r border-border">
                     Permission / Scope
                   </th>
                   {roles.map((role) => (
@@ -623,7 +623,7 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
 
                       return (
                         <tr key={perm.key} className="hover:bg-surface-muted/50 transition">
-                          <td className="p-2.5 px-4 border-r border-border min-w-0">
+                          <td key="cell-perm-info" className="p-2.5 px-4 border-r border-border min-w-0">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className="font-mono text-text-primary text-xs truncate">{perm.key}</span>
                               {perm.scope && (

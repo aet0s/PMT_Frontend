@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   UserPlus,
@@ -56,13 +57,24 @@ import { useSocket } from '../context/SocketProvider';
 
 export default function CompanyMembersPage({ workspace, workspaces = [], boards = [] }) {
   const toast = useToast();
-  const { hasPermission, userRole } = usePermissions();
+  const navigate = useNavigate();
+  const { hasPermission, userRole, loading: permissionsLoading } = usePermissions();
   const socketContext = useSocket();
   const socket = socketContext?.socket;
   const originId = socketContext?.originId;
 
   const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
   const isOwner = roleName === 'owner' || roleName === 'super admin' || (userRole?.is_system === 1 && (userRole?.rank >= 100 || userRole?.is_editable === 0));
+  const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
+  const canView = !isMemberOrBelow && roleName !== 'project manager' && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view') || hasPermission('member.view'));
+
+  useEffect(() => {
+    if (!permissionsLoading && userRole && !canView && workspace?.id) {
+      toast.show('You do not have permission to view members', 'error');
+      navigate(`/w/${workspace.id}/home`, { replace: true });
+    }
+  }, [permissionsLoading, userRole, canView, workspace?.id, navigate, toast]);
+
   const canManage = hasPermission('member.assign_role') || hasPermission('member.remove') || isOwner || userRole?.name === 'Admin';
   const canInvite = hasPermission('member.invite') || isOwner || userRole?.name === 'Admin';
 
@@ -660,7 +672,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                               <button
                                 type="button"
                                 onClick={() => setPreviewMember(member)}
-                                className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full shrink-0"
+                                className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full shrink-0 transition-transform duration-200 hover:scale-110 hover:ring-2 hover:ring-primary/60 hover:shadow-xs overflow-hidden"
                                 title={`Click to preview ${member.name}'s profile photo`}
                                 aria-label={`Preview ${member.name}'s profile picture`}
                               >
@@ -669,7 +681,6 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                                   src={member.avatar_url || member.avatar}
                                   user={member}
                                   size="sm"
-                                  className="transition-transform group-hover:scale-110 group-hover:ring-2 group-hover:ring-primary/60 group-hover:shadow-xs"
                                 />
                                 <div className="absolute inset-0 rounded-full bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                                   <Eye className="w-3 h-3 drop-shadow-xs" />

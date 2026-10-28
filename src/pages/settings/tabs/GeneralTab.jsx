@@ -11,7 +11,8 @@ import {
   Calendar,
   Lock,
   Info,
-  Camera
+  Camera,
+  Eye
 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -22,6 +23,7 @@ import { getFileUrl } from '../../../api/config';
 import { usePermissions } from '../../../context/PermissionContext';
 import { useSocket } from '../../../context/SocketProvider';
 import ImageCropModal from '../../../components/shared/ImageCropModal';
+import ProfilePreviewModal from '../../../components/shared/ProfilePreviewModal';
 
 export default function GeneralTab({
   workspace,
@@ -44,6 +46,7 @@ export default function GeneralTab({
   const [isCropOpen, setIsCropOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingIcon, setIsUploadingIcon] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: '',
@@ -221,7 +224,12 @@ export default function GeneralTab({
             </p>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 pt-2">
-              <div className="w-16 h-16 rounded-2xl border-2 border-border/80 shadow-xs overflow-hidden flex items-center justify-center bg-primary-tint text-primary font-black text-xl shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsPreviewOpen(true)}
+                className="w-16 h-16 rounded-2xl border-2 border-border/80 shadow-xs overflow-hidden flex items-center justify-center bg-primary-tint text-primary font-black text-xl shrink-0 relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 transition-transform duration-200 hover:scale-105 hover:ring-2 hover:ring-primary/60 hover:shadow-md"
+                title="Click to preview full workspace icon"
+              >
                 {currentIconUrl ? (
                   <img
                     src={getFileUrl(currentIconUrl)}
@@ -231,7 +239,10 @@ export default function GeneralTab({
                 ) : (
                   <span>{(name || 'W').charAt(0).toUpperCase()}</span>
                 )}
-              </div>
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                  <Eye className="w-5 h-5 drop-shadow-md" />
+                </div>
+              </button>
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <input
@@ -463,6 +474,16 @@ export default function GeneralTab({
         description="Position and scale your logo to fit perfectly inside the circular icon."
         onConfirm={handleCropConfirmed}
         isProcessing={isUploadingIcon}
+      />
+
+      <ProfilePreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        member={{
+          name: name || workspace?.name || 'Workspace Icon',
+          avatar_url: currentIconUrl,
+          role: 'Workspace'
+        }}
       />
     </div>
   );

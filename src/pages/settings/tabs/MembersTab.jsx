@@ -415,7 +415,7 @@ export default function MembersTab({ workspace, onOpenInvite }) {
                     <button
                       type="button"
                       onClick={() => setPreviewMember(member)}
-                      className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full shrink-0 mt-0.5"
+                      className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full shrink-0 mt-0.5 transition-transform duration-200 hover:scale-105 hover:ring-2 hover:ring-primary/60 hover:shadow-xs overflow-hidden"
                       title={`Click to preview ${member.name}'s profile photo`}
                       aria-label={`Preview ${member.name}'s profile picture`}
                     >
@@ -424,7 +424,6 @@ export default function MembersTab({ workspace, onOpenInvite }) {
                         src={member.avatar_url || member.avatar}
                         user={member}
                         size="md"
-                        className="transition-transform group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary/60 group-hover:shadow-xs"
                       />
                       <div className="absolute inset-0 rounded-full bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                         <Eye className="w-4 h-4 drop-shadow-xs" />

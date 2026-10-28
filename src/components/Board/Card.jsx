@@ -200,16 +200,24 @@ export default function Card({
                   ? 'You are assigned to this task'
                   : 'You assigned / created this task'
               }
-              className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 shadow-2xs border transition-all ${
+              className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 border select-none transition-all ${
                 isAssignee && isAssigner
-                  ? 'bg-primary-tint text-primary-text border-primary/30'
+                  ? 'bg-label-amber text-label-amber-text border-label-amber-text/25'
                   : isAssignee
-                  ? 'bg-success-tint text-success-text border-success/30'
-                  : 'bg-info-tint text-info-text border-info/30'
+                  ? 'bg-label-green text-label-green-text border-label-green-text/25'
+                  : 'bg-label-purple text-label-purple-text border-label-purple-text/25'
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-current" />
-              <span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                  isAssignee && isAssigner
+                    ? 'bg-label-amber-text'
+                    : isAssignee
+                    ? 'bg-label-green-text'
+                    : 'bg-label-purple-text'
+                }`}
+              />
+              <span className="truncate">
                 {isAssignee && isAssigner
                   ? 'Mine (Both)'
                   : isAssignee

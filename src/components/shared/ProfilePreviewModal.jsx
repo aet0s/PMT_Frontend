@@ -1,8 +1,7 @@
 // client/src/components/shared/ProfilePreviewModal.jsx
 import React, { useState, useEffect } from 'react';
-import { X, ExternalLink, Download, User, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ExternalLink, User } from 'lucide-react';
 import { Modal } from '../ui/Modal';
-import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { getFileUrl } from '../../api/config';
 
@@ -11,8 +10,6 @@ export default function ProfilePreviewModal({
   onClose,
   member
 }) {
-  const [naturalDimensions, setNaturalDimensions] = useState(null);
-  const [isZoomed, setIsZoomed] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
   const rawUrl =
@@ -20,31 +17,21 @@ export default function ProfilePreviewModal({
     member?.avatar ||
     member?.src ||
     member?.user?.avatar_url ||
-    member?.user?.avatar;
+    member?.user?.avatar ||
+    member?.icon_url ||
+    member?.icon;
 
   const fullImageUrl = rawUrl
     ? (rawUrl.startsWith('http') || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')
-        ? rawUrl
-        : getFileUrl(rawUrl))
+      ? rawUrl
+      : getFileUrl(rawUrl))
     : null;
 
   useEffect(() => {
     if (isOpen) {
-      setIsZoomed(false);
       setImageLoading(true);
-      setNaturalDimensions(null);
     }
   }, [isOpen, fullImageUrl]);
-
-  const handleImageLoad = (e) => {
-    setImageLoading(false);
-    if (e.target.naturalWidth && e.target.naturalHeight) {
-      setNaturalDimensions({
-        width: e.target.naturalWidth,
-        height: e.target.naturalHeight
-      });
-    }
-  };
 
   const displayName = member?.name || member?.user?.name || member?.email || 'User Profile';
   const role = member?.role || member?.user?.role || member?.role_name || '';
@@ -89,14 +76,8 @@ export default function ProfilePreviewModal({
               <img
                 src={fullImageUrl}
                 alt={displayName}
-                onLoad={handleImageLoad}
-                className={`transition-all duration-200 select-none rounded-xl object-contain shadow-md ${
-                  isZoomed
-                    ? 'cursor-zoom-out max-w-none max-h-none'
-                    : 'cursor-zoom-in max-w-full max-h-[60vh] h-auto w-auto'
-                }`}
-                onClick={() => setIsZoomed(!isZoomed)}
-                title="Click to toggle actual resolution / fit to screen"
+                onLoad={() => setImageLoading(false)}
+                className="select-none rounded-xl object-contain shadow-md max-w-full max-h-[65vh] h-auto w-auto"
               />
             </div>
           ) : (
@@ -112,49 +93,20 @@ export default function ProfilePreviewModal({
           )}
         </div>
 
-        {/* Footer Info & Actions */}
-        <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 text-xs">
-          <div className="flex items-center gap-2 text-text-secondary">
-            {naturalDimensions && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-muted border border-border text-[11px] font-mono font-medium text-text-muted">
-                <Maximize2 className="w-3 h-3 text-primary" />
-                {naturalDimensions.width} × {naturalDimensions.height} px (Original Resolution)
-              </span>
-            )}
-            {fullImageUrl && (
-              <span className="text-[11px] text-text-muted hidden sm:inline">
-                Click image to {isZoomed ? 'fit screen' : 'zoom 100%'}
-              </span>
-            )}
+        {/* Footer Actions - Only Open Full Size */}
+        {fullImageUrl && (
+          <div className="w-full flex items-center justify-end pt-1">
+            <a
+              href={fullImageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-border text-xs font-semibold text-text-primary hover:bg-surface-hover hover:border-primary/50 transition-colors shadow-2xs"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-primary" />
+              <span>Open Full Size</span>
+            </a>
           </div>
-
-          <div className="flex items-center gap-2">
-            {fullImageUrl && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsZoomed(!isZoomed)}
-                  leftIcon={isZoomed ? <ZoomOut className="w-3.5 h-3.5" /> : <ZoomIn className="w-3.5 h-3.5" />}
-                >
-                  {isZoomed ? 'Fit Screen' : '100% Zoom'}
-                </Button>
-                <a
-                  href={fullImageUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border text-xs font-semibold text-text-primary hover:bg-surface-hover hover:border-primary/50 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open Full Size</span>
-                </a>
-              </>
-            )}
-            <Button variant="secondary" size="sm" onClick={onClose}>
-              Close
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
     </Modal>
   );

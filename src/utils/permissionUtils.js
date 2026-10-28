@@ -22,14 +22,12 @@ for (const [oldKey, newKey] of Object.entries(aliases)) {
  * @returns {boolean}
  */
 export function hasPermissionPure(userRole, userPermissions = [], permissionKey, projectId = null) {
-  if (!permissionKey) return true;
+  if (!permissionKey) return false;
   const roleName = (typeof userRole === 'string' ? userRole : userRole?.name)?.toLowerCase();
   
   // Super Admin / Owner has all permissions
   if (roleName === 'super admin' || roleName === 'owner') return true;
-  
-  // Admin without explicit permissions array defaults to all non-owner permissions
-  if (roleName === 'admin' && (!userPermissions || userPermissions.length === 0)) return true;
+
 
   const perms = Array.isArray(userPermissions) ? userPermissions : [];
 

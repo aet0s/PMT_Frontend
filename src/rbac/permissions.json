@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T06:35:34.856Z",
+  "generatedAt": "2026-10-28T10:39:11.155Z",
   "totalPermissions": 152,
   "permissions": [
     {
@@ -1289,10 +1289,7 @@
       "planned": true
     }
   ],
-  "aliases": {
-    "workspace.restore": "workspace.archive",
-    "project.restore": "project.archive"
-  },
+  "aliases": {},
   "prerequisites": {
     "task.create": [
       "task.view",
@@ -1892,13 +1889,10 @@
       "rank": 60,
       "is_system": 1,
       "is_editable": 1,
-      "description": "Manages projects, tasks, workflows, and team members. Cannot manage company settings or security.",
+      "description": "Manages projects, tasks, workflows, and board execution. Cannot view member directory, manage roles, or access company settings.",
       "permissions": [
         "workspace.view",
         "company.view",
-        "member.view",
-        "member.invite_guest",
-        "role.view",
         "team.view",
         "project.view",
         "project.create",

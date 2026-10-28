@@ -171,12 +171,12 @@ export default function WorkspaceSidebar({
 
   const canCreateBoard = isOwner || hasPermission('project.create');
   const canEditWs = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit'));
-  const canCreateWs = isOwner || hasPermission('workspace.create') || hasPermission('workspace.edit');
+  const canCreateWs = isOwner || hasPermission('workspace.create');
   const canDeleteWs = isOwner || hasPermission('workspace.delete');
   const canViewSprint = isOwner || hasPermission('project.view') || hasPermission('task.view');
   const canViewIssues = isOwner || hasPermission('task.view');
   const canViewActivity = isOwner || hasPermission('activity.view');
-  const canViewMembers = !isMemberOrBelow && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
+  const canViewMembers = !isMemberOrBelow && roleName !== 'project manager' && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
   const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_project') || hasPermission('role.view'));
   const canViewDailyTracker = isOwner || hasPermission('daily_tracker.view');
   const canViewAudit = !isMemberOrBelow && (isOwner || hasPermission('audit.view'));

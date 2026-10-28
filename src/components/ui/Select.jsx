@@ -134,7 +134,9 @@ export const Select = React.forwardRef(function Select(
           size({
             apply({ rects, elements }) {
               Object.assign(elements.floating.style, {
-                width: `${rects.reference.width}px`,
+                minWidth: `${rects.reference.width}px`,
+                maxWidth: 'min(90vw, 560px)',
+                width: 'max-content',
                 maxHeight: '280px'
               });
             }
@@ -440,7 +442,12 @@ export const Select = React.forwardRef(function Select(
                             </span>
                           )}
                           <div className="text-left min-w-0">
-                            <span className="block truncate">{opt.label}</span>
+                            <span
+                              className="block truncate whitespace-nowrap"
+                              title={typeof opt.label === 'string' ? opt.label : undefined}
+                            >
+                              {opt.label}
+                            </span>
                             {opt.description && (
                               <span className="block text-[11px] text-text-secondary leading-tight truncate">
                                 {opt.description}

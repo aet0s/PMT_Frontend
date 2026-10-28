@@ -34,7 +34,7 @@ export default function MembersPage({ workspace }) {
   const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
   const isOwner = roleName === 'owner' || roleName === 'super admin';
   const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
-  const canViewMembers = !isMemberOrBelow && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
+  const canViewMembers = !isMemberOrBelow && roleName !== 'project manager' && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
 
   useEffect(() => {
     if (!permissionsLoading && userRole && !canViewMembers && workspace?.id) {
@@ -239,7 +239,7 @@ export default function MembersPage({ workspace }) {
                           <button
                             type="button"
                             onClick={() => setPreviewMember(member)}
-                            className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full shrink-0"
+                            className="relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-full shrink-0 transition-transform duration-200 hover:scale-110 hover:ring-2 hover:ring-primary/60 hover:shadow-xs overflow-hidden"
                             title={`Click to preview ${member.name}'s profile photo`}
                             aria-label={`Preview ${member.name}'s profile picture`}
                           >
@@ -248,7 +248,6 @@ export default function MembersPage({ workspace }) {
                               src={member.avatar_url || member.avatar}
                               user={member}
                               size="sm"
-                              className="transition-transform group-hover:scale-110 group-hover:ring-2 group-hover:ring-primary/60 group-hover:shadow-xs"
                             />
                             <div className="absolute inset-0 rounded-full bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                               <Eye className="w-3 h-3 drop-shadow-xs" />
