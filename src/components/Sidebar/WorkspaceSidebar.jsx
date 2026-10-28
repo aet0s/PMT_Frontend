@@ -79,6 +79,11 @@ export default function WorkspaceSidebar({
     return workspaces.filter((w) => (w.name || '').toLowerCase().includes(q));
   }, [workspaces, wsSearchQuery]);
 
+  // Total active assigned tasks across all workspaces
+  const totalAssignedTasksCount = useMemo(() => {
+    return (workspaces || []).reduce((acc, ws) => acc + (Number(ws.assigned_tasks_count) || 0), 0);
+  }, [workspaces]);
+
   // Keep portaled workspace dropdown positioned exactly below menuRef
   useEffect(() => {
     if (!isWsDropdownOpen) return;
@@ -631,12 +636,12 @@ export default function WorkspaceSidebar({
                 <CheckSquare className="w-4.5 h-4.5 shrink-0" />
                 <span className="truncate">My Tasks</span>
               </div>
-              {activeWorkspace?.assigned_tasks_count > 0 && (
+              {totalAssignedTasksCount > 0 && (
                 <span
                   className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-danger text-white shrink-0 shadow-2xs"
-                  title={`${activeWorkspace.assigned_tasks_count} assigned task${activeWorkspace.assigned_tasks_count > 1 ? 's' : ''}`}
+                  title={`${totalAssignedTasksCount} total assigned task${totalAssignedTasksCount > 1 ? 's' : ''} across all workspaces`}
                 >
-                  {activeWorkspace.assigned_tasks_count > 99 ? '99+' : activeWorkspace.assigned_tasks_count}
+                  {totalAssignedTasksCount > 99 ? '99+' : totalAssignedTasksCount}
                 </span>
               )}
             </NavLink>
