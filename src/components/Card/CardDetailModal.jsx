@@ -22,6 +22,7 @@ import TaskCompletionModal from './TaskCompletionModal';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../context/PermissionContext';
+import { useSocket } from '../../context/SocketProvider';
 
 export default function CardDetailModal({
   isOpen,
@@ -68,6 +69,25 @@ export default function CardDetailModal({
   const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState(highlightCommentId ? 'comments' : 'details');
+
+  const { socket } = useSocket();
+  const effectiveBoardId = card?.board_id || currentBoardId;
+
+  // Ensure socket joins the board room so all card events (comments, replies, checklists) update in real-time
+  useEffect(() => {
+    if (!socket || !isOpen || !effectiveBoardId) return;
+    const bId = Number(effectiveBoardId);
+    socket.emit('join_board', { boardId: bId });
+
+    const handleReconnect = () => {
+      socket.emit('join_board', { boardId: bId });
+    };
+
+    socket.on('connect', handleReconnect);
+    return () => {
+      socket.off('connect', handleReconnect);
+    };
+  }, [socket, isOpen, effectiveBoardId]);
 
   useEffect(() => {
     if (highlightCommentId) {

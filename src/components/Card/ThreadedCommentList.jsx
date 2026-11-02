@@ -36,6 +36,24 @@ export default function ThreadedCommentList({
 
   const composerRef = useRef(null);
   const cardId = card?.id;
+  const boardId = card?.board_id || card?.boardId;
+  const processedCommentEventsRef = useRef(new Set());
+
+  // Ensure socket joins the board room so all card comments and replies update in real-time
+  useEffect(() => {
+    if (!socket || !boardId) return;
+    const bId = Number(boardId);
+    socket.emit('join_board', { boardId: bId });
+
+    const handleReconnect = () => {
+      socket.emit('join_board', { boardId: bId });
+    };
+
+    socket.on('connect', handleReconnect);
+    return () => {
+      socket.off('connect', handleReconnect);
+    };
+  }, [socket, boardId]);
 
   // Fetch comments fresh from server (stable reference)
   const fetchComments = useCallback(async () => {
@@ -76,24 +94,50 @@ export default function ThreadedCommentList({
     if (!socket || !cardId) return;
 
     const handleCommentCreated = (data) => {
-      if (!data || Number(data.cardId) !== Number(cardId) || !data.comment) return;
+      if (!data || !data.comment) return;
+      const targetCardId = Number(data.cardId || data.comment.card_id);
+      const currentCardId = Number(cardRef.current?.id || cardId);
+      if (!targetCardId || targetCardId !== currentCardId) return;
+
       const newComment = data.comment;
+      const commentId = Number(newComment.id);
+
+      // Event deduplication (guards against dual comment:created / comment:added emissions)
+      if (processedCommentEventsRef.current.has(commentId)) {
+        return;
+      }
+      processedCommentEventsRef.current.add(commentId);
+      if (processedCommentEventsRef.current.size > 200) {
+        const first = processedCommentEventsRef.current.values().next().value;
+        processedCommentEventsRef.current.delete(first);
+      }
+
       const isReply = Boolean(newComment.parent_comment_id);
+      const rootId = Number(data.rootCommentId || newComment.root_comment_id || newComment.parent_comment_id);
+      let newlyAdded = false;
 
       setComments((prevComments) => {
         if (!isReply) {
-          const existing = prevComments.some((c) => Number(c.id) === Number(newComment.id));
+          const existing = prevComments.some((c) => Number(c.id) === commentId);
           if (existing) return prevComments;
-          return [...prevComments, { ...newComment, replies: newComment.replies || [], reply_count: newComment.reply_count || 0 }];
+          newlyAdded = true;
+          return [
+            ...prevComments,
+            {
+              ...newComment,
+              replies: newComment.replies || [],
+              reply_count: newComment.reply_count || 0
+            }
+          ];
         }
 
-        const rootId = Number(newComment.root_comment_id || newComment.parent_comment_id);
         let foundRoot = false;
         const next = prevComments.map((root) => {
           if (Number(root.id) === rootId) {
             foundRoot = true;
             const currentReplies = root.replies || [];
-            if (currentReplies.some((r) => Number(r.id) === Number(newComment.id))) return root;
+            if (currentReplies.some((r) => Number(r.id) === commentId)) return root;
+            newlyAdded = true;
             return {
               ...root,
               reply_count: (root.reply_count || currentReplies.length) + 1,
@@ -110,17 +154,23 @@ export default function ThreadedCommentList({
         return next;
       });
 
-      setTotalCount((prev) => {
-        const next = prev + 1;
-        if (onCommentCountChangeRef.current) {
-          onCommentCountChangeRef.current(next, cardId);
-        }
-        return next;
-      });
+      if (newlyAdded) {
+        setTotalCount((prev) => {
+          const next = prev + 1;
+          if (onCommentCountChangeRef.current) {
+            onCommentCountChangeRef.current(next, currentCardId);
+          }
+          return next;
+        });
+      }
     };
 
     const handleCommentUpdated = (data) => {
-      if (!data || Number(data.cardId) !== Number(cardId) || !data.comment) return;
+      if (!data || !data.comment) return;
+      const targetCardId = Number(data.cardId || data.comment.card_id);
+      const currentCardId = Number(cardRef.current?.id || cardId);
+      if (targetCardId !== currentCardId) return;
+
       const updated = data.comment;
       setComments((prevComments) =>
         prevComments.map((root) => {
@@ -141,7 +191,11 @@ export default function ThreadedCommentList({
     };
 
     const handleCommentDeleted = (data) => {
-      if (!data || Number(data.cardId) !== Number(cardId) || !data.commentId) return;
+      if (!data || !data.commentId) return;
+      const targetCardId = Number(data.cardId);
+      const currentCardId = Number(cardRef.current?.id || cardId);
+      if (targetCardId !== currentCardId) return;
+
       const commentId = Number(data.commentId);
       setComments((prevComments) => {
         const isRoot = prevComments.some((root) => Number(root.id) === commentId);
@@ -151,7 +205,7 @@ export default function ThreadedCommentList({
           setTotalCount((prev) => {
             const next = Math.max(0, prev - deletedSubCount);
             if (onCommentCountChangeRef.current) {
-              onCommentCountChangeRef.current(next, cardId);
+              onCommentCountChangeRef.current(next, currentCardId);
             }
             return next;
           });
@@ -164,7 +218,7 @@ export default function ThreadedCommentList({
             setTotalCount((prev) => {
               const next = Math.max(0, prev - 1);
               if (onCommentCountChangeRef.current) {
-                onCommentCountChangeRef.current(next, cardId);
+                onCommentCountChangeRef.current(next, currentCardId);
               }
               return next;
             });
@@ -201,18 +255,30 @@ export default function ThreadedCommentList({
     const newComment = res?.comment;
 
     if (newComment) {
+      const commentId = Number(newComment.id);
+      processedCommentEventsRef.current.add(commentId);
+      const rootId = Number(newComment.root_comment_id || payload.parent_comment_id);
+      let foundRoot = false;
+
       setComments((prevComments) => {
         if (!isReply) {
-          const existing = prevComments.some((c) => Number(c.id) === Number(newComment.id));
+          const existing = prevComments.some((c) => Number(c.id) === commentId);
           if (existing) return prevComments;
-          return [...prevComments, { ...newComment, replies: [], reply_count: 0 }];
+          return [
+            ...prevComments,
+            {
+              ...newComment,
+              replies: [],
+              reply_count: 0
+            }
+          ];
         }
 
-        const rootId = Number(newComment.root_comment_id || payload.parent_comment_id);
-        return prevComments.map((root) => {
+        const next = prevComments.map((root) => {
           if (Number(root.id) === rootId) {
+            foundRoot = true;
             const currentReplies = root.replies || [];
-            if (currentReplies.some((r) => Number(r.id) === Number(newComment.id))) return root;
+            if (currentReplies.some((r) => Number(r.id) === commentId)) return root;
             return {
               ...root,
               reply_count: (root.reply_count || currentReplies.length) + 1,
@@ -221,6 +287,12 @@ export default function ThreadedCommentList({
           }
           return root;
         });
+
+        if (!foundRoot) {
+          fetchComments();
+          return prevComments;
+        }
+        return next;
       });
 
       setTotalCount((prev) => prev + 1);
