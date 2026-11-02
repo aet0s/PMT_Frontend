@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../shared/Modal';
 import CardHeader from './CardHeader';
 import CardTitle from './CardTitle';
@@ -52,7 +52,12 @@ export default function CardDetailModal({
   onDeleteAttachment,
   onCreateBoardLabel,
   onDeleteBoardLabel,
-  onCopyCard
+  onCopyCard,
+  highlightCommentId = null,
+  onCommentCountChange,
+  onCommentAdded,
+  onCommentUpdated,
+  onCommentDeleted
 }) {
   const toast = useToast();
   const { user } = useAuth();
@@ -62,6 +67,13 @@ export default function CardDetailModal({
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState(highlightCommentId ? 'comments' : 'details');
+
+  useEffect(() => {
+    if (highlightCommentId) {
+      setMobileTab('comments');
+    }
+  }, [highlightCommentId]);
 
   if (!card) return null;
 
@@ -143,10 +155,43 @@ export default function CardDetailModal({
           </div>
         )}
 
-        {/* Dual Panels on Desktop (lg:) / Single Scrolling Column on Mobile */}
-        <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
-          {/* Card Details */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 lg:border-r border-border">
+        {/* Responsive Mobile / Tablet Tab Selector (< lg) */}
+        <div className="lg:hidden flex items-center border-b border-border bg-surface shrink-0 px-4 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setMobileTab('details')}
+            className={`py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+              mobileTab === 'details'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-primary'
+            }`}
+          >
+            Task Details
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('comments')}
+            className={`py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+              mobileTab === 'comments'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-primary'
+            }`}
+          >
+            <span>Activity & Comments</span>
+            {(card.comments_count || 0) > 0 && (
+              <span className="px-1.5 py-0.2 text-[10px] bg-primary/10 text-primary rounded-full font-bold">
+                {card.comments_count}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Dual Panels on Desktop (lg:) / Tabbed Single Panel on Smaller Viewports */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+          {/* Card Details Panel */}
+          <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 lg:border-r border-border min-h-0 ${
+            mobileTab === 'details' ? 'block' : 'hidden lg:block'
+          }`}>
             {/* Date Badges — shown above title if dates are set */}
             {(card.start_date || card.due_date) && (() => {
               const now = getServerNow();
@@ -315,10 +360,18 @@ export default function CardDetailModal({
           </div>
 
           {/* Right Independent Scroll Panel (Comments & Activity Feed) */}
-          <div className="w-full lg:w-96 overflow-y-auto p-6 space-y-6 shrink-0 bg-surface border-t lg:border-t-0 border-border">
+          <div className={`w-full lg:w-96 overflow-y-auto p-4 sm:p-6 space-y-6 shrink-0 bg-surface border-t lg:border-t-0 border-border min-h-0 ${
+            mobileTab === 'comments' ? 'block' : 'hidden lg:block'
+          }`}>
             <CommentsActivitySidebar
               card={card}
               boardActivity={boardActivity}
+              boardMembers={boardMembers}
+              highlightCommentId={highlightCommentId}
+              onCommentCountChange={onCommentCountChange}
+              onCommentAdded={onCommentAdded}
+              onCommentUpdated={onCommentUpdated}
+              onCommentDeleted={onCommentDeleted}
               onAddComment={onAddComment}
               onDeleteComment={onDeleteComment}
             />

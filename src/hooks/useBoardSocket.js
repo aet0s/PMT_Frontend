@@ -26,12 +26,21 @@ export function useBoardSocket(boardId, onBoardEvent, onRefreshBoard) {
 
       const entityType = eventName.startsWith('card')
         ? 'card'
+        : eventName.startsWith('comment')
+        ? 'comment'
         : eventName.startsWith('checklist_item')
         ? 'checklist_item'
         : eventName.startsWith('list')
         ? 'list'
         : null;
-      const entityId = data.itemId || data.cardId || data.card?.id || data.listId || data.list?.id;
+      const entityId =
+        data.commentId ||
+        data.comment?.id ||
+        data.itemId ||
+        data.cardId ||
+        data.card?.id ||
+        data.listId ||
+        data.list?.id;
       const incomingUpdatedAt = data.updated_at || data.card?.updated_at || data.timestamp;
 
       const check = shouldIgnoreIncomingEvent({
@@ -63,12 +72,16 @@ export function useBoardSocket(boardId, onBoardEvent, onRefreshBoard) {
       'card:created',
       'card:updated',
       'card:moved',
+      'card:archived',
       'card:deleted',
       'list:created',
       'list:updated',
       'list:reordered',
       'list:deleted',
+      'comment:created',
       'comment:added',
+      'comment:updated',
+      'comment:deleted',
       'member:added',
       'member:removed',
       'checklist_item:toggled',
@@ -99,8 +112,5 @@ export function useBoardSocket(boardId, onBoardEvent, onRefreshBoard) {
     };
   }, [socket, boardId, connected, originId]);
 
-  return {
-    onlineMembers,
-    highlightedCardId
-  };
+  return { onlineMembers, highlightedCardId };
 }

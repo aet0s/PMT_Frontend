@@ -107,7 +107,7 @@ export default function DescriptionEditor({ cardId, cardTitle = '', initialValue
         <div className="space-y-1.5">
           <div
             onClick={() => canEditCard && setIsEditing(true)}
-            className={`p-4 bg-surface border border-border rounded-lg min-h-[90px] max-h-[220px] overflow-y-auto transition-colors ${
+            className={`p-4 bg-surface border border-border rounded-lg min-h-[90px] max-h-[360px] overflow-y-auto transition-colors ${
               canEditCard ? 'hover:bg-surface-muted/50 cursor-pointer' : 'cursor-default'
             }`}
           >

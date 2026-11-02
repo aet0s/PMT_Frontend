@@ -16,7 +16,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useSocket } from '../../context/SocketProvider';
-import { formatShortDate } from '../../lib/dateFormat';
+import { formatShortDate, formatRelativeTime } from '../../lib/dateFormat';
 
 export default function NotificationBell({ onSelectNotificationCard, onOpenAllNotifications }) {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useSocket();
@@ -62,11 +62,23 @@ export default function NotificationBell({ onSelectNotificationCard, onOpenAllNo
       markAsRead(n.id).catch((err) => console.error('Failed to mark read:', err));
     }
     if (onSelectNotificationCard) {
+      let meta = n.meta;
+      if (typeof meta === 'string') {
+        try {
+          meta = JSON.parse(meta);
+        } catch (_) {
+          meta = {};
+        }
+      }
+      const targetCommentId = meta?.commentId || meta?.comment_id || meta?.rootCommentId || n.comment_id || null;
+
       onSelectNotificationCard({
         cardId: n.card_id,
         boardId: n.board_id,
         workspaceId: n.workspace_id,
-        eventType: n.event_type || n.type
+        eventType: n.event_type || n.type,
+        commentId: targetCommentId,
+        meta
       });
     }
   };
@@ -138,7 +150,7 @@ export default function NotificationBell({ onSelectNotificationCard, onOpenAllNo
                     {getCategoryIcon(n.event_type, n.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-text-primary leading-snug break-words">
+                    <p className="text-xs text-text-primary leading-snug break-words line-clamp-3">
                       {n.message}
                       {n.count > 1 && (
                         <span className="ml-1.5 px-1.5 py-0.5 bg-primary-tint text-primary text-[10px] font-bold rounded-full">
@@ -146,14 +158,22 @@ export default function NotificationBell({ onSelectNotificationCard, onOpenAllNo
                         </span>
                       )}
                     </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {(n.board_title || n.board_name) && (
-                        <span className="text-[10px] font-medium text-text-secondary bg-surface-muted px-1.5 py-0.5 rounded border border-border">
-                          {n.board_title || n.board_name}
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      {(n.card_title || n.meta?.cardTitle) && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-text-secondary bg-surface-muted px-1.5 py-0.5 rounded border border-border">
+                          <CheckSquare className="w-3 h-3 text-primary shrink-0" />
+                          <span className="truncate max-w-[130px]">
+                            {n.card_title || n.meta?.cardTitle}
+                          </span>
                         </span>
                       )}
-                      <span className="text-[10px] text-text-muted">
-                        {formatShortDate(n.created_at)}
+                      {(!(n.card_title || n.meta?.cardTitle) && (n.board_title || n.board_name || n.meta?.boardName)) && (
+                        <span className="text-[10px] font-medium text-text-secondary bg-surface-muted px-1.5 py-0.5 rounded border border-border truncate max-w-[120px]">
+                          {n.board_title || n.board_name || n.meta?.boardName}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-text-muted shrink-0" title={formatShortDate(n.created_at)}>
+                        {formatRelativeTime(n.created_at)}
                       </span>
                     </div>
                   </div>

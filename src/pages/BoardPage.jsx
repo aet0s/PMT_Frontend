@@ -392,24 +392,27 @@ export default function BoardPage() {
     const throttleKey = `last_auto_archive_${wsId}`;
     const lastRun = Number(sessionStorage.getItem(throttleKey) || 0);
     const now = Date.now();
-    if (now - lastRun < 30 * 60 * 1000) return; // 30-minute cooldown
-
     const defaults =
       activeWorkspace?.settings?.workspace_defaults ||
       activeWorkspace?.settings?.project_defaults ||
       getTenantItem(`ws_defaults_${wsId}`, 'settings', null);
     const archiveSetting = defaults?.autoArchiveDays ?? '7';
-    if (archiveSetting && archiveSetting !== 'never') {
-      const days = Number(archiveSetting);
-      sessionStorage.setItem(throttleKey, String(now));
-      autoArchiveWorkspaceCards(wsId, days)
-        .then((res) => {
-          if (res?.archived_count > 0 && urlBoardId) {
-            loadActiveBoard(urlBoardId, true);
-          }
-        })
-        .catch(() => {});
-    }
+    if (!archiveSetting || archiveSetting === 'never') return;
+
+    const days = Number(archiveSetting);
+    if (isNaN(days) || days < 0) return;
+
+    const cooldownMs = days === 0 ? 10 * 1000 : 30 * 60 * 1000;
+    if (now - lastRun < cooldownMs) return;
+
+    sessionStorage.setItem(throttleKey, String(now));
+    autoArchiveWorkspaceCards(wsId, days)
+      .then((res) => {
+        if (res?.archived_count > 0 && urlBoardId) {
+          loadActiveBoard(urlBoardId, true);
+        }
+      })
+      .catch(() => {});
   }, [activeWorkspace?.id, activeWorkspace?.settings?.workspace_defaults, activeWorkspace?.settings?.project_defaults]);
 
   // Handle /calendar route at workspace level:
@@ -566,7 +569,8 @@ export default function BoardPage() {
 
     if (boardId) {
       if (cardId) {
-        navigate(`/w/${targetWsId}/p/${boardId}/board?card=${cardId}`);
+        const commentQuery = (param.commentId || param.meta?.commentId || param.meta?.comment_id) ? `&comment=${param.commentId || param.meta?.commentId || param.meta?.comment_id}` : '';
+        navigate(`/w/${targetWsId}/p/${boardId}/board?card=${cardId}${commentQuery}`);
       } else {
         navigate(`/w/${targetWsId}/p/${boardId}/board`);
       }
@@ -577,9 +581,170 @@ export default function BoardPage() {
     }
   };
 
+  // Set to prevent duplicate processing of the same comment event (e.g. comment:created and comment:added)
+  const processedCommentEventsRef = useRef(new Set());
+
+  // Real-time synchronization for newly added comment (from local action or WebSocket)
+  const handleCommentAdded = useCallback((comment) => {
+    if (!comment) return;
+    const commentId = Number(comment.id);
+    const cardId = Number(comment.card_id);
+
+    // Deduplicate against multiple socket events for the same comment
+    if (processedCommentEventsRef.current.has(commentId)) {
+      return;
+    }
+    processedCommentEventsRef.current.add(commentId);
+    if (processedCommentEventsRef.current.size > 200) {
+      const first = processedCommentEventsRef.current.values().next().value;
+      processedCommentEventsRef.current.delete(first);
+    }
+
+    // 1. Update selectedCard comments_count if currently open
+    setSelectedCard((prevSelected) => {
+      if (!prevSelected || Number(prevSelected.id) !== cardId) return prevSelected;
+      return {
+        ...prevSelected,
+        comments_count: (prevSelected.comments_count || 0) + 1
+      };
+    });
+
+    // 2. Update list card comments badge in boardData
+    setBoardData((prevBoard) => {
+      if (!prevBoard) return prevBoard;
+      return {
+        ...prevBoard,
+        lists: (prevBoard.lists || []).map((l) => ({
+          ...l,
+          cards: (l.cards || []).map((c) => {
+            if (Number(c.id) === cardId) {
+              const currentCount = c.comments_count ?? (c.comments?.length || 0);
+              return {
+                ...c,
+                comments_count: currentCount + 1
+              };
+            }
+            return c;
+          })
+        }))
+      };
+    });
+  }, []);
+
+  // Real-time synchronization for updated comment
+  const handleCommentUpdated = useCallback((comment) => {
+    if (!comment) return;
+    const commentId = Number(comment.id);
+    const cardId = Number(comment.card_id);
+
+    setSelectedCard((prevSelected) => {
+      if (!prevSelected || Number(prevSelected.id) !== cardId) return prevSelected;
+      const currentComments = prevSelected.comments || [];
+      const updatedComments = currentComments.map((root) => {
+        if (Number(root.id) === commentId) {
+          return { ...root, ...comment };
+        }
+        if (root.replies && root.replies.length > 0) {
+          return {
+            ...root,
+            replies: root.replies.map((r) =>
+              Number(r.id) === commentId ? { ...r, ...comment } : r
+            )
+          };
+        }
+        return root;
+      });
+      return { ...prevSelected, comments: updatedComments };
+    });
+  }, []);
+
+  // Real-time synchronization for deleted comment
+  const handleCommentDeleted = useCallback((commentId, cardId) => {
+    if (!commentId) return;
+    const cId = Number(commentId);
+    const cdId = Number(cardId);
+    let decrement = 1;
+
+    setSelectedCard((prevSelected) => {
+      if (!prevSelected || (cdId && Number(prevSelected.id) !== cdId)) return prevSelected;
+      return {
+        ...prevSelected,
+        comments_count: Math.max(0, (prevSelected.comments_count || 1) - decrement)
+      };
+    });
+
+    if (cdId) {
+      setBoardData((prevBoard) => {
+        if (!prevBoard) return prevBoard;
+        return {
+          ...prevBoard,
+          lists: (prevBoard.lists || []).map((l) => ({
+            ...l,
+            cards: (l.cards || []).map((c) => {
+              if (Number(c.id) === cdId) {
+                const currentCount = c.comments_count ?? (c.comments?.length || 0);
+                return {
+                  ...c,
+                  comments_count: Math.max(0, currentCount - decrement)
+                };
+              }
+              return c;
+            })
+          }))
+        };
+      });
+    }
+  }, []);
+
+  // Synchronize comment counts without triggering cascade re-renders
+  const handleCommentCountChange = useCallback((count, cardId) => {
+    setSelectedCard((prev) => {
+      if (!prev || (cardId && Number(prev.id) !== Number(cardId)) || prev.comments_count === count) return prev;
+      return { ...prev, comments_count: count };
+    });
+    setBoardData((prevBoard) => {
+      if (!prevBoard) return prevBoard;
+      let changed = false;
+      const lists = (prevBoard.lists || []).map((l) => {
+        let listChanged = false;
+        const cards = (l.cards || []).map((c) => {
+          if (cardId && Number(c.id) === Number(cardId) && c.comments_count !== count) {
+            listChanged = true;
+            changed = true;
+            return { ...c, comments_count: count };
+          }
+          return c;
+        });
+        return listChanged ? { ...l, cards } : l;
+      });
+      return changed ? { ...prevBoard, lists } : prevBoard;
+    });
+  }, []);
+
   // Handle Real-Time WebSocket Board & Card Events directly in React state
   const handleLiveBoardSocketEvent = useCallback((eventName, data) => {
     if (!data) return;
+
+    if (eventName === 'comment:created' || eventName === 'comment:added') {
+      if (data.comment) {
+        handleCommentAdded(data.comment);
+      }
+      return;
+    }
+
+    if (eventName === 'comment:updated') {
+      if (data.comment) {
+        handleCommentUpdated(data.comment);
+      }
+      return;
+    }
+
+    if (eventName === 'comment:deleted') {
+      if (data.commentId) {
+        handleCommentDeleted(data.commentId, data.cardId);
+      }
+      return;
+    }
 
     setBoardData((prevBoard) => {
       if (!prevBoard) return prevBoard;
@@ -661,6 +826,7 @@ export default function BoardPage() {
           return { ...prevBoard, lists: updatedLists };
         }
 
+        case 'card:archived':
         case 'card:deleted': {
           const cardId = Number(data.cardId || data.card?.id);
           const updatedLists = (prevBoard.lists || []).map((l) => ({
@@ -676,45 +842,6 @@ export default function BoardPage() {
           });
 
           return { ...prevBoard, lists: updatedLists };
-        }
-
-        case 'comment:added': {
-          const cardId = Number(data.cardId || data.comment?.card_id);
-          const comment = data.comment;
-          if (comment) {
-            setSelectedCard((prevSelected) => {
-              if (prevSelected && prevSelected.id === cardId) {
-                const existing = (prevSelected.comments || []).some((cm) => cm.id === comment.id);
-                if (existing) return prevSelected;
-                return {
-                  ...prevSelected,
-                  comments: [...(prevSelected.comments || []), comment]
-                };
-              }
-              return prevSelected;
-            });
-
-            const updatedLists = (prevBoard.lists || []).map((l) => ({
-              ...l,
-              cards: (l.cards || []).map((c) => {
-                if (c.id === cardId) {
-                  const existingComments = c.comments || [];
-                  if (existingComments.some((cm) => cm.id === comment.id)) {
-                    return c;
-                  }
-                  const updatedComments = [...existingComments, comment];
-                  return {
-                    ...c,
-                    comments: updatedComments,
-                    comments_count: updatedComments.length
-                  };
-                }
-                return c;
-              })
-            }));
-            return { ...prevBoard, lists: updatedLists };
-          }
-          return prevBoard;
         }
 
         case 'member:added': {
@@ -1288,20 +1415,30 @@ export default function BoardPage() {
   };
 
   // Handler: Delete List
-  const handleDeleteList = async (listId) => {
-    const prevBoardData = boardData;
-    setBoardData((prev) => {
-      if (!prev) return prev;
-      return { ...prev, lists: (prev.lists || []).filter((l) => l.id !== listId) };
+  const handleDeleteList = (listId) => {
+    const list = (boardData?.lists || []).find((l) => l.id === listId);
+    const listName = list?.name ? `"${list.name}"` : 'this list';
+    openConfirmModal({
+      title: 'Delete List',
+      message: `Delete ${listName} and all its cards? This action cannot be undone.`,
+      confirmText: 'Delete List',
+      variant: 'danger',
+      onConfirm: async () => {
+        const prevBoardData = boardData;
+        setBoardData((prev) => {
+          if (!prev) return prev;
+          return { ...prev, lists: (prev.lists || []).filter((l) => l.id !== listId) };
+        });
+        try {
+          await deleteList(listId);
+          loadActiveBoard(activeBoardIdRef.current, true);
+          toast.success('List deleted');
+        } catch (err) {
+          setBoardData(prevBoardData);
+          toast.error(err?.message || 'Failed to delete list');
+        }
+      }
     });
-    try {
-      await deleteList(listId);
-      loadActiveBoard(activeBoardIdRef.current, true);
-      toast.success('List deleted');
-    } catch (err) {
-      setBoardData(prevBoardData);
-      toast.error(err?.message || 'Failed to delete list');
-    }
   };
 
   // Handler: Create Card
@@ -1382,6 +1519,9 @@ export default function BoardPage() {
   // Handler: Update Card Position / List (Move Card)
   const handleUpdateCardPosition = async (cardId, targetListId, newPosition) => {
     const prevBoardData = boardData;
+    const targetList = (prevBoardData?.lists || []).find((l) => l.id === targetListId);
+    const isTargetDone = Boolean(targetList?.is_done_list || ['done', 'completed', 'finished', 'closed', 'archive', 'archived'].includes(String(targetList?.name || '').trim().toLowerCase()));
+
     setBoardData((prev) => {
       if (!prev) return prev;
 
@@ -1389,7 +1529,7 @@ export default function BoardPage() {
       const newLists = prev.lists.map((l) => {
         const filteredCards = (l.cards || []).filter((c) => {
           if (c.id === cardId) {
-            movedCard = { ...c, list_id: targetListId, position: newPosition };
+            movedCard = { ...c, list_id: targetListId, position: newPosition, is_complete: isTargetDone };
             return false;
           }
           return true;
@@ -1408,8 +1548,12 @@ export default function BoardPage() {
       return { ...prev, lists: newLists };
     });
 
+    setSelectedCard((prev) =>
+      prev && prev.id === cardId ? { ...prev, list_id: targetListId, is_complete: isTargetDone } : prev
+    );
+
     try {
-      await updateCard(cardId, { list_id: targetListId, position: newPosition });
+      await updateCard(cardId, { list_id: targetListId, position: newPosition, is_complete: isTargetDone });
     } catch (err) {
       const isCompletionNoteErr =
         err?.code === 'ONE_LINE_RESULT_REQUIRED' ||
@@ -1429,6 +1573,7 @@ export default function BoardPage() {
               await updateCard(cardId, {
                 list_id: targetListId,
                 position: newPosition,
+                is_complete: true,
                 completion_note,
                 completion_evidence_url
               });
@@ -1454,9 +1599,10 @@ export default function BoardPage() {
     const targetCards = targetList?.cards || [];
     const maxPos = targetCards.length > 0 ? targetCards[targetCards.length - 1].position : 0;
     const newPosition = maxPos + 1000.0;
+    const isTargetDone = Boolean(targetList?.is_done_list || ['done', 'completed', 'finished', 'closed', 'archive', 'archived'].includes(String(targetList?.name || '').trim().toLowerCase()));
 
     setSelectedCard((prev) =>
-      prev && prev.id === cardId ? { ...prev, list_id: targetListId } : prev
+      prev && prev.id === cardId ? { ...prev, list_id: targetListId, is_complete: isTargetDone } : prev
     );
 
     await handleUpdateCardPosition(cardId, targetListId, newPosition);
@@ -1548,15 +1694,37 @@ export default function BoardPage() {
   };
 
   // Handler: Delete Card
-  const handleDeleteCard = async (cardId) => {
-    try {
-      await deleteCard(cardId);
-      setSelectedCard(null);
-      loadActiveBoard(activeBoardIdRef.current);
-      toast.success('Card deleted');
-    } catch (err) {
-      toast.error(err?.message || 'Failed to delete card');
+  const handleDeleteCard = (cardId) => {
+    let cardTitle = '';
+    if (selectedCard && Number(selectedCard.id) === Number(cardId)) {
+      cardTitle = selectedCard.title;
+    } else {
+      for (const l of boardData?.lists || []) {
+        const c = (l.cards || []).find((card) => Number(card.id) === Number(cardId));
+        if (c) {
+          cardTitle = c.title;
+          break;
+        }
+      }
     }
+    const cardName = cardTitle ? `"${cardTitle}"` : 'this card';
+
+    openConfirmModal({
+      title: 'Delete Card',
+      message: `Delete ${cardName}? This action cannot be undone.`,
+      confirmText: 'Delete Card',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteCard(cardId);
+          setSelectedCard(null);
+          loadActiveBoard(activeBoardIdRef.current);
+          toast.success('Card deleted');
+        } catch (err) {
+          toast.error(err?.message || 'Failed to delete card');
+        }
+      }
+    });
   };
 
   // Card Extra Handlers
@@ -1587,22 +1755,29 @@ export default function BoardPage() {
     }
   };
 
-  const handleAddComment = async (cardId, body) => {
+  const handleAddComment = async (cardId, payloadOrBody) => {
     try {
-      await addComment(cardId, body);
-      loadActiveBoard(activeBoardIdRef.current);
+      await addComment(cardId, payloadOrBody);
     } catch (err) {
       toast.error(err?.message || 'Failed to add comment');
     }
   };
 
-  const handleDeleteComment = async (commentId) => {
-    try {
-      await deleteComment(commentId);
-      loadActiveBoard(activeBoardIdRef.current);
-    } catch (err) {
-      toast.error(err?.message || 'Failed to delete comment');
-    }
+  const handleDeleteComment = (commentId) => {
+    openConfirmModal({
+      title: 'Delete Comment',
+      message: 'Delete this comment? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteComment(commentId);
+          toast.success('Comment deleted');
+        } catch (err) {
+          toast.error(err?.message || 'Failed to delete comment');
+        }
+      }
+    });
   };
 
   const handleAddChecklist = async (cardId, title, items = []) => {
@@ -1621,37 +1796,46 @@ export default function BoardPage() {
     }
   };
 
-  const handleDeleteChecklist = async (checklistId) => {
-    setSelectedCard((prev) => {
-      if (!prev || !prev.checklists) return prev;
-      return {
-        ...prev,
-        checklists: prev.checklists.filter((ch) => Number(ch.id) !== Number(checklistId))
-      };
-    });
-    setBoardData((prev) => {
-      if (!prev || !prev.lists) return prev;
-      return {
-        ...prev,
-        lists: prev.lists.map((l) => ({
-          ...l,
-          cards: (l.cards || []).map((c) => {
-            if (!c.checklists) return c;
-            return {
-              ...c,
-              checklists: c.checklists.filter((ch) => Number(ch.id) !== Number(checklistId))
-            };
-          })
-        }))
-      };
-    });
+  const handleDeleteChecklist = (checklistId) => {
+    openConfirmModal({
+      title: 'Delete Checklist',
+      message: 'Delete this checklist? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setSelectedCard((prev) => {
+          if (!prev || !prev.checklists) return prev;
+          return {
+            ...prev,
+            checklists: prev.checklists.filter((ch) => Number(ch.id) !== Number(checklistId))
+          };
+        });
+        setBoardData((prev) => {
+          if (!prev || !prev.lists) return prev;
+          return {
+            ...prev,
+            lists: prev.lists.map((l) => ({
+              ...l,
+              cards: (l.cards || []).map((c) => {
+                if (!c.checklists) return c;
+                return {
+                  ...c,
+                  checklists: c.checklists.filter((ch) => Number(ch.id) !== Number(checklistId))
+                };
+              })
+            }))
+          };
+        });
 
-    try {
-      await deleteChecklist(checklistId);
-      loadActiveBoard(activeBoardIdRef.current, true);
-    } catch (err) {
-      toast.error(err?.message || 'Failed to delete checklist');
-    }
+        try {
+          await deleteChecklist(checklistId);
+          loadActiveBoard(activeBoardIdRef.current, true);
+          toast.success('Checklist deleted');
+        } catch (err) {
+          toast.error(err?.message || 'Failed to delete checklist');
+        }
+      }
+    });
   };
 
   const handleAddChecklistItem = async (checklistId, text) => {
@@ -1728,51 +1912,59 @@ export default function BoardPage() {
     }
   };
 
-  const handleDeleteChecklistItem = async (itemId) => {
-    const prevSelectedCard = selectedCard;
-    const prevBoardData = boardData;
+  const handleDeleteChecklistItem = (itemId) => {
+    openConfirmModal({
+      title: 'Delete Checklist Item',
+      message: 'Delete this item? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        const prevSelectedCard = selectedCard;
+        const prevBoardData = boardData;
 
-    // Optimistically update selectedCard
-    setSelectedCard((prev) => {
-      if (!prev || !prev.checklists) return prev;
-      return {
-        ...prev,
-        checklists: prev.checklists.map((ch) => ({
-          ...ch,
-          items: (ch.items || []).filter((item) => Number(item.id) !== Number(itemId))
-        }))
-      };
+        // Optimistically update selectedCard
+        setSelectedCard((prev) => {
+          if (!prev || !prev.checklists) return prev;
+          return {
+            ...prev,
+            checklists: prev.checklists.map((ch) => ({
+              ...ch,
+              items: (ch.items || []).filter((item) => Number(item.id) !== Number(itemId))
+            }))
+          };
+        });
+
+        // Optimistically update boardData
+        setBoardData((prev) => {
+          if (!prev || !prev.lists) return prev;
+          return {
+            ...prev,
+            lists: prev.lists.map((l) => ({
+              ...l,
+              cards: (l.cards || []).map((c) => {
+                if (!c.checklists) return c;
+                return {
+                  ...c,
+                  checklists: c.checklists.map((ch) => ({
+                    ...ch,
+                    items: (ch.items || []).filter((item) => Number(item.id) !== Number(itemId))
+                  }))
+                };
+              })
+            }))
+          };
+        });
+
+        try {
+          await deleteChecklistItem(itemId);
+          loadActiveBoard(activeBoardIdRef.current, true);
+        } catch (err) {
+          setSelectedCard(prevSelectedCard);
+          setBoardData(prevBoardData);
+          toast.error(err?.message || 'Failed to delete checklist item');
+        }
+      }
     });
-
-    // Optimistically update boardData
-    setBoardData((prev) => {
-      if (!prev || !prev.lists) return prev;
-      return {
-        ...prev,
-        lists: prev.lists.map((l) => ({
-          ...l,
-          cards: (l.cards || []).map((c) => {
-            if (!c.checklists) return c;
-            return {
-              ...c,
-              checklists: c.checklists.map((ch) => ({
-                ...ch,
-                items: (ch.items || []).filter((item) => Number(item.id) !== Number(itemId))
-              }))
-            };
-          })
-        }))
-      };
-    });
-
-    try {
-      await deleteChecklistItem(itemId);
-      loadActiveBoard(activeBoardIdRef.current, true);
-    } catch (err) {
-      setSelectedCard(prevSelectedCard);
-      setBoardData(prevBoardData);
-      toast.error(err?.message || 'Failed to delete checklist item');
-    }
   };
 
   // Attachment Handlers
@@ -1810,20 +2002,32 @@ export default function BoardPage() {
     }
   };
 
-  const handleDeleteAttachment = async (attachmentId) => {
-    const prevSelectedCard = selectedCard;
-    setSelectedCard((prev) =>
-      prev
-        ? { ...prev, attachments: (prev.attachments || []).filter((a) => a.id !== attachmentId) }
-        : prev
-    );
-    try {
-      await deleteAttachment(attachmentId);
-      loadActiveBoard(activeBoardIdRef.current);
-    } catch (err) {
-      setSelectedCard(prevSelectedCard);
-      toast.error(err?.message || 'Failed to delete attachment');
-    }
+  const handleDeleteAttachment = (attachmentId) => {
+    const attachment = (selectedCard?.attachments || []).find((a) => a.id === attachmentId);
+    const attName = attachment?.file_name ? `"${attachment.file_name}"` : 'this attachment';
+
+    openConfirmModal({
+      title: 'Delete Attachment',
+      message: `Delete ${attName}? This action cannot be undone.`,
+      confirmText: 'Delete Attachment',
+      variant: 'danger',
+      onConfirm: async () => {
+        const prevSelectedCard = selectedCard;
+        setSelectedCard((prev) =>
+          prev
+            ? { ...prev, attachments: (prev.attachments || []).filter((a) => a.id !== attachmentId) }
+            : prev
+        );
+        try {
+          await deleteAttachment(attachmentId);
+          loadActiveBoard(activeBoardIdRef.current);
+          toast.success('Attachment deleted');
+        } catch (err) {
+          setSelectedCard(prevSelectedCard);
+          toast.error(err?.message || 'Failed to delete attachment');
+        }
+      }
+    });
   };
 
   const handleAddBoardMember = async (boardId, email) => {
@@ -1854,45 +2058,55 @@ export default function BoardPage() {
     }
   };
 
-  const handleDeleteBoardLabel = async (labelId) => {
+  const handleDeleteBoardLabel = (labelId) => {
     if (!activeBoardIdRef.current) return false;
-    const prevBoardData = boardData;
-    const prevSelectedCard = selectedCard;
+    const label = (boardData?.labels || []).find((l) => l.id === labelId);
+    const labelName = label?.name ? `"${label.name}"` : 'this label';
 
-    // Optimistically update board and card state
-    setBoardData((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        labels: (prev.labels || []).filter((l) => l.id !== labelId),
-        lists: (prev.lists || []).map((l) => ({
-          ...l,
-          cards: (l.cards || []).map((c) => ({
-            ...c,
-            labels: (c.labels || []).filter((cl) => cl.id !== labelId)
-          }))
-        }))
-      };
+    openConfirmModal({
+      title: 'Delete Label',
+      message: `Delete ${labelName}? This will remove it from all cards on this board.`,
+      confirmText: 'Delete Label',
+      variant: 'danger',
+      onConfirm: async () => {
+        const prevBoardData = boardData;
+        const prevSelectedCard = selectedCard;
+
+        setBoardData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            labels: (prev.labels || []).filter((l) => l.id !== labelId),
+            lists: (prev.lists || []).map((l) => ({
+              ...l,
+              cards: (l.cards || []).map((c) => ({
+                ...c,
+                labels: (c.labels || []).filter((cl) => cl.id !== labelId)
+              }))
+            }))
+          };
+        });
+
+        setSelectedCard((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            labels: (prev.labels || []).filter((cl) => cl.id !== labelId)
+          };
+        });
+
+        try {
+          await deleteBoardLabel(activeBoardIdRef.current, labelId);
+          toast.success('Label deleted');
+          return true;
+        } catch (err) {
+          setBoardData(prevBoardData);
+          setSelectedCard(prevSelectedCard);
+          toast.error(err?.message || 'Failed to delete label');
+          return false;
+        }
+      }
     });
-
-    setSelectedCard((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        labels: (prev.labels || []).filter((cl) => cl.id !== labelId)
-      };
-    });
-
-    try {
-      await deleteBoardLabel(activeBoardIdRef.current, labelId);
-      toast.success('Label deleted');
-      return true;
-    } catch (err) {
-      setBoardData(prevBoardData);
-      setSelectedCard(prevSelectedCard);
-      toast.error(err?.message || 'Failed to delete label');
-      return false;
-    }
   };
 
   return (
@@ -2382,10 +2596,16 @@ export default function BoardPage() {
                 setSearchParams((prev) => {
                   const next = new URLSearchParams(prev);
                   next.delete('card');
+                  next.delete('comment');
                   next.delete('modal');
                   return next;
                 });
               }}
+              highlightCommentId={searchParams.get('comment')}
+              onCommentCountChange={handleCommentCountChange}
+              onCommentAdded={handleCommentAdded}
+              onCommentUpdated={handleCommentUpdated}
+              onCommentDeleted={handleCommentDeleted}
               card={selectedCard}
               workspaces={workspaces}
               currentWorkspaceId={workspaceId || activeWorkspace?.id}

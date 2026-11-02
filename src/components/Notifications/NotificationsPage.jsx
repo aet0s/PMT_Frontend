@@ -366,11 +366,23 @@ export default function NotificationsPage({
       handleToggleRead(n);
     }
     if (onSelectNotificationCard && (n.card_id || n.board_id)) {
+      let meta = n.meta;
+      if (typeof meta === 'string') {
+        try {
+          meta = JSON.parse(meta);
+        } catch (_) {
+          meta = {};
+        }
+      }
+      const targetCommentId = meta?.commentId || meta?.comment_id || meta?.rootCommentId || n.comment_id || null;
+
       onSelectNotificationCard({
         cardId: n.card_id,
         boardId: n.board_id,
         workspaceId: n.workspace_id,
-        eventType: n.event_type || n.type
+        eventType: n.event_type || n.type,
+        commentId: targetCommentId,
+        meta
       });
     }
   };
@@ -772,7 +784,7 @@ export default function NotificationsPage({
                                 className="flex-1 min-w-0 cursor-pointer"
                                 onClick={() => handleCardClick(n)}
                               >
-                                <p className={`text-xs sm:text-sm leading-relaxed ${!n.is_read ? 'font-semibold text-text-primary' : 'font-normal text-text-secondary'}`}>
+                                <p className={`text-xs sm:text-sm leading-relaxed break-words line-clamp-3 ${!n.is_read ? 'font-semibold text-text-primary' : 'font-normal text-text-secondary'}`}>
                                   {n.message}
                                   {n.count > 1 && (
                                     <span className="ml-2 px-1.5 py-0.5 bg-primary-tint text-primary text-[10px] font-bold rounded-full border border-primary/20">

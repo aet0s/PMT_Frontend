@@ -4,7 +4,7 @@ import {
   Shield, Plus, Edit2, Trash2, CheckSquare, Square, Info, AlertTriangle,
   Copy, LayoutGrid, List, Check, X, Eye, UserCheck, ChevronDown, ChevronUp,
   Search, Lock, Unlock, CheckCircle2, SlidersHorizontal, Layers, Activity,
-  Archive, Users, BarChart3, Settings2, FolderKanban, Sparkles, Crown, Briefcase, User
+  Archive, Users, BarChart3, Settings2, FolderKanban, Sparkles, Crown, Briefcase, User, RotateCcw
 } from 'lucide-react';
 import Button from '../ui/Button';
 import Switch from '../ui/Switch';
@@ -261,6 +261,8 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [roleToDelete, setRoleToDelete] = useState(null);
+  const [roleToReset, setRoleToReset] = useState(null);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Effective Permissions Preview state
   const [allPermissionsList, setAllPermissionsList] = useState([]);
@@ -472,6 +474,32 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
     setRoleToDelete(role);
   };
 
+  const handleConfirmResetDefault = async () => {
+    if (!roleToReset) return;
+    const target = roleToReset;
+    try {
+      setIsResetting(true);
+      const res = await apiFetch(`/api/roles/${target.id}/reset-default`, {
+        method: 'POST',
+        body: JSON.stringify({ workspace_id: workspaceId })
+      });
+      const updated = res?.role;
+      if (updated) {
+        setRoles((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
+        if (editingRole && editingRole.id === updated.id) {
+          setSelectedPermissions(updated.permission_keys || []);
+          setEditingRole(updated);
+        }
+      }
+      onToast?.(res?.message || `Permissions for "${target.name}" reset to defaults`, 'success');
+      setRoleToReset(null);
+    } catch (err) {
+      onToast?.(err.message || 'Failed to reset role permissions', 'error');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-12 flex flex-col items-center justify-center text-text-muted gap-3">
@@ -588,6 +616,17 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
                           >
                             <Copy className="w-3 h-3" />
                           </button>
+                          {role.is_editable && (
+                            <button
+                              type="button"
+                              onClick={() => setRoleToReset(role)}
+                              title={`Reset ${role.name} permissions to default`}
+                              aria-label={`Reset ${role.name} permissions to default`}
+                              className="p-1 text-text-muted hover:text-warning rounded transition cursor-pointer"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                            </button>
+                          )}
                           {role.is_editable && !role.is_system && (
                             <button
                               type="button"
@@ -727,6 +766,17 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
                       >
                         <Copy className="w-4 h-4" />
                       </button>
+                      {isEditable && (
+                        <button
+                          type="button"
+                          onClick={() => setRoleToReset(role)}
+                          className="p-2 text-text-muted hover:text-warning hover:bg-warning-tint rounded-md transition cursor-pointer"
+                          title={`Reset ${role.name} permissions to default`}
+                          aria-label={`Reset ${role.name} permissions to default`}
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+                      )}
                       {isEditable && (
                         <button
                           onClick={() => handleOpenEdit(role)}
@@ -1463,14 +1513,29 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
               </div>
 
               {/* Modal Footer */}
-              <div className="pt-4 border-t border-border flex items-center justify-end gap-3 bg-surface-muted/50 -mx-6 -mb-6 p-4">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowModal(false)}
-                >
-                  {editingRole && !editingRole.is_editable ? 'Close' : 'Cancel'}
-                </Button>
+              <div className="pt-4 border-t border-border flex items-center justify-between gap-3 bg-surface-muted/50 -mx-6 -mb-6 p-4">
+                <div>
+                  {editingRole && editingRole.is_editable && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRoleToReset(editingRole)}
+                      leftIcon={<RotateCcw className="w-3.5 h-3.5 text-warning" />}
+                      className="text-text-primary hover:text-warning"
+                    >
+                      Reset to Default
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowModal(false)}
+                  >
+                    {editingRole && !editingRole.is_editable ? 'Close' : 'Cancel'}
+                  </Button>
                 {(!editingRole || editingRole.is_editable) && (
                   <Button
                     variant="primary"
@@ -1482,6 +1547,7 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
                     {editingRole ? 'Review & Save' : 'Create Role'}
                   </Button>
                 )}
+                </div>
               </div>
             </form>
           </div>
@@ -1592,6 +1658,17 @@ export default function RoleEditorTab({ workspaceId, onToast }) {
           }
         }}
         onCancel={() => setRoleToDelete(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!roleToReset}
+        title="Reset Role Permissions to Default?"
+        message={`Are you sure you want to reset all permissions for "${roleToReset?.name}" back to the system defaults? This will restore standard system permissions for all members assigned to this role.`}
+        confirmText="Reset to Default"
+        variant="warning"
+        isLoading={isResetting}
+        onConfirm={handleConfirmResetDefault}
+        onCancel={() => setRoleToReset(null)}
       />
     </div>
   );

@@ -194,6 +194,8 @@ export function SocketProvider({ children }) {
         'card.unassigned',
         'comment.mention',
         'comment.added',
+        'comment.reply',
+        'comment.thread_reply',
         'card.due_soon',
         'card.overdue'
       ]);
@@ -204,10 +206,20 @@ export function SocketProvider({ children }) {
       if (isPersonal) {
         playNotificationSound(notification);
 
+        let toastTitle = notification.title;
+        if (!toastTitle) {
+          if (evType === 'comment.reply') toastTitle = 'Comment Reply';
+          else if (evType === 'comment.thread_reply') toastTitle = 'Thread Reply';
+          else if (evType === 'comment.mention') toastTitle = 'Mention';
+          else if (evType === 'comment.added') toastTitle = 'New Comment';
+          else if (evType === 'card.assigned') toastTitle = 'Task Assigned';
+          else toastTitle = 'Notification';
+        }
+
         try {
           toastContext?.show?.({
             type: notification.priority === 'urgent' ? 'error' : 'info',
-            title: notification.title || 'Notification',
+            title: toastTitle,
             message: notification.message
           });
         } catch {

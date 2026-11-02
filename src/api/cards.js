@@ -69,10 +69,23 @@ export async function deleteAttachment(attachmentId) {
   });
 }
 
-export async function addComment(cardId, body) {
+export async function getCardComments(cardId) {
+  return apiFetch(`/api/cards/${cardId}/comments`);
+}
+
+export async function addComment(cardId, payloadOrBody) {
+  const payload = typeof payloadOrBody === 'string' ? { body: payloadOrBody } : payloadOrBody;
   return apiFetch(`/api/cards/${cardId}/comments`, {
     method: 'POST',
-    body: JSON.stringify({ body })
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateComment(commentId, payloadOrBody) {
+  const payload = typeof payloadOrBody === 'string' ? { body: payloadOrBody } : payloadOrBody;
+  return apiFetch(`/api/cards/comments/${commentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload)
   });
 }
 
@@ -80,6 +93,10 @@ export async function deleteComment(commentId) {
   return apiFetch(`/api/cards/comments/${commentId}`, {
     method: 'DELETE'
   });
+}
+
+export async function getMentionCandidates(cardId, query = '') {
+  return apiFetch(`/api/cards/${cardId}/mention-candidates?q=${encodeURIComponent(query)}`);
 }
 
 export async function addChecklist(cardId, title, items = []) {
