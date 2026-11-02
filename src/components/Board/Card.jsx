@@ -50,10 +50,14 @@ export default function Card({
   );
   const isMyCard = isAssignee || isAssigner;
 
-  const isCardCreator = Boolean(card?.created_by && currentUserId && Number(card.created_by) === currentUserId);
+  const { userRole } = usePermissions();
+  const userRank = Number(userRole?.rank || user?.rank || 30);
+  const roleName = String(userRole?.name || user?.role || '').toLowerCase();
+  const isTopLevel = userRank >= 50 || ['owner', 'super admin', 'admin', 'project manager', 'team lead'].includes(roleName);
+  const isCardCreator = Boolean(currentUserId && ((card?.created_by && Number(card.created_by) === currentUserId) || (card?.creator_id && Number(card.creator_id) === currentUserId)));
   const canDeleteCard = hasPermission('task.delete') || (hasPermission('task.delete_own') && isCardCreator);
   const canCopyCard = hasPermission('task.duplicate') || hasPermission('task.create');
-  const canArchiveCard = hasPermission('task.archive') || hasPermission('task.edit');
+  const canArchiveCard = (hasPermission('task.archive') || hasPermission('task.edit')) && (isTopLevel || isCardCreator);
   const hasAnyCardActions = (onCopyCard && canCopyCard) || (onUpdateCard && canArchiveCard) || (onDeleteCard && canDeleteCard);
   const statusConfig = getListStatusConfig(getCardDefaultStatus(card, listName));
 

@@ -381,8 +381,11 @@ export default function ArchivePage({
   onRestoreCard,
   onDeleteCard
 }) {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, userRole } = usePermissions();
   const { user } = useAuth();
+  const userRank = Number(userRole?.rank || user?.rank || 30);
+  const roleName = String(userRole?.name || user?.role || '').toLowerCase();
+  const isTopLevel = userRank >= 50 || ['owner', 'super admin', 'admin', 'project manager', 'team lead'].includes(roleName);
   const canDeleteWorkspace = hasPermission('workspace.delete') || ['owner', 'super admin'].includes(String(user?.role || '').toLowerCase()) || Boolean(user?.rank && user.rank >= 100);
   const canRestoreWorkspace = hasPermission('workspace.edit') || hasPermission('workspace.archive') || hasPermission('workspace.restore') || hasPermission('archive.restore') || ['owner', 'super admin', 'admin'].includes(String(user?.role || '').toLowerCase()) || Boolean(user?.rank && user.rank >= 80);
   const canDeleteBoard = hasPermission('project.delete') || hasPermission('archive.permanent_delete');
@@ -390,7 +393,10 @@ export default function ArchivePage({
   const canDeleteAnyCard = hasPermission('task.delete') || hasPermission('archive.permanent_delete');
   const canDeleteOwnCard = hasPermission('task.delete_own');
   const canDeleteCard = (c) => Boolean(canDeleteAnyCard || (canDeleteOwnCard && c?.created_by && user?.id && Number(c.created_by) === Number(user.id)));
-  const canRestoreCard = hasPermission('task.restore') || hasPermission('task.archive') || hasPermission('archive.restore') || hasPermission('task.edit');
+  const canRestoreCard = (c) => Boolean(
+    (hasPermission('task.restore') || hasPermission('task.archive') || hasPermission('archive.restore') || hasPermission('task.edit')) &&
+    (isTopLevel || (c?.created_by && user?.id && Number(c.created_by) === Number(user.id)))
+  );
 
   // Top level active tab: 'cards' | 'boards' | 'workspaces'
   const [activeTab, setActiveTab] = useState('cards');
@@ -1016,7 +1022,7 @@ export default function ArchivePage({
                               <span>Details</span>
                             </button>
 
-                            {canRestoreCard && onRestoreCard && (
+                            {canRestoreCard(card) && onRestoreCard && (
                               <button
                                 type="button"
                                 onClick={() => onRestoreCard(card.id)}
@@ -1304,7 +1310,7 @@ export default function ArchivePage({
                     <span>Delete Permanently</span>
                   </button>
                 )}
-                {canRestoreCard && onRestoreCard && (
+                {canRestoreCard(inspectCard) && onRestoreCard && (
                   <button
                     type="button"
                     onClick={() => {

@@ -15,12 +15,16 @@ export default function CardHeader({
   canModify = true,
   canComplete = true
 }) {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, userRole } = usePermissions();
   const { user } = useAuth();
-  const isCardCreator = Boolean(card?.created_by && user?.id && Number(card.created_by) === Number(user.id));
+  const currentUserId = user?.id ? Number(user.id) : null;
+  const userRank = Number(userRole?.rank || user?.rank || 30);
+  const roleName = String(userRole?.name || user?.role || '').toLowerCase();
+  const isTopLevel = userRank >= 50 || ['owner', 'super admin', 'admin', 'project manager', 'team lead'].includes(roleName);
+  const isCardCreator = Boolean(currentUserId && ((card?.created_by && Number(card.created_by) === currentUserId) || (card?.creator_id && Number(card.creator_id) === currentUserId)));
   const canMoveCard = hasPermission('task.move') && canModify;
   const canEditCard = hasPermission('task.edit') && canModify;
-  const canArchiveCard = hasPermission('task.archive') || (hasPermission('task.edit') && canModify);
+  const canArchiveCard = (hasPermission('task.archive') || hasPermission('task.edit')) && (isTopLevel || isCardCreator);
   const canCreateCard = hasPermission('task.create');
   const canDeleteCard = (hasPermission('task.delete') || (hasPermission('task.delete_own') && isCardCreator)) && canModify;
 
