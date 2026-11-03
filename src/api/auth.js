@@ -97,8 +97,10 @@ export async function updateProfile(data) {
 
 export async function uploadAvatar(file) {
   const formData = new FormData();
+  formData.append('file', file);
   formData.append('avatar', file);
-  return apiFetch('/api/files/avatar', {
+  formData.append('purpose', 'avatar');
+  return apiFetch('/api/upload', {
     method: 'POST',
     body: formData
   });

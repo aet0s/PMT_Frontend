@@ -4,7 +4,7 @@ import { WifiOff, RefreshCw } from 'lucide-react';
 import { useSocket } from '../../context/SocketProvider';
 
 export function SocketReconnectBanner() {
-  const { isConnected } = useSocket();
+  const { isConnected = false } = useSocket() || {};
 
   if (isConnected) return null;
 

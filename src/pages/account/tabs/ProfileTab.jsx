@@ -75,7 +75,11 @@ export default function ProfileTab({ setFormDirty }) {
   const handleCropConfirmed = async (croppedFile) => {
     setIsUploadingAvatar(true);
     try {
-      await uploadAvatar(croppedFile);
+      const uploadRes = await uploadAvatar(croppedFile);
+      const newAvatarUrl = uploadRes?.file?.file_url || uploadRes?.avatar_url;
+      if (newAvatarUrl) {
+        await updateUserProfile({ avatar_url: newAvatarUrl });
+      }
       await refreshUser();
       setIsCropOpen(false);
       setCropFile(null);

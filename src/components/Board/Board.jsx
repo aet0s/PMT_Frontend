@@ -260,7 +260,7 @@ export default function Board({
   const [activeMobileListId, setActiveMobileListId] = useState('all');
 
   // Socket & Live Multiplayer Drag Cursors State
-  const { socket } = useSocket();
+  const { socket } = useSocket() || {};
   const [remoteDragCursors, setRemoteDragCursors] = useState({});
 
   // Remote teammate drag cursor updates

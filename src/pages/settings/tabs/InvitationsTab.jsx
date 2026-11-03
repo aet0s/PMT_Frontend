@@ -11,7 +11,7 @@ import { useSocket } from '../../../context/SocketProvider';
 export default function InvitationsTab({ workspace, onOpenInvite }) {
   const toast = useToast();
   const { hasPermission } = usePermissions();
-  const { socket, originId } = useSocket();
+  const { socket, originId } = useSocket() || {};
   const canInvite = hasPermission('member.invite');
 
   const [invitations, setInvitations] = useState([]);

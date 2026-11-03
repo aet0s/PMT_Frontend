@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketProvider';
 import { shouldIgnoreIncomingEvent } from '../lib/mutationTracker';
 
 export function useBoardSocket(boardId, onBoardEvent, onRefreshBoard) {
-  const { socket, originId, connected } = useSocket();
+  const { socket, originId, connected } = useSocket() || {};
   const [onlineMembers, setOnlineMembers] = useState([]);
   const [highlightedCardId, setHighlightedCardId] = useState(null);
 

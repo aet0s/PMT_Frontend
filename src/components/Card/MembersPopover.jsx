@@ -65,14 +65,7 @@ export default function MembersPopover({
 
       return { isLocked: false, reason: '' };
     } else {
-      // 3. Team members cannot assign an existing card assigner as an assignee
-      if (isAssigner(memberId)) {
-        return {
-          isLocked: true,
-          reason: 'Card assigners cannot be assigned as assignees by team members'
-        };
-      }
-
+      // Team members can assign anyone on the board as an assignee, including self
       return { isLocked: false, reason: '' };
     }
   };

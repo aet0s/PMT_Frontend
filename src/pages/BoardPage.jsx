@@ -69,7 +69,7 @@ import { getFileUrl } from '../api/config';
 export default function BoardPage() {
   const toast = useToast();
   const { user } = useAuth();
-  const { socket } = useSocket();
+  const { socket } = useSocket() || {};
   const { workspaceId, '*': subPath = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -1527,15 +1527,10 @@ export default function BoardPage() {
       .flatMap((l) => l.cards || [])
       .find((c) => c.id === cardId);
 
-    const userRoleName = String(
-      boardData?.members?.find((m) => Number(m.id || m.user_id) === Number(user?.id))?.role ||
-      activeWorkspace?.role_name ||
-      activeWorkspace?.role ||
-      user?.role ||
-      ''
-    ).toLowerCase();
-
-    const isTopLevel = ['owner', 'super admin', 'admin', 'project manager', 'team lead', 'team leader', 'lead'].includes(userRoleName);
+    const wsRole = String(activeWorkspace?.role_name || activeWorkspace?.role || user?.role || '').toLowerCase();
+    const boardMemberRole = String(boardData?.members?.find((m) => Number(m.id || m.user_id) === Number(user?.id))?.role || '').toLowerCase();
+    const managerKeywords = ['owner', 'super admin', 'admin', 'project manager', 'team lead', 'team leader', 'lead'];
+    const isTopLevel = managerKeywords.some((r) => wsRole.includes(r) || boardMemberRole.includes(r));
     const isAssigner = user && cardObj && (cardObj.assigners || []).some((a) => Number(a.id || a.user_id) === Number(user.id));
 
     if (isTargetDone && !isTopLevel && !isAssigner) {

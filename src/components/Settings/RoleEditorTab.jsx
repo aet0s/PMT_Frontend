@@ -247,7 +247,7 @@ function RoleSelectorDropdown({ roles, selectedRoleId, onSelectRole }) {
 }
 
 export default function RoleEditorTab({ workspaceId, onToast }) {
-  const { socket, originId } = useSocket();
+  const { socket, originId } = useSocket() || {};
   const [roles, setRoles] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);

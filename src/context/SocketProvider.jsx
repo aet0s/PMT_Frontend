@@ -14,7 +14,33 @@ import { playNotificationBellSound } from '../lib/notificationSound';
 import { useToast } from '../components/ui/Toast';
 import { useNotificationSound } from './NotificationSoundContext';
 
-const SocketContext = createContext(null);
+export const FALLBACK_SOCKET_CONTEXT = {
+  socket: null,
+  connected: false,
+  isConnected: false,
+  originId: '',
+  notifications: [],
+  unreadCount: 0,
+  byBoardUnread: {},
+  byCategoryUnread: {},
+  mutes: { boards: [], cards: [] },
+  isBoardMuted: () => false,
+  isCardMuted: () => false,
+  markAsRead: () => {},
+  markAsUnread: () => {},
+  markAllAsRead: () => {},
+  markBoardAsRead: () => {},
+  deleteNotificationItem: () => {},
+  clearAllRead: () => {},
+  muteBoard: () => {},
+  unmuteBoard: () => {},
+  muteCard: () => {},
+  unmuteCard: () => {},
+  refetchNotifications: () => {},
+  refetchSummary: () => {}
+};
+
+const SocketContext = createContext(FALLBACK_SOCKET_CONTEXT);
 
 // Generate unique in-memory originId per browser tab
 function getTabOriginId() {
@@ -454,6 +480,7 @@ export function SocketProvider({ children }) {
       value={{
         socket,
         connected,
+        isConnected: connected,
         originId: originIdRef.current,
         notifications,
         unreadCount,
@@ -482,5 +509,6 @@ export function SocketProvider({ children }) {
 }
 
 export function useSocket() {
-  return useContext(SocketContext);
+  const context = useContext(SocketContext);
+  return context || FALLBACK_SOCKET_CONTEXT;
 }

@@ -70,7 +70,7 @@ export default function CardDetailModal({
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState(highlightCommentId ? 'comments' : 'details');
 
-  const { socket } = useSocket();
+  const { socket } = useSocket() || {};
   const effectiveBoardId = card?.board_id || currentBoardId;
 
   // Ensure socket joins the board room so all card events (comments, replies, checklists) update in real-time
@@ -103,7 +103,7 @@ export default function CardDetailModal({
   const isCreator = user && card.created_by && Number(card.created_by) === Number(user.id);
   const isAssignee = user && (card.members || []).some((m) => Number(m.id) === Number(user.id));
   const isAssigner = user && (card.assigners || []).some((a) => Number(a.id) === Number(user.id));
-  const canModifyCard = isTopLevel || isCreator || isAssignee || isAssigner;
+  const canModifyCard = isTopLevel || isCreator || isAssignee || isAssigner || hasPermission('task.edit') || hasPermission('task.assign');
   const canCompleteCard = isTopLevel || isAssigner;
   const canManageAssigners = isTopLevel || isAssigner;
 
@@ -445,7 +445,7 @@ export default function CardDetailModal({
         cardMembers={card.members || []}
         boardMembers={boardMembers}
         onToggleMember={(userId) => onToggleMember(card.id, userId)}
-        canManageAll={canManageAssigners}
+        canManageAll={canManageAssigners || hasPermission('task.assign')}
         currentUserId={user?.id}
         cardAssigners={card.assigners || []}
       />

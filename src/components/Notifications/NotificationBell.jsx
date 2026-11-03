@@ -19,7 +19,7 @@ import { useSocket } from '../../context/SocketProvider';
 import { formatShortDate, formatRelativeTime } from '../../lib/dateFormat';
 
 export default function NotificationBell({ onSelectNotificationCard, onOpenAllNotifications }) {
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useSocket();
+  const { notifications = [], unreadCount = 0, markAsRead = () => {}, markAllAsRead = () => {} } = useSocket() || {};
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 

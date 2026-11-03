@@ -26,7 +26,7 @@ export default function ThreadedCommentList({
   const onCommentCountChangeRef = useRef(onCommentCountChange);
   onCommentCountChangeRef.current = onCommentCountChange;
 
-  const { socket } = useSocket();
+  const { socket } = useSocket() || {};
   const [comments, setComments] = useState([]);
   const [totalCount, setTotalCount] = useState(card?.comments_count || 0);
   const [commentToDelete, setCommentToDelete] = useState(null);

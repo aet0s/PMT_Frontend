@@ -45,7 +45,7 @@ import { useSocket } from '../../../context/SocketProvider';
 export default function MembersTab({ workspace, onOpenInvite }) {
   const toast = useToast();
   const { hasPermission } = usePermissions();
-  const { socket, originId } = useSocket();
+  const { socket, originId } = useSocket() || {};
   const canManageMembers = hasPermission('member.assign_role');
   const canInvite = hasPermission('member.invite');
 

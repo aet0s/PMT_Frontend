@@ -104,7 +104,7 @@ export default function NotificationsPage({
     markBoardAsRead,
     refetchNotifications,
     refetchSummary
-  } = useSocket();
+  } = useSocket() || {};
 
   const toast = useToast();
 
