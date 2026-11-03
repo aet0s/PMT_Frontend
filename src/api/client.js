@@ -142,11 +142,13 @@ function isDeliberateException(url, options) {
   // Infrastructure server time sync
   if (url.includes('/api/time')) return true;
   // Public encryption key fetch
-  if (url.includes('/keys/server-public.pem')) return true;
+  if (url.includes('/keys/server-public.pem') || url.includes('/api/public-key')) return true;
   // System health check
   if (url.includes('/api/health')) return true;
-  // Direct secure endpoint
-  if (url === '/api/secure' || url.endsWith('/api/secure')) return true;
+  // Direct pre-encrypted secure envelope (never bypass if options has unencrypted operation/data)
+  if ((url === '/api/secure' || url.endsWith('/api/secure')) && options?.body && typeof options.body === 'object' && options.body.encrypted && options.body.version) {
+    return true;
+  }
 
   return false;
 }

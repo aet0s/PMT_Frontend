@@ -54,7 +54,10 @@ export async function getLoadedServerPublicKey() {
 
   let pemText = '';
   try {
-    const res = await fetch(getApiUrl('/keys/server-public.pem'), { cache: 'force-cache', credentials: 'include' });
+    let res = await fetch(getApiUrl('/keys/server-public.pem'), { cache: 'force-cache', credentials: 'include' });
+    if (!res.ok) {
+      res = await fetch(getApiUrl('/api/public-key'), { cache: 'force-cache', credentials: 'include' });
+    }
     if (res.ok) {
       pemText = await res.text();
     }
