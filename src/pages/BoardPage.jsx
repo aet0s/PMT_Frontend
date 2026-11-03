@@ -1523,6 +1523,26 @@ export default function BoardPage() {
     const targetList = (prevBoardData?.lists || []).find((l) => l.id === targetListId);
     const isTargetDone = Boolean(targetList?.is_done_list || ['done', 'completed', 'finished', 'closed', 'archive', 'archived'].includes(String(targetList?.name || '').trim().toLowerCase()));
 
+    const cardObj = (prevBoardData?.lists || [])
+      .flatMap((l) => l.cards || [])
+      .find((c) => c.id === cardId);
+
+    const userRoleName = String(
+      boardData?.members?.find((m) => Number(m.id || m.user_id) === Number(user?.id))?.role ||
+      activeWorkspace?.role_name ||
+      activeWorkspace?.role ||
+      user?.role ||
+      ''
+    ).toLowerCase();
+
+    const isTopLevel = ['owner', 'super admin', 'admin', 'project manager', 'team lead', 'team leader', 'lead'].includes(userRoleName);
+    const isAssigner = user && cardObj && (cardObj.assigners || []).some((a) => Number(a.id || a.user_id) === Number(user.id));
+
+    if (isTargetDone && !isTopLevel && !isAssigner) {
+      toast.error('Only assigners can move cards to Done');
+      return;
+    }
+
     setBoardData((prev) => {
       if (!prev) return prev;
 

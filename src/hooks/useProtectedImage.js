@@ -8,6 +8,17 @@ import { fetchProtectedFileBlob } from '../api/client';
 const blobUrlCache = new Map();
 const pendingRequests = new Map();
 
+function isDirectUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  if (url.startsWith('blob:') || url.startsWith('data:')) return true;
+  if (/^https?:\/\//i.test(url)) {
+    // Only route internal /api/files/ and /uploads/ paths through the encrypted gateway
+    const isInternalFile = url.includes('/api/files/') || url.includes('/uploads/');
+    return !isInternalFile;
+  }
+  return false;
+}
+
 /**
  * Loads a protected image URL via the encrypted gateway and returns a local object URL.
  * @param {string|null} filePath - Stored image URL or relative path (e.g. /api/files/1/workspaces/ws_1_... or blob:/data:)
@@ -16,7 +27,7 @@ const pendingRequests = new Map();
 export function useProtectedImage(filePath) {
   const [blobUrl, setBlobUrl] = useState(() => {
     if (!filePath) return null;
-    if (typeof filePath === 'string' && (filePath.startsWith('blob:') || filePath.startsWith('data:'))) {
+    if (typeof filePath === 'string' && isDirectUrl(filePath)) {
       return filePath;
     }
     return blobUrlCache.get(filePath) || null;
@@ -30,8 +41,8 @@ export function useProtectedImage(filePath) {
       return;
     }
 
-    // Direct data or blob URLs do not require fetching
-    if (filePath.startsWith('blob:') || filePath.startsWith('data:')) {
+    // Direct data, blob, or external third-party URLs do not require fetching
+    if (isDirectUrl(filePath)) {
       setBlobUrl(filePath);
       return;
     }

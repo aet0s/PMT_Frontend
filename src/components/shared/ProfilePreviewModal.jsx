@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ExternalLink, User } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import Badge from '../ui/Badge';
-import { getFileUrl } from '../../api/config';
+import { useProtectedImage } from '../../hooks/useProtectedImage';
 
 export default function ProfilePreviewModal({
   isOpen,
@@ -19,19 +19,16 @@ export default function ProfilePreviewModal({
     member?.user?.avatar_url ||
     member?.user?.avatar ||
     member?.icon_url ||
-    member?.icon;
+    member?.icon ||
+    null;
 
-  const fullImageUrl = rawUrl
-    ? (rawUrl.startsWith('http') || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')
-      ? rawUrl
-      : getFileUrl(rawUrl))
-    : null;
+  const blobUrl = useProtectedImage(isOpen ? rawUrl : null);
 
   useEffect(() => {
     if (isOpen) {
       setImageLoading(true);
     }
-  }, [isOpen, fullImageUrl]);
+  }, [isOpen, blobUrl]);
 
   const displayName = member?.name || member?.user?.name || member?.email || 'User Profile';
   const role = member?.role || member?.user?.role || member?.role_name || '';
@@ -66,7 +63,7 @@ export default function ProfilePreviewModal({
       <div className="flex flex-col items-center justify-center space-y-4">
         {/* Preview Area */}
         <div className="relative w-full max-h-[70vh] flex items-center justify-center overflow-auto rounded-xl bg-surface-muted/50 border border-border/80 p-4">
-          {fullImageUrl ? (
+          {blobUrl ? (
             <div className="relative flex items-center justify-center max-w-full max-h-full">
               {imageLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-surface/60 backdrop-blur-xs rounded-xl z-10">
@@ -74,7 +71,7 @@ export default function ProfilePreviewModal({
                 </div>
               )}
               <img
-                src={fullImageUrl}
+                src={blobUrl}
                 alt={displayName}
                 onLoad={() => setImageLoading(false)}
                 className="select-none rounded-xl object-contain shadow-md max-w-full max-h-[65vh] h-auto w-auto"
@@ -94,10 +91,10 @@ export default function ProfilePreviewModal({
         </div>
 
         {/* Footer Actions - Only Open Full Size */}
-        {fullImageUrl && (
+        {blobUrl && (
           <div className="w-full flex items-center justify-end pt-1">
             <a
-              href={fullImageUrl}
+              href={blobUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-border text-xs font-semibold text-text-primary hover:bg-surface-hover hover:border-primary/50 transition-colors shadow-2xs"

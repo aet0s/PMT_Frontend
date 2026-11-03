@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getFileUrl } from '../../api/config';
+import { useProtectedImage } from '../../hooks/useProtectedImage';
 
 const SIZES = {
   xs: 'w-6 h-6 text-[10px]',
@@ -62,24 +62,23 @@ export function Avatar({
     user?.avatar ||
     user?.user_avatar ||
     user?.user_avatar_url ||
-    user?.author_avatar;
-  const finalSrc = rawUrl
-    ? (rawUrl.startsWith('http') || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')
-        ? rawUrl
-        : getFileUrl(rawUrl))
-    : null;
+    user?.author_avatar ||
+    null;
+
+  const effectiveUrl = rawUrl && !imgError ? rawUrl : null;
+  const blobUrl = useProtectedImage(effectiveUrl);
 
   useEffect(() => {
     setImgError(false);
-  }, [finalSrc]);
+  }, [rawUrl]);
 
-  const showImage = Boolean(finalSrc && !imgError);
+  const showImage = Boolean(blobUrl && !imgError);
 
   return (
     <div className={`relative inline-flex items-center justify-center shrink-0 rounded-full ${sizeClass} ${className}`} {...props}>
       {showImage ? (
         <img
-          src={finalSrc}
+          src={blobUrl}
           alt={displayName || 'Avatar'}
           onError={() => setImgError(true)}
           className="w-full h-full rounded-full object-cover border border-border/80 shadow-2xs"
