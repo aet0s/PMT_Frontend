@@ -33,6 +33,7 @@ const AuditLogPage = safeLazy(() => import('../pages/AuditLogPage'), 'AuditLogPa
 const MyTasksPage = safeLazy(() => import('../pages/MyTasksPage'), 'MyTasksPage');
 import GlobalHeader from '../components/Navigation/GlobalHeader';
 import CheckinPopup from '../components/DailyTracker/CheckinPopup';
+import WorkspaceIcon from '../components/Workspace/WorkspaceIcon';
 
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, autoArchiveWorkspaceCards } from '../api/workspaces';
 import { getBoards, createBoard, getBoard, updateBoard, deleteBoard, addBoardMember, createBoardLabel, deleteBoardLabel } from '../api/boards';
@@ -2214,17 +2215,12 @@ export default function BoardPage() {
                         className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-surface-muted transition-colors cursor-pointer text-left border border-transparent hover:border-border"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          {ws.icon_url || ws.settings?.icon_url ? (
-                            <img
-                              src={getFileUrl(ws.icon_url || ws.settings?.icon_url)}
-                              alt={ws.name}
-                              className="w-7 h-7 rounded-lg object-cover shrink-0 ring-1 ring-border/50"
-                            />
-                          ) : (
-                            <div className="w-7 h-7 rounded-lg bg-primary-tint text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                              {ws.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
+                          <WorkspaceIcon
+                            workspace={ws}
+                            size="md"
+                            className="w-7 h-7 rounded-lg"
+                            imgClassName="w-7 h-7 rounded-lg object-cover shrink-0 ring-1 ring-border/50"
+                          />
                           <span className="text-sm font-medium text-text-primary truncate">{ws.name}</span>
                         </div>
                         <span className="text-xs text-primary font-semibold shrink-0">Open &rarr;</span>

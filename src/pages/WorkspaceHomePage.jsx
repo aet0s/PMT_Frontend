@@ -34,6 +34,7 @@ import { Select } from '../components/ui/Select';
 import { getBoardBgClass, getBoardStyle } from '../lib/palettes';
 import { getTimeBasedGreeting, fetchServerGreeting, getCurrentServerDate } from '../lib/serverTime';
 import { getFileUrl } from '../api/config';
+import WorkspaceIcon from '../components/Workspace/WorkspaceIcon';
 import { usePermissions } from '../context/PermissionContext';
 import { getUserPref, setUserPref } from '../lib/storage';
 
@@ -79,7 +80,7 @@ export default function WorkspaceHomePage({
 
   const canCreateBoard = !isMemberOrBelow && (isOwner || hasPermission('project.create'));
   const canViewMembers = !isMemberOrBelow && roleName !== 'project manager' && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
-  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_project') || hasPermission('role.view'));
+  const canViewReports = hasPermission('report.view_project');
   const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit'));
   const canViewArchive = !isMemberOrBelow && (isOwner || hasPermission('archive.view'));
 
@@ -252,13 +253,12 @@ export default function WorkspaceHomePage({
                   Workspace Overview
                 </span>
                 <span className="px-3 py-1 rounded-full text-xs font-semibold bg-surface-muted border border-border text-text-secondary flex items-center gap-1.5">
-                  {(workspace?.icon_url || workspace?.settings?.icon_url) && (
-                    <img
-                      src={getFileUrl(workspace.icon_url || workspace.settings?.icon_url)}
-                      alt=""
-                      className="w-4 h-4 rounded-sm object-cover"
-                    />
-                  )}
+                  <WorkspaceIcon
+                    workspace={workspace}
+                    size="xs"
+                    className="w-4 h-4 rounded-sm"
+                    imgClassName="w-4 h-4 rounded-sm object-cover"
+                  />
                   {workspace?.name || 'TaskFlow Workspace'}
                 </span>
                 {workspace?.assigned_tasks_count > 0 && (

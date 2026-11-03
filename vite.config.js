@@ -4,40 +4,57 @@ import tailwindcss from '@tailwindcss/vite';
 import fs from 'fs';
 import path from 'path';
 
-function cspPlugin(apiUrl, isProd) {
+function cspPlugin(isProd) {
   return {
     name: 'html-csp-transform',
     transformIndexHtml(html) {
-      let connectSrc = "'self'";
+      let connectSrc = "'self' blob:";
       let imgSrc = "'self' data: blob:";
+      let scriptSrc = '';
 
-      if (apiUrl) {
-        try {
-          const parsed = new URL(apiUrl);
-          const origin = parsed.origin;
-          const wsProtocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
-          const wsOrigin = `${wsProtocol}//${parsed.host}`;
-          connectSrc += ` ${origin} ${wsOrigin}`;
-          imgSrc += ` ${origin}`;
-        } catch {
-          connectSrc += ` ${apiUrl}`;
-        }
-      }
+      const prodApiOrigin = 'https://pmtmgmt.solarman.in';
+      const prodWsOrigin = 'wss://pmtmgmt.solarman.in';
+
+      const devBackendOrigin = 'http://127.0.0.1:5000';
+      const devWsOrigin = 'ws://127.0.0.1:5000';
 
       if (isProd) {
-        if (!connectSrc.includes('https:')) connectSrc += ' https: wss:';
-        if (!imgSrc.includes('https:')) imgSrc += ' https:';
+        // PRODUCTION CSP: Strictly production domains only (no loopback, localhost, or dev endpoints)
+        connectSrc += ` ${prodApiOrigin} ${prodWsOrigin}`;
+        imgSrc += ` ${prodApiOrigin}`;
+        scriptSrc = "'self' https://www.gstatic.com";
       } else {
-        connectSrc += ' http: ws: https: wss:';
-        imgSrc += ' http: https:';
+        // DEVELOPMENT CSP: Allows local dev backend and Vite HMR
+        connectSrc += ` ${devBackendOrigin} ${devWsOrigin} http://localhost:5000 ws://localhost:5000 ws://localhost:5173 ws://127.0.0.1:5173`;
+        imgSrc += ` ${devBackendOrigin} http://localhost:5000`;
+        scriptSrc = "'self' 'unsafe-inline' https://www.gstatic.com";
       }
 
-      // Allow Firebase and FCM origins
-      connectSrc += ' https://fcm.googleapis.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com';
+      // Strictly allowed Firebase / FCM endpoints (no broad wildcard https: or wss:)
+      connectSrc += ' https://fcm.googleapis.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com';
+
+      const styleSrc = "'self' 'unsafe-inline' https://fonts.googleapis.com";
+      const fontSrc = "'self' https://fonts.gstatic.com data:";
       const workerSrc = "'self' blob:";
-      const frameSrc = `'self' blob: data: https://view.officeapps.live.com https://*.officeapps.live.com https://docs.google.com`;
-      const objectSrc = `'self' blob:`;
-      const csp = `default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src ${imgSrc} data: blob:; connect-src ${connectSrc} blob:; worker-src ${workerSrc}; frame-src ${frameSrc}; object-src ${objectSrc}; base-uri 'self';`;
+      const frameSrc = "'self' blob: data: https://view.officeapps.live.com https://docs.google.com";
+      const objectSrc = "'none'";
+      const baseUri = "'self'";
+      const formAction = "'self'";
+
+      const csp = [
+        "default-src 'self'",
+        `script-src ${scriptSrc}`,
+        `style-src ${styleSrc}`,
+        `font-src ${fontSrc}`,
+        `img-src ${imgSrc}`,
+        `connect-src ${connectSrc}`,
+        `worker-src ${workerSrc}`,
+        `frame-src ${frameSrc}`,
+        `object-src ${objectSrc}`,
+        `base-uri ${baseUri}`,
+        `form-action ${formAction}`
+      ].join('; ') + ';';
+
       const metaTag = `<meta http-equiv="Content-Security-Policy" content="${csp}" />`;
 
       return html.replace('<!-- CSP_META -->', metaTag);
@@ -150,14 +167,14 @@ self.addEventListener('pushsubscriptionchange', (event) => {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiTarget = 'http://127.0.0.1:5000';
+  const devApiTarget = 'http://127.0.0.1:5000';
   const isProd = mode === 'production';
 
   return {
     plugins: [
       react(),
       tailwindcss(),
-      cspPlugin(apiTarget, isProd),
+      cspPlugin(isProd),
       firebaseSwPlugin(env)
     ],
     test: {
@@ -166,20 +183,21 @@ export default defineConfig(({ mode }) => {
       setupFiles: './src/test/setup.js'
     },
     server: {
+      host: '0.0.0.0',
       port: 5173,
       proxy: {
         '/api': {
-          target: apiTarget,
+          target: devApiTarget,
           changeOrigin: true,
           secure: false
         },
         '/uploads': {
-          target: apiTarget,
+          target: devApiTarget,
           changeOrigin: true,
           secure: false
         },
         '/socket.io': {
-          target: apiTarget,
+          target: devApiTarget,
           changeOrigin: true,
           ws: true,
           secure: false

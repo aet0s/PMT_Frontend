@@ -40,6 +40,7 @@ import {
   getWorkspaceAuditEventDetail,
   verifyWorkspaceAuditIntegrity
 } from '../api/workspaces';
+import { apiFetch } from '../api/client';
 import { usePermissions } from '../context/PermissionContext';
 import { useToast } from '../components/ui/Toast';
 import { Drawer } from '../components/ui/Drawer';
@@ -465,42 +466,12 @@ export default function AuditLogPage({ workspace }) {
       if (qParam) params.set('q', qParam);
       if (ipParam) params.set('ip', ipParam);
 
-      const token = typeof window !== 'undefined'
-        ? (sessionStorage.getItem('pm_token') || localStorage.getItem('pm_token'))
-        : null;
-
-      if (token) {
-        params.set('token', token);
-      }
-
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const exportUrl = getApiUrl(`/api/workspaces/${workspace.id}/audit-events/export?${params.toString()}`);
-      const res = await fetch(exportUrl, {
-        headers,
-        credentials: 'include'
-      });
-
-      if (!res.ok) {
-        let errMessage = 'Failed to export audit logs';
-        try {
-          const errData = await res.json();
-          if (errData?.error?.message) errMessage = errData.error.message;
-          else if (errData?.message) errMessage = errData.message;
-        } catch (_) {}
-        throw new Error(errMessage);
-      }
-
-      const blob = await res.blob();
-      const disposition = res.headers.get('Content-Disposition') || '';
-      let filename = `audit-export-ws-${workspace.id}.${format}`;
-      const match = disposition.match(/filename="?([^";]+)"?/);
-      if (match && match[1]) {
-        filename = match[1];
-      }
+      // Encrypted POST-only export via /api/secure
+      const exportData = await apiFetch(`/api/workspaces/${workspace.id}/audit-events/export?${params.toString()}`);
+      const exportContent = typeof exportData === 'string' ? exportData : JSON.stringify(exportData, null, 2);
+      const mimeType = format === 'json' ? 'application/json' : 'text/csv';
+      const blob = new Blob([exportContent], { type: mimeType });
+      const filename = `audit-export-ws-${workspace.id}.${format}`;
 
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');

@@ -1,7 +1,7 @@
 // client/src/utils/permissionUtils.js
 // Pure, deterministic RBAC permission evaluator backed by canonical permissions.json
 
-import permissionsData from '../rbac/permissions.json';
+import permissionsData from '../rbac/permissions.json' with { type: 'json' };
 
 const aliases = permissionsData?.aliases || {};
 

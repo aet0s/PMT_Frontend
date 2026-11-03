@@ -23,7 +23,7 @@ import * as XLSX from 'xlsx';
 import { renderAsync } from 'docx-preview';
 import 'x-data-spreadsheet/dist/xspreadsheet.js';
 import 'x-data-spreadsheet/dist/xspreadsheet.css';
-import { apiFetch } from '../../api/client';
+import { apiFetch, downloadProtectedFile, fetchProtectedFileBlob } from '../../api/client';
 import { getApiUrl } from '../../api/config';
 
 /**
@@ -31,25 +31,29 @@ import { getApiUrl } from '../../api/config';
  */
 export async function downloadAttachment(fileUrl, fileName) {
   try {
-    const res = await fetch(fileUrl, { credentials: 'include' });
-    if (!res.ok) throw new Error('Download request failed');
-    const blob = await res.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = fileName || 'attachment';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
-  } catch {
-    const link = document.createElement('a');
-    const separator = fileUrl.includes('?') ? '&' : '?';
-    link.href = `${fileUrl}${separator}download=1&filename=${encodeURIComponent(fileName || 'attachment')}`;
-    link.download = fileName || 'attachment';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadProtectedFile({ file_path: fileUrl, file_name: fileName });
+  } catch (err) {
+    try {
+      const res = await fetch(fileUrl, { credentials: 'include' });
+      if (!res.ok) throw new Error('Download request failed');
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName || 'attachment';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+    } catch {
+      const link = document.createElement('a');
+      const separator = fileUrl.includes('?') ? '&' : '?';
+      link.href = `${fileUrl}${separator}download=1&filename=${encodeURIComponent(fileName || 'attachment')}`;
+      link.download = fileName || 'attachment';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   }
 }
 

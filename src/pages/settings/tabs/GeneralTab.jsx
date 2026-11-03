@@ -20,6 +20,8 @@ import { useToast } from '../../../components/ui/Toast';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { updateWorkspace, uploadWorkspaceIcon, removeWorkspaceIcon } from '../../../api/workspaces';
 import { getFileUrl } from '../../../api/config';
+import WorkspaceIcon from '../../../components/Workspace/WorkspaceIcon';
+import { invalidateProtectedImageCache } from '../../../hooks/useProtectedImage';
 import { usePermissions } from '../../../context/PermissionContext';
 import { useSocket } from '../../../context/SocketProvider';
 import ImageCropModal from '../../../components/shared/ImageCropModal';
@@ -85,7 +87,11 @@ export default function GeneralTab({
   const handleCropConfirmed = async (croppedFile) => {
     setIsUploadingIcon(true);
     try {
+      if (currentIconUrl) {
+        invalidateProtectedImageCache(currentIconUrl);
+      }
       const res = await uploadWorkspaceIcon(workspace.id, croppedFile);
+      invalidateProtectedImageCache(res.icon_url);
       setCurrentIconUrl(res.icon_url);
       if (res.workspace) {
         onWorkspaceUpdated?.(res.workspace);
@@ -105,6 +111,9 @@ export default function GeneralTab({
   const handleRemoveIcon = async () => {
     setIsUploadingIcon(true);
     try {
+      if (currentIconUrl) {
+        invalidateProtectedImageCache(currentIconUrl);
+      }
       const res = await removeWorkspaceIcon(workspace.id);
       setCurrentIconUrl(null);
       if (res.workspace) {
@@ -230,15 +239,13 @@ export default function GeneralTab({
                 className="w-16 h-16 rounded-2xl border-2 border-border/80 shadow-xs overflow-hidden flex items-center justify-center bg-primary-tint text-primary font-black text-xl shrink-0 relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 transition-transform duration-200 hover:scale-105 hover:ring-2 hover:ring-primary/60 hover:shadow-md"
                 title="Click to preview full workspace icon"
               >
-                {currentIconUrl ? (
-                  <img
-                    src={getFileUrl(currentIconUrl)}
-                    alt={name || 'Workspace'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>{(name || 'W').charAt(0).toUpperCase()}</span>
-                )}
+                <WorkspaceIcon
+                  iconUrl={currentIconUrl}
+                  name={name || 'Workspace'}
+                  size="xl"
+                  className="w-full h-full rounded-2xl"
+                  imgClassName="w-full h-full object-cover rounded-2xl"
+                />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                   <Eye className="w-5 h-5 drop-shadow-md" />
                 </div>

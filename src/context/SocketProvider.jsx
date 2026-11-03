@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import { io } from 'socket.io-client';
 import { useAuth } from '../hooks/useAuth';
 import { apiFetch, refreshAuthToken } from '../api/client';
-import { SOCKET_URL } from '../api/config';
+import { SOCKET_URL, resolveBackendUrl } from '../api/config';
 import {
   getNotificationSummary,
   getNotificationPreferences,
@@ -132,14 +132,10 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    const serverUrl = SOCKET_URL;
+    const serverUrl = resolveBackendUrl(SOCKET_URL);
 
-    const token = typeof window !== 'undefined'
-      ? (sessionStorage.getItem('pm_token') || localStorage.getItem('pm_token'))
-      : null;
-
+    // Secure cookie-authenticated WebSocket handshake (Finding 4)
     const socketInstance = io(serverUrl, {
-      auth: { token },
       withCredentials: true,
       autoConnect: true,
       reconnection: true,

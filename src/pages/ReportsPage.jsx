@@ -46,11 +46,9 @@ const TIMEFRAME_OPTIONS = [
 export default function ReportsPage({ workspace }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { hasPermission, userRole, loading: permissionsLoading } = usePermissions();
-  const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
-  const isOwner = roleName === 'owner' || roleName === 'super admin';
-  const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
-  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_project') || hasPermission('role.view'));
+  const { hasPermission, loading: permissionsLoading } = usePermissions();
+  const canViewReports = Boolean(hasPermission('report.view_project'));
+  const canExportReports = Boolean(hasPermission('report.export'));
 
   const getBoardUrl = (boardId, cardId = null) => {
     const wsId = workspace?.id;
@@ -64,15 +62,6 @@ export default function ReportsPage({ workspace }) {
       navigate(`/w/${workspace.id}/home`, { replace: true });
     }
   }, [permissionsLoading, canViewReports, workspace?.id, navigate, addToast]);
-
-  if (!permissionsLoading && !canViewReports) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
-        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-xs font-semibold text-text-secondary">Redirecting to workspace home...</p>
-      </div>
-    );
-  }
 
   // Safely connect to real-time socket events if available
   let socketContext = null;
@@ -160,7 +149,7 @@ export default function ReportsPage({ workspace }) {
 
   const fetchReports = useCallback(
     async (isManualRefresh = false) => {
-      if (!workspace?.id) return;
+      if (!workspace?.id || !canViewReports) return;
       if (isManualRefresh) {
         setRefreshing(true);
       } else {
@@ -187,12 +176,14 @@ export default function ReportsPage({ workspace }) {
         setRefreshing(false);
       }
     },
-    [workspace?.id, selectedBoardId, selectedTimeframe, addToast]
+    [workspace?.id, canViewReports, selectedBoardId, selectedTimeframe, addToast]
   );
 
   useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
+    if (canViewReports) {
+      fetchReports();
+    }
+  }, [fetchReports, canViewReports]);
 
   // Real-time synchronization: silently refresh reports when cards move or change
   useEffect(() => {
@@ -221,6 +212,14 @@ export default function ReportsPage({ workspace }) {
 
   // Export specific user's report to CSV
   const handleExportUserCsv = (member) => {
+    if (!canExportReports) {
+      addToast?.({
+        title: 'Permission Denied',
+        message: 'You do not have permission to export reports',
+        type: 'warning'
+      });
+      return;
+    }
     if (!member) return;
 
     try {
@@ -278,6 +277,14 @@ export default function ReportsPage({ workspace }) {
 
   // Export full workspace report to CSV
   const handleExportCsv = useCallback(() => {
+    if (!canExportReports) {
+      addToast?.({
+        title: 'Permission Denied',
+        message: 'You do not have permission to export reports',
+        type: 'warning'
+      });
+      return;
+    }
     if (!reportsData) return;
 
     try {
@@ -344,7 +351,7 @@ export default function ReportsPage({ workspace }) {
         type: 'danger'
       });
     }
-  }, [reportsData, workspace, selectedBoardId, selectedTimeframe, addToast]);
+  }, [reportsData, canExportReports, workspace, selectedBoardId, selectedTimeframe, addToast]);
 
   const summary = reportsData?.summary || {
     total_tasks: 0,
@@ -466,6 +473,24 @@ export default function ReportsPage({ workspace }) {
     return tasks;
   }, [selectedMemberDossier, activeDossierList, dossierTaskTab]);
 
+  if (permissionsLoading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-xs font-semibold text-text-secondary">Loading permissions...</p>
+      </div>
+    );
+  }
+
+  if (!canViewReports) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-app space-y-3">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-xs font-semibold text-text-secondary">Redirecting to workspace home...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-4 sm:p-6 md:p-8 custom-scrollbar">
       <div className="max-w-7xl mx-auto w-full space-y-6 pb-16">
@@ -533,16 +558,18 @@ export default function ReportsPage({ workspace }) {
             </Button>
 
             {/* Export CSV Button */}
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleExportCsv}
-              disabled={loading || !reportsData || summary.total_tasks === 0}
-              leftIcon={<Download className="w-3.5 h-3.5" />}
-              aria-label="Export report to CSV"
-            >
-              Export CSV
-            </Button>
+            {canExportReports && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleExportCsv}
+                disabled={loading || !reportsData || summary.total_tasks === 0}
+                leftIcon={<Download className="w-3.5 h-3.5" />}
+                aria-label="Export report to CSV"
+              >
+                Export CSV
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1450,16 +1477,18 @@ export default function ReportsPage({ workspace }) {
                                 >
                                   Details
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleExportUserCsv(member)}
-                                  disabled={member.assigned_tasks === 0}
-                                  title="Export individual CSV"
-                                  leftIcon={<Download className="w-3.5 h-3.5" />}
-                                >
-                                  CSV
-                                </Button>
+                                {canExportReports && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleExportUserCsv(member)}
+                                    disabled={member.assigned_tasks === 0}
+                                    title="Export individual CSV"
+                                    leftIcon={<Download className="w-3.5 h-3.5" />}
+                                  >
+                                    CSV
+                                  </Button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1915,14 +1944,16 @@ export default function ReportsPage({ workspace }) {
           size="xl"
           footer={
             <div className="flex items-center justify-between w-full">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleExportUserCsv(selectedMemberDossier)}
-                leftIcon={<Download className="w-3.5 h-3.5" />}
-              >
-                Export User Report (CSV)
-              </Button>
+              {canExportReports ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExportUserCsv(selectedMemberDossier)}
+                  leftIcon={<Download className="w-3.5 h-3.5" />}
+                >
+                  Export User Report (CSV)
+                </Button>
+              ) : <div />}
               <Button
                 variant="primary"
                 size="sm"

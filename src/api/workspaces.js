@@ -26,16 +26,32 @@ export async function deleteWorkspace(id) {
 
 export async function uploadWorkspaceIcon(workspaceId, file) {
   const formData = new FormData();
-  formData.append('icon', file);
-  return apiFetch(`/api/workspaces/${workspaceId}/icon`, {
+  formData.append('file', file);
+  formData.append('purpose', 'workspace_icon');
+  formData.append('workspace_id', String(workspaceId));
+  const uploadRes = await apiFetch('/api/upload', {
     method: 'POST',
     body: formData
+  });
+  const fileUrl = uploadRes?.file?.file_url;
+  if (!fileUrl) {
+    throw new Error('Upload succeeded but no file URL was returned');
+  }
+  return apiFetch('/api/secure', {
+    operation: 'workspaces.icon.set',
+    data: {
+      workspace_id: workspaceId,
+      icon_url: fileUrl
+    }
   });
 }
 
 export async function removeWorkspaceIcon(workspaceId) {
-  return apiFetch(`/api/workspaces/${workspaceId}/icon`, {
-    method: 'DELETE'
+  return apiFetch('/api/secure', {
+    operation: 'workspaces.icon.remove',
+    data: {
+      workspace_id: workspaceId
+    }
   });
 }
 

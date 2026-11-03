@@ -6,6 +6,7 @@ import { useSocket } from '../../context/SocketProvider';
 import PromptDialog from '../shared/PromptDialog';
 import { getThemeDotClass } from '../../lib/palettes';
 import { getFileUrl } from '../../api/config';
+import WorkspaceIcon from '../Workspace/WorkspaceIcon';
 import {
   Trello,
   Plus,
@@ -182,7 +183,7 @@ export default function WorkspaceSidebar({
   const canViewIssues = isOwner || hasPermission('task.view');
   const canViewActivity = isOwner || hasPermission('activity.view');
   const canViewMembers = !isMemberOrBelow && roleName !== 'project manager' && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
-  const canViewReports = !isMemberOrBelow && (isOwner || hasPermission('report.view_project') || hasPermission('role.view'));
+  const canViewReports = hasPermission('report.view_project');
   const canViewDailyTracker = isOwner || hasPermission('daily_tracker.view');
   const canViewAudit = !isMemberOrBelow && (isOwner || hasPermission('audit.view'));
   const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit'));
@@ -351,22 +352,12 @@ export default function WorkspaceSidebar({
                             : 'bg-white/15 text-white/90 hover:text-white hover:bg-white/25 active:scale-95'
                       }`}
                     >
-                      {wsIcon ? (
-                        <img
-                          src={getFileUrl(wsIcon)}
-                          alt={ws.name}
-                          className="w-full h-full object-cover rounded-full"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            if (e.target.nextElementSibling) {
-                              e.target.nextElementSibling.style.display = 'flex';
-                            }
-                          }}
-                        />
-                      ) : null}
-                      <span className={wsIcon ? 'hidden' : 'flex items-center justify-center'}>
-                        {ws.name.charAt(0).toUpperCase()}
-                      </span>
+                      <WorkspaceIcon
+                        workspace={ws}
+                        size="md"
+                        className="w-10 h-10 rounded-full"
+                        imgClassName="w-full h-full object-cover rounded-full"
+                      />
                     </button>
                     {ws.assigned_tasks_count > 0 && (
                       <span
@@ -433,15 +424,12 @@ export default function WorkspaceSidebar({
               >
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-2 min-w-0">
-                    {activeWorkspace?.icon_url || activeWorkspace?.settings?.icon_url ? (
-                      <img
-                        src={getFileUrl(activeWorkspace.icon_url || activeWorkspace.settings?.icon_url)}
-                        alt={activeWorkspace.name}
-                        className="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/50 bg-white"
-                      />
-                    ) : (
-                      <span className="text-xl font-black text-primary shrink-0">#</span>
-                    )}
+                    <WorkspaceIcon
+                      workspace={activeWorkspace}
+                      size="xs"
+                      className="w-5 h-5 rounded-md"
+                      imgClassName="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/50 bg-white"
+                    />
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-[15px] sm:text-base font-extrabold text-text-primary truncate tracking-tight group-hover:text-primary transition-colors">
                         {activeWorkspace?.name || 'Workspace'}
@@ -527,17 +515,12 @@ export default function WorkspaceSidebar({
                               }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              {wsIcon ? (
-                                <img
-                                  src={getFileUrl(wsIcon)}
-                                  alt={ws.name}
-                                  className="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/40 bg-white"
-                                />
-                              ) : (
-                                <div className="w-5 h-5 rounded-md bg-primary-tint text-primary text-[10px] font-black flex items-center justify-center shrink-0">
-                                  {ws.name.charAt(0).toUpperCase()}
-                                </div>
-                              )}
+                              <WorkspaceIcon
+                                workspace={ws}
+                                size="xs"
+                                className="w-5 h-5 rounded-md"
+                                imgClassName="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/40 bg-white"
+                              />
                               <span className="whitespace-nowrap font-medium text-xs sm:text-sm">
                                 {ws.name}
                               </span>

@@ -37,8 +37,6 @@ export function AuthProvider({ children }) {
 
     const handleLogoutSync = () => {
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('pm_token');
-        localStorage.removeItem('pm_token');
       }
       setUser(null);
       const publicPaths = ['/login', '/register', '/invite', '/forgot-password', '/reset-password'];
@@ -141,8 +139,6 @@ export function AuthProvider({ children }) {
       console.error('Logout error:', err);
     } finally {
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('pm_token');
-        localStorage.removeItem('pm_token');
       }
       if (user?.tenant_id) {
         clearTenantStorage(user.tenant_id);
