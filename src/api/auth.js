@@ -73,7 +73,9 @@ export async function resetForgotPassword(email, resetToken, newPassword) {
     body: JSON.stringify({
       email,
       reset_token: resetToken,
-      new_password: newPassword
+      token: resetToken,
+      new_password: newPassword,
+      password: newPassword
     })
   });
 }
