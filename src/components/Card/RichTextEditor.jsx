@@ -21,16 +21,11 @@ import {
 
 function readFileAsDataURL(file) {
   return new Promise((resolve) => {
-    // If not an image or small (e.g. < 500KB), direct read
-    if (!file.type || !file.type.startsWith('image/') || (file.size && file.size < 500 * 1024)) {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result || null);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(file);
+    if (!file) {
+      resolve(null);
       return;
     }
 
-    // For larger images, optimize via Canvas if available to keep data URL reasonable
     const reader = new FileReader();
     reader.onload = (e) => {
       const rawUrl = e.target?.result;
@@ -42,7 +37,9 @@ function readFileAsDataURL(file) {
       const img = new window.Image();
       img.onload = () => {
         try {
-          const maxDim = 1920;
+          // Downscale images to max 1200px to ensure data URLs stay compact (<100KB)
+          // Preventing multi-megabyte payloads that trigger Nginx 413 / 'Failed to fetch'
+          const maxDim = 1200;
           let { width, height } = img;
           if (width > maxDim || height > maxDim) {
             if (width > height) {
@@ -62,13 +59,12 @@ function readFileAsDataURL(file) {
             resolve(rawUrl);
             return;
           }
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
 
-          const outputType =
-            file.type === 'image/png' && file.size < 2 * 1024 * 1024
-              ? 'image/png'
-              : 'image/jpeg';
-          const optimized = canvas.toDataURL(outputType, 0.85);
+          // Always compress pasted/uploaded images to JPEG 0.75 for fast network transfers & compact storage
+          const optimized = canvas.toDataURL('image/jpeg', 0.75);
           resolve(optimized);
         } catch {
           resolve(rawUrl);

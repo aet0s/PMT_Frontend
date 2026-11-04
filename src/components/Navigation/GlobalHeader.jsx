@@ -53,11 +53,11 @@ export default function GlobalHeader({
   const { hasPermission, userRole } = usePermissions();
   const userRank = Number(userRole?.rank || 0);
   const roleName = String(userRole?.name || '').toLowerCase();
-  const isTopLevel = userRank >= 40 || ['owner', 'admin', 'project manager', 'team lead'].includes(roleName);
+  const isOwnerOrAdmin = roleName === 'owner' || roleName === 'admin' || roleName === 'super admin' || userRank >= 80;
 
-  const canEditBoard = propCanEditBoard ?? (isTopLevel || hasPermission('project.edit_settings'));
-  const canDeleteBoard = propCanDeleteBoard ?? (isTopLevel || hasPermission('project.delete'));
-  const canArchiveBoard = propCanArchiveBoard ?? (isTopLevel || hasPermission('project.archive'));
+  const canEditBoard = propCanEditBoard ?? (isOwnerOrAdmin || hasPermission('project.edit_settings'));
+  const canDeleteBoard = propCanDeleteBoard ?? (isOwnerOrAdmin || hasPermission('project.delete'));
+  const canArchiveBoard = propCanArchiveBoard ?? (isOwnerOrAdmin || hasPermission('project.archive'));
   const canViewActivity = hasPermission('activity.view');
 
   // Search input state (bound to URL ?search=)
