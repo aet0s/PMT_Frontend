@@ -62,7 +62,7 @@ export default function CardDetailModal({
 }) {
   const toast = useToast();
   const { user } = useAuth();
-  const { userRole } = usePermissions();
+  const { userRole, hasPermission } = usePermissions();
   const [activePopover, setActivePopover] = useState(null);
   const [activeAnchorRef, setActiveAnchorRef] = useState(null);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
@@ -103,7 +103,7 @@ export default function CardDetailModal({
   const isCreator = user && card.created_by && Number(card.created_by) === Number(user.id);
   const isAssignee = user && (card.members || []).some((m) => Number(m.id) === Number(user.id));
   const isAssigner = user && (card.assigners || []).some((a) => Number(a.id) === Number(user.id));
-  const canModifyCard = isTopLevel || isCreator || isAssignee || isAssigner || hasPermission('task.edit') || hasPermission('task.assign');
+  const canModifyCard = isTopLevel || isCreator || isAssignee || isAssigner || (typeof hasPermission === 'function' && (hasPermission('task.edit') || hasPermission('task.assign')));
   const canCompleteCard = isTopLevel || isAssigner;
   const canManageAssigners = isTopLevel || isAssigner;
 
@@ -445,7 +445,7 @@ export default function CardDetailModal({
         cardMembers={card.members || []}
         boardMembers={boardMembers}
         onToggleMember={(userId) => onToggleMember(card.id, userId)}
-        canManageAll={canManageAssigners || hasPermission('task.assign')}
+        canManageAll={canManageAssigners || (typeof hasPermission === 'function' && hasPermission('task.assign'))}
         currentUserId={user?.id}
         cardAssigners={card.assigners || []}
       />

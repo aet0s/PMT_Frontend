@@ -65,6 +65,7 @@ export function useProtectedImage(filePath) {
         })
         .catch((err) => {
           pendingRequests.delete(filePath);
+          blobUrlCache.set(filePath, null);
           console.warn('[ProtectedImage] Failed to load image via files.download:', filePath, err.message);
           return null;
         });
