@@ -1020,7 +1020,7 @@
       "description": "View team workload and allocations",
       "scope": "company",
       "dangerous": false,
-      "planned": true
+      "planned": false
     },
     {
       "key": "report.view_all",
@@ -1038,7 +1038,7 @@
       "description": "Download PDF and CSV reports",
       "scope": "company",
       "dangerous": false,
-      "planned": true
+      "planned": false
     },
     {
       "key": "report.create_custom",
@@ -2077,6 +2077,7 @@
         "time.view_all",
         "report.view_project",
         "report.view_team",
+        "report.export",
         "dashboard.view_project",
         "view.view",
         "view.create",
@@ -2147,7 +2148,6 @@
         "time.view_own",
         "time.log",
         "time.edit_own",
-        "report.view_project",
         "dashboard.view_project",
         "view.view",
         "view.create",
@@ -2187,7 +2187,6 @@
         "sprint.view",
         "backlog.view",
         "epic.view",
-        "report.view_project",
         "dashboard.view_project",
         "view.view",
         "activity.view",
@@ -2229,7 +2228,6 @@
         "archive.view",
         "activity.view",
         "report.view_project",
-        "report.view_team",
         "report.view_all",
         "report.export",
         "dashboard.view_project",
