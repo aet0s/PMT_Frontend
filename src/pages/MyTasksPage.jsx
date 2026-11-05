@@ -110,8 +110,8 @@ export default function MyTasksPage({
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(searchParams.get('workspaceId') || 'all');
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedBoardId, setSelectedBoardId] = useState('all');
-  const [selectedStage, setSelectedStage] = useState('all'); // 'all' | 'in_progress' | 'todo' | 'review' | 'done' | 'overdue'
+  const [selectedBoardId, setSelectedBoardId] = useState(searchParams.get('boardId') || 'all');
+  const [selectedStage, setSelectedStage] = useState(searchParams.get('stage') || 'all'); // 'all' | 'in_progress' | 'todo' | 'review' | 'done' | 'overdue'
   const [viewMode, setViewMode] = useState('grouped'); // 'grouped' | 'list'
   const [hideCompleted, setHideCompleted] = useState(() => {
     const saved = getUserPref('mytasks_hide_completed');
@@ -167,9 +167,7 @@ export default function MyTasksPage({
         params.userId = selectedUserId;
       }
 
-      const requestWsId = (selectedWorkspaceId && selectedWorkspaceId !== 'all')
-        ? selectedWorkspaceId
-        : (workspace?.id || 'all');
+      const requestWsId = selectedWorkspaceId || 'all';
       const data = await getWorkspaceMyTasks(requestWsId, params);
       setTasksData(data || {});
       setCards(data?.cards || []);
@@ -233,6 +231,8 @@ export default function MyTasksPage({
       const next = new URLSearchParams(prev);
       if (newWsId && newWsId !== 'all') next.set('workspaceId', newWsId);
       else next.delete('workspaceId');
+      next.delete('boardId');
+      next.delete('stage');
       return next;
     }, { replace: true });
   };
@@ -550,6 +550,12 @@ export default function MyTasksPage({
                   onChange={(val) => {
                     setSelectedBoardId(val);
                     setCurrentPage(1);
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      if (val && val !== 'all') next.set('boardId', val);
+                      else next.delete('boardId');
+                      return next;
+                    }, { replace: true });
                   }}
                   size="sm"
                   aria-label="Filter by project or board"
@@ -565,6 +571,12 @@ export default function MyTasksPage({
                   onChange={(val) => {
                     setSelectedStage(val);
                     setCurrentPage(1);
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      if (val && val !== 'all') next.set('stage', val);
+                      else next.delete('stage');
+                      return next;
+                    }, { replace: true });
                   }}
                   size="sm"
                   aria-label="Filter by stage"

@@ -36,7 +36,8 @@ export function parseSafeDate(date) {
     // Handle MySQL datetime ('YYYY-MM-DD HH:mm:ss' or 'YYYY-MM-DDTHH:mm:ss') or ISO strings
     let clean = s;
     if (!clean.endsWith('Z') && !clean.includes('+')) {
-      clean = clean.replace(' ', 'T') + 'Z';
+      // Database session runs in Asia/Kolkata (+05:30), so non-annotated timestamps are IST
+      clean = clean.replace(' ', 'T') + '+05:30';
     }
     const d = new Date(clean);
     return isValid(d) ? d : null;

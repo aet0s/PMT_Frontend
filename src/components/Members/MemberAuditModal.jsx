@@ -577,7 +577,7 @@ export default function MemberAuditModal({ isOpen, onClose, member, workspaceId 
               <div>
                 <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block">Timestamp</span>
                 <p className="font-semibold text-text-primary mt-0.5">{formatDate(selectedLog.created_at)}</p>
-                <p className="text-[10px] font-mono text-text-muted">{selectedLog.created_at ? (String(selectedLog.created_at).endsWith('Z') || String(selectedLog.created_at).includes('+') ? new Date(selectedLog.created_at).toISOString() : new Date(String(selectedLog.created_at).replace(' ', 'T') + 'Z').toISOString()) : '—'}</p>
+                <p className="text-[10px] font-mono text-text-muted">{selectedLog.created_at ? (String(selectedLog.created_at).endsWith('Z') || String(selectedLog.created_at).includes('+') ? new Date(selectedLog.created_at).toISOString() : new Date(String(selectedLog.created_at).replace(' ', 'T') + '+05:30').toISOString()) : '—'}</p>
               </div>
 
               <div>
