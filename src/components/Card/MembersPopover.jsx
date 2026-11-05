@@ -50,23 +50,21 @@ export default function MembersPopover({
       if (memberId === myId) {
         return {
           isLocked: true,
-          reason: 'You cannot remove yourself as an assignee from this card'
+          reason: 'You cannot remove yourself as an assignee from this card. Only card assigners can manage assignees.'
         };
       }
 
-      // 2. Cannot remove other assignees unless the current user was the one who added them
-      const memberEntry = cardMembers.find((m) => Number(m.id) === memberId);
-      if (memberEntry?.assigned_by_user_id && Number(memberEntry.assigned_by_user_id) !== myId) {
-        return {
-          isLocked: true,
-          reason: 'Only the assigner who assigned this member can remove them'
-        };
-      }
-
-      return { isLocked: false, reason: '' };
+      // 2. Non-assigners cannot remove other assignees
+      return {
+        isLocked: true,
+        reason: 'Only card assigners can remove assignees from this card'
+      };
     } else {
-      // Team members can assign anyone on the board as an assignee, including self
-      return { isLocked: false, reason: '' };
+      // Non-assigners cannot add assignees
+      return {
+        isLocked: true,
+        reason: 'Only card assigners can add assignees to this card'
+      };
     }
   };
 

@@ -105,7 +105,7 @@ export default function CardDetailModal({
   const isAssigner = user && (card.assigners || []).some((a) => Number(a.id) === Number(user.id));
   const canModifyCard = isTopLevel || isCreator || isAssignee || isAssigner || (typeof hasPermission === 'function' && (hasPermission('task.edit') || hasPermission('task.assign')));
   const canCompleteCard = isTopLevel || isAssigner;
-  const canManageAssigners = isTopLevel || isAssigner;
+  const canManageAssigners = isTopLevel || isAssigner || isCreator;
 
   const handleOpenDates = (anchorRef) => {
     setActiveAnchorRef(anchorRef);
@@ -445,7 +445,7 @@ export default function CardDetailModal({
         cardMembers={card.members || []}
         boardMembers={boardMembers}
         onToggleMember={(userId) => onToggleMember(card.id, userId)}
-        canManageAll={canManageAssigners || (typeof hasPermission === 'function' && hasPermission('task.assign'))}
+        canManageAll={canManageAssigners}
         currentUserId={user?.id}
         cardAssigners={card.assigners || []}
       />

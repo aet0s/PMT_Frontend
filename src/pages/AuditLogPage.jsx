@@ -89,11 +89,12 @@ function formatTimestamp(isoStr, timeZone = 'Asia/Kolkata') {
       clean = clean.replace(' ', 'T') + 'Z';
     }
     const d = new Date(clean);
+    const targetTz = timeZone && timeZone !== 'UTC' ? timeZone : 'Asia/Kolkata';
     const local = new Intl.DateTimeFormat('en-IN', {
-      timeZone,
+      timeZone: targetTz,
       dateStyle: 'medium',
       timeStyle: 'medium'
-    }).format(d);
+    }).format(d).replace(/\b(am|pm)\b/gi, (m) => m.toUpperCase());
     const utc = d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
     return { local, utc };
   } catch {
@@ -824,7 +825,7 @@ export default function AuditLogPage({ workspace }) {
             </thead>
             <tbody className="divide-y divide-border/60 text-xs">
               {events.map((ev) => {
-                const ts = formatTimestamp(ev.occurred_at, workspace?.timezone || 'Asia/Kolkata');
+                const ts = formatTimestamp(ev.occurred_at, workspace?.timezone || workspace?.settings?.timezone || 'Asia/Kolkata');
                 const sentence = buildReadableSentence(ev);
                 const initials = (ev.actor_name || 'System')
                   .split(' ')
@@ -1012,10 +1013,10 @@ export default function AuditLogPage({ workspace }) {
               <div>
                 <span className="text-[11px] font-bold text-text-muted uppercase">Timestamp</span>
                 <p className="font-semibold text-text-primary text-[12px]">
-                  {formatTimestamp(selectedEvent.occurred_at, workspace?.timezone || 'Asia/Kolkata').local}
+                  {formatTimestamp(selectedEvent.occurred_at, workspace?.timezone || workspace?.settings?.timezone || 'Asia/Kolkata').local}
                 </p>
                 <p className="font-mono text-[10px] text-text-muted">
-                  {formatTimestamp(selectedEvent.occurred_at, workspace?.timezone || 'Asia/Kolkata').utc}
+                  {formatTimestamp(selectedEvent.occurred_at, workspace?.timezone || workspace?.settings?.timezone || 'Asia/Kolkata').utc}
                 </p>
               </div>
 

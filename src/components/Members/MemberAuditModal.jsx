@@ -21,7 +21,8 @@ import {
   CheckSquare,
   LayoutGrid,
   Users,
-  Briefcase
+  Briefcase,
+  Download
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import Button from '../ui/Button';
@@ -56,6 +57,7 @@ export default function MemberAuditModal({ isOpen, onClose, member, workspaceId 
     totalPages: 1
   });
   const [selectedLog, setSelectedLog] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -122,6 +124,92 @@ export default function MemberAuditModal({ isOpen, onClose, member, workspaceId 
     e.preventDefault();
     setDebouncedSearch(search.trim());
     setPage(1);
+  };
+
+
+  const handleExportCsv = async () => {
+    if (!member?.id) return;
+    setIsExporting(true);
+    try {
+      const qParams = new URLSearchParams();
+      qParams.set('user_id', String(member.id));
+      qParams.set('page', '1');
+      qParams.set('limit', '5000');
+      if (workspaceId) qParams.set('workspace_id', String(workspaceId));
+      if (debouncedSearch) qParams.set('search', debouncedSearch);
+      if (category !== 'all') qParams.set('category', category);
+
+      let exportEvents = [];
+      try {
+        const res = await apiFetch(`/api/auth/activity?${qParams.toString()}`);
+        exportEvents = res.events || res.logs || res.activities || [];
+      } catch {
+        exportEvents = logs;
+      }
+
+      if (!exportEvents || exportEvents.length === 0) {
+        toast.show('No audit records to export', 'info');
+        setIsExporting(false);
+        return;
+      }
+
+      const sanitizeCell = (val) => {
+        if (val === null || val === undefined) return '""';
+        let str = String(val);
+        if (/^[=+\-@\t\r]/.test(str)) {
+          str = "'" + str;
+        }
+        return '"' + str.replace(/"/g, '""') + '"';
+      };
+
+      const headers = [
+        'Timestamp (IST)',
+        'Action',
+        'Details',
+        'Task',
+        'Board',
+        'Workspace',
+        'IP Address',
+        'Device / Agent'
+      ];
+
+      const csvRows = [headers.map(sanitizeCell).join(',')];
+
+      exportEvents.forEach((ev) => {
+        const row = [
+          formatDate(ev.created_at),
+          ev.action || ev.action_type || '',
+          ev.details || '',
+          ev.card_title || '',
+          ev.board_name || '',
+          ev.workspace_name || '',
+          ev.ip || '127.0.0.1',
+          ev.user_agent || ''
+        ];
+        csvRows.push(row.map(sanitizeCell).join(','));
+      });
+
+      const csvContent = '\uFEFF' + csvRows.join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const sanitizedName = (member.name || 'member').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+      const filename = `audit-trail-${sanitizedName}-${new Date().toISOString().slice(0, 10)}.csv`;
+
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+
+      toast.show(`Exported ${exportEvents.length} audit records`, 'success');
+    } catch (err) {
+      console.error('Failed to export member audit:', err);
+      toast.show('Failed to export audit records', 'error');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleClearSearch = () => {
@@ -246,6 +334,19 @@ export default function MemberAuditModal({ isOpen, onClose, member, workspaceId 
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-primary' : ''}`} />
               </button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleExportCsv}
+                disabled={isExporting || (logs.length === 0 && !isLoading)}
+                className="h-[36px] px-3 text-xs flex items-center gap-1.5 shrink-0"
+                title="Export user audit trail to CSV"
+              >
+                <Download className={`w-3.5 h-3.5 ${isExporting ? 'animate-bounce' : ''}`} />
+                <span className="hidden sm:inline">{isExporting ? 'Exporting...' : 'Export CSV'}</span>
+                <span className="sm:hidden">CSV</span>
+              </Button>
             </form>
           </div>
 
@@ -476,7 +577,7 @@ export default function MemberAuditModal({ isOpen, onClose, member, workspaceId 
               <div>
                 <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block">Timestamp</span>
                 <p className="font-semibold text-text-primary mt-0.5">{formatDate(selectedLog.created_at)}</p>
-                <p className="text-[10px] font-mono text-text-muted">{new Date(selectedLog.created_at).toISOString()}</p>
+                <p className="text-[10px] font-mono text-text-muted">{selectedLog.created_at ? (String(selectedLog.created_at).endsWith('Z') || String(selectedLog.created_at).includes('+') ? new Date(selectedLog.created_at).toISOString() : new Date(String(selectedLog.created_at).replace(' ', 'T') + 'Z').toISOString()) : '—'}</p>
               </div>
 
               <div>

@@ -21,7 +21,7 @@ export default function QuickAddRow({
   const membersBtnRef = useRef(null);
   const assignersBtnRef = useRef(null);
 
-  const canAssignMembers = (hasPermission('task.assign') || hasPermission('task.assign_self')) && (canModify || hasPermission('task.assign'));
+  const canAssignMembers = canManageAssigners && (hasPermission('task.assign') || hasPermission('task.assign_self'));
   const canEditCard = hasPermission('task.edit') && canModify;
   const canManageAttachments = hasPermission('attachment.upload') && canModify;
 

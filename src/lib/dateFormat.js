@@ -16,7 +16,7 @@ export function updateServerTime(serverDateOrMs) {
 
 
 /**
- * Parse date safely handling MySQL string dates ('YYYY-MM-DD HH:MM:SS') and timezone offsets
+ * Parse date safely handling MySQL string dates ('YYYY-MM-DD HH:MM:SS'), ISO strings, and timestamps
  */
 export function parseSafeDate(date) {
   if (!date) return null;
@@ -28,18 +28,17 @@ export function parseSafeDate(date) {
   if (typeof date === 'string') {
     const s = date.trim();
     if (!s) return null;
-    // YYYY-MM-DD
+    // Pure date: YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
       const [y, m, d] = s.split('-').map(Number);
       return new Date(y, m - 1, d);
     }
-    // YYYY-MM-DD HH:mm(:ss)? (or T-separated, optional .milliseconds, optional Z)
-    const match = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?Z?$/);
-    if (match) {
-      const [, y, m, d, h, min, sec] = match;
-      return new Date(Number(y), Number(m) - 1, Number(d), Number(h), Number(min), Number(sec || 0));
+    // Handle MySQL datetime ('YYYY-MM-DD HH:mm:ss' or 'YYYY-MM-DDTHH:mm:ss') or ISO strings
+    let clean = s;
+    if (!clean.endsWith('Z') && !clean.includes('+')) {
+      clean = clean.replace(' ', 'T') + 'Z';
     }
-    const d = new Date(s);
+    const d = new Date(clean);
     return isValid(d) ? d : null;
   }
   return null;
@@ -47,31 +46,83 @@ export function parseSafeDate(date) {
 
 /**
  * Format any date object or ISO string to strict app standard: DD/MM/YYYY hh:mm A
- * Example: 12/08/2026 02:41 PM
+ * Converted to Indian Standard Time (IST, Asia/Kolkata).
+ * Example: 05/11/2026 12:57 PM
  */
 export function formatDate(date) {
+  if (!date) return '';
+  if (typeof date === 'string') {
+    const s = date.trim();
+    // For pure date YYYY-MM-DD without time, preserve day/month/year directly
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [y, m, d] = s.split('-').map(Number);
+      return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+    }
+  }
   const d = parseSafeDate(date);
   if (!d) return '';
-  return format(d, 'dd/MM/yyyy hh:mm a');
+  try {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    const parts = formatter.formatToParts(d);
+    const m = {};
+    parts.forEach((p) => { m[p.type] = p.value; });
+    const period = (m.dayPeriod || '').toUpperCase();
+    return `${m.day}/${m.month}/${m.year} ${m.hour}:${m.minute} ${period}`.trim();
+  } catch {
+    return format(d, 'dd/MM/yyyy hh:mm a');
+  }
 }
 
 /**
- * Compact date for card badges: "11 Aug" or "11 Aug 25" if not current year
+ * Compact date for card badges: "11 Aug" or "11 Aug 25" if not current year in IST
  */
 export function formatShortDate(date) {
   const d = parseSafeDate(date);
   if (!d) return '';
-  const isCurrentYear = d.getFullYear() === getServerNow().getFullYear();
-  return format(d, isCurrentYear ? 'd MMM' : 'd MMM yy');
+  try {
+    const currentYear = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric' }).format(getServerNow());
+    const targetYear = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric' }).format(d);
+    const isCurrentYear = currentYear === targetYear;
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: 'numeric',
+      month: 'short',
+      ...(isCurrentYear ? {} : { year: '2-digit' })
+    }).format(d);
+  } catch {
+    const isCurrentYear = d.getFullYear() === getServerNow().getFullYear();
+    return format(d, isCurrentYear ? 'd MMM' : 'd MMM yy');
+  }
 }
 
 /**
- * Format date for input datetime-local fields: YYYY-MM-DDTHH:mm
+ * Format date for input datetime-local fields: YYYY-MM-DDTHH:mm in IST
  */
 export function formatDateForInput(date) {
   const d = parseSafeDate(date);
   if (!d) return '';
-  return format(d, "yyyy-MM-dd'T'HH:mm");
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    return formatter.format(d).replace(', ', 'T');
+  } catch {
+    return format(d, "yyyy-MM-dd'T'HH:mm");
+  }
 }
 
 /**
