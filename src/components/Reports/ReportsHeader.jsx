@@ -1,24 +1,24 @@
 // client/src/components/Reports/ReportsHeader.jsx
 import React from 'react';
-import { RefreshCw, Download, BarChart3, Clock, Layers } from 'lucide-react';
+import { RefreshCw, Download, BarChart3, Clock, Layers, Calendar } from 'lucide-react';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Select from '../ui/Select';
 
 export const TIMEFRAME_OPTIONS = [
-  { id: 'all', label: 'All Time' },
-  { id: '7d', label: 'Last 7 Days' },
-  { id: '30d', label: 'Last 30 Days' },
-  { id: '90d', label: 'Last 90 Days' },
-  { id: 'this_month', label: 'This Month' }
+  { value: 'all', id: 'all', label: 'All Time' },
+  { value: '7d', id: '7d', label: 'Last 7 Days' },
+  { value: '30d', id: '30d', label: 'Last 30 Days' },
+  { value: '90d', id: '90d', label: 'Last 90 Days' },
+  { value: 'this_month', id: 'this_month', label: 'This Month' }
 ];
 
 export default function ReportsHeader({
   workspace,
   boards = [],
-  selectedBoardId,
+  selectedBoardId = 'all',
   onBoardChange,
-  selectedTimeframe,
+  selectedTimeframe = 'all',
   onTimeframeChange,
   onRefresh,
   refreshing,
@@ -27,8 +27,8 @@ export default function ReportsHeader({
   onExportCsv
 }) {
   const boardOptions = [
-    { id: 'all', label: 'All Boards' },
-    ...boards.map((b) => ({ id: String(b.id), label: b.name }))
+    { value: 'all', id: 'all', label: 'All Boards' },
+    ...boards.map((b) => ({ value: String(b.id), id: String(b.id), label: b.name }))
   ];
 
   const formatLastUpdated = (date) => {
@@ -61,17 +61,17 @@ export default function ReportsHeader({
         </div>
 
         {/* Global Action Buttons */}
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={onRefresh}
             disabled={refreshing}
-            className="flex items-center gap-1.5 text-xs font-medium"
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-primary' : 'text-text-muted'}`} />}
+            className="h-9 px-3 text-xs font-medium border-border/80 hover:bg-surface-muted hover:border-border transition-colors shadow-xs"
             title="Refresh analytics data"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-primary' : ''}`} />
-            <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
 
           {canExport && (
@@ -79,43 +79,48 @@ export default function ReportsHeader({
               variant="outline"
               size="sm"
               onClick={onExportCsv}
-              className="flex items-center gap-1.5 text-xs font-medium border-border hover:border-primary/40 hover:text-primary transition-colors"
+              leftIcon={<Download className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors" />}
+              className="group h-9 px-3.5 text-xs font-medium border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary-tint/30 transition-colors shadow-xs"
               title="Download workspace report as CSV"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export CSV</span>
+              Export CSV
             </Button>
           )}
         </div>
       </div>
 
       {/* Unified Filters Bar */}
-      <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border/60">
-        <div className="flex items-center gap-2 min-w-[200px]">
-          <span className="text-xs font-semibold text-text-secondary whitespace-nowrap flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-4 pt-3.5 border-t border-border/60">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-semibold text-text-secondary whitespace-nowrap flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-text-muted" /> Board:
           </span>
-          <Select
-            value={selectedBoardId}
-            onChange={(val) => onBoardChange(val)}
-            options={boardOptions}
-            className="w-full text-xs"
-          />
+          <div className="w-48 sm:w-56">
+            <Select
+              value={selectedBoardId || 'all'}
+              onChange={(val) => onBoardChange?.(val)}
+              options={boardOptions}
+              size="sm"
+              className="text-xs"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 min-w-[170px]">
-          <span className="text-xs font-semibold text-text-secondary whitespace-nowrap">
-            Timeframe:
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-semibold text-text-secondary whitespace-nowrap flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-text-muted" /> Timeframe:
           </span>
-          <Select
-            value={selectedTimeframe}
-            onChange={(val) => onTimeframeChange(val)}
-            options={TIMEFRAME_OPTIONS}
-            className="w-full text-xs"
-          />
+          <div className="w-40 sm:w-48">
+            <Select
+              value={selectedTimeframe || 'all'}
+              onChange={(val) => onTimeframeChange?.(val)}
+              options={TIMEFRAME_OPTIONS}
+              size="sm"
+              className="text-xs"
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

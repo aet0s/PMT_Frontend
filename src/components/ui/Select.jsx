@@ -62,14 +62,21 @@ export const Select = React.forwardRef(function Select(
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const isOptionSelected = (optVal, selVal) => {
+    if (optVal === undefined || optVal === null || selVal === undefined || selVal === null) return false;
+    return String(optVal) === String(selVal);
+  };
+
   // Parse options from props or children
   const parsedOptions = React.useMemo(() => {
     if (options && options.length > 0) {
       return options.map((opt) => {
         if (typeof opt === 'object' && opt !== null) {
+          const val = opt.value !== undefined ? opt.value : opt.id;
           return {
-            value: opt.value,
-            label: opt.label !== undefined ? opt.label : String(opt.value),
+            value: val,
+            id: opt.id !== undefined ? opt.id : val,
+            label: opt.label !== undefined ? opt.label : String(val !== undefined && val !== null ? val : ''),
             icon: opt.icon || null,
             avatar: opt.avatar || null,
             description: opt.description || null,
@@ -80,6 +87,7 @@ export const Select = React.forwardRef(function Select(
         }
         return {
           value: opt,
+          id: opt,
           label: String(opt),
           icon: null,
           avatar: null,
@@ -95,9 +103,11 @@ export const Select = React.forwardRef(function Select(
     const items = [];
     Children.forEach(children, (child) => {
       if (isValidElement(child)) {
+        const val = child.props.value !== undefined ? child.props.value : child.props.id;
         items.push({
-          value: child.props.value,
-          label: child.props.children || String(child.props.value),
+          value: val,
+          id: child.props.id !== undefined ? child.props.id : val,
+          label: child.props.children || String(val !== undefined && val !== null ? val : ''),
           icon: child.props.icon || null,
           avatar: child.props.avatar || null,
           description: child.props.description || null,
@@ -111,7 +121,7 @@ export const Select = React.forwardRef(function Select(
   }, [options, children]);
 
   const selectedOption = parsedOptions.find(
-    (opt) => String(opt.value) === String(selectedValue)
+    (opt) => isOptionSelected(opt.value, selectedValue)
   );
 
   const elementsRef = useRef([]);
@@ -151,7 +161,7 @@ export const Select = React.forwardRef(function Select(
     listRef: elementsRef,
     activeIndex,
     selectedIndex: parsedOptions.findIndex(
-      (opt) => String(opt.value) === String(selectedValue)
+      (opt) => isOptionSelected(opt.value, selectedValue)
     ),
     onNavigate: setActiveIndex,
     loop: true,
@@ -333,7 +343,7 @@ export const Select = React.forwardRef(function Select(
                     </div>
                   ) : (
                     parsedOptions.map((opt, idx) => {
-                      const isSelected = String(opt.value) === String(selectedValue);
+                      const isSelected = isOptionSelected(opt.value, selectedValue);
                       return (
                         <button
                           key={`${opt.value}-${idx}`}
@@ -395,7 +405,7 @@ export const Select = React.forwardRef(function Select(
                   </div>
                 ) : (
                   parsedOptions.map((opt, idx) => {
-                    const isSelected = String(opt.value) === String(selectedValue);
+                    const isSelected = isOptionSelected(opt.value, selectedValue);
                     const isActive = activeIndex === idx;
 
                     const optionContent = (
