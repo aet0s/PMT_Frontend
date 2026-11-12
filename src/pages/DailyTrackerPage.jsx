@@ -22,7 +22,9 @@ import {
   User,
   UserCheck,
   Users,
-  Link2
+  Link2,
+  Archive,
+  History
 } from 'lucide-react';
 import { format, parseISO, addDays, subDays, isToday, isYesterday } from 'date-fns';
 import { getWorkspaceDailyTracker } from '../api/workspaces';
@@ -35,7 +37,7 @@ import { Modal } from '../components/ui/Modal';
 import { usePermissions } from '../context/PermissionContext';
 import { useAuth } from '../hooks/useAuth';
 import DailyTrackerPeopleView from '../components/DailyTracker/DailyTrackerPeopleView';
-import { getServerNow } from '../lib/dateFormat';
+import { getServerNow, parseSafeDate, formatDate } from '../lib/dateFormat';
 
 function getTodayString() {
   const d = getServerNow();
@@ -43,6 +45,43 @@ function getTodayString() {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function formatTrackerActivity(act) {
+  let meta = act?.meta_json;
+  if (typeof meta === 'string') {
+    try { meta = JSON.parse(meta); } catch { meta = {}; }
+  }
+  meta = meta || {};
+  const at = String(act?.action_type || '').toLowerCase();
+  switch (at) {
+    case 'created_card': return 'Created this card';
+    case 'card_archived': return 'Archived this card';
+    case 'card_restored': return 'Restored card from archive';
+    case 'moved_card': return `Moved from "${meta.from || 'Previous'}" to "${meta.to || 'New'}"`;
+    case 'marked_complete': return 'Marked task as completed';
+    case 'marked_incomplete': return 'Marked task as incomplete';
+    case 'card_renamed': return 'Renamed task';
+    case 'card_description_updated': return 'Updated card description';
+    case 'due_date_changed': return 'Updated due date';
+    case 'start_date_changed': return 'Updated start date';
+    case 'added_comment':
+    case 'comment_added': return 'Added a comment';
+    case 'edited_comment': return 'Edited a comment';
+    case 'checklist_toggled': {
+      const checked = meta.is_checked === true || meta.is_checked === 1 || String(meta.is_checked) === 'true';
+      return `${checked ? 'Completed' : 'Unchecked'} checklist item${meta.item_text ? ` "${meta.item_text}"` : ''}`;
+    }
+    case 'checklist_item_added': return `Added checklist item${meta.item_text ? ` "${meta.item_text}"` : ''}`;
+    case 'attachment_added':
+    case 'attachment_uploaded': return `Attached file${meta.file_name ? ` "${meta.file_name}"` : ''}`;
+    case 'member_added': return `Assigned ${meta.member_name || 'a member'}`;
+    case 'member_removed': return `Unassigned ${meta.member_name || 'a member'}`;
+    case 'assigner_added': return 'Added assigner';
+    case 'label_added': return `Added label${meta.label_name ? ` "${meta.label_name}"` : ''}`;
+    case 'label_removed': return `Removed label${meta.label_name ? ` "${meta.label_name}"` : ''}`;
+    default: return at ? at.replace(/_/g, ' ') : 'Activity recorded';
+  }
 }
 
 export default function DailyTrackerPage({
@@ -326,6 +365,12 @@ export default function DailyTrackerPage({
           ...prev,
           ...res.card,
           id: res.card.id || cardId,
+          created_by_name: res.card.created_by_name || prev?.created_by_name || c.created_by_name || null,
+          is_archived: res.card.is_archived !== undefined ? Boolean(res.card.is_archived) : Boolean(prev?.is_archived || c.is_archived),
+          archived_by_name: prev?.archived_by_name || c.archived_by_name || null,
+          activities: (res.card.activities && res.card.activities.length > 0)
+            ? res.card.activities
+            : (prev?.activities || c.activities || []),
           checkins: (res.card.checkins && res.card.checkins.length > 0)
             ? res.card.checkins
             : (prev?.checkins || c.checkins || [])
@@ -666,7 +711,7 @@ export default function DailyTrackerPage({
               const isCompleted = Boolean(c.is_complete || (c.listName && /done|completed/i.test(c.listName)));
               const createdTimeStr = (() => {
                 try {
-                  const d = parseISO(c.created_at);
+                  const d = parseSafeDate(c.created_at) || parseISO(c.created_at);
                   return format(d, 'h:mm a');
                 } catch {
                   return 'Today';
@@ -705,6 +750,15 @@ export default function DailyTrackerPage({
                               Completed
                             </span>
                           )}
+                          {Boolean(c.is_archived) && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                              title={c.archived_by_name ? `Archived by ${c.archived_by_name}` : 'This card is archived'}
+                            >
+                              <Archive className="w-2.5 h-2.5" />
+                              Archived
+                            </span>
+                          )}
                         </div>
 
                         {/* Origin breadcrumb badge: Workspace > Board > List */}
@@ -741,7 +795,7 @@ export default function DailyTrackerPage({
                     {/* Status & Activity Pills */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {/* 1. Inactivity Alert (>48h) */}
-                      {c.is_inactive && !isCompleted && (
+                      {c.is_inactive && !isCompleted && !c.is_archived && (
                         <span
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-2xs"
                           title={`No recorded activity for ${c.hours_since_activity || 48}+ hours`}
@@ -751,7 +805,7 @@ export default function DailyTrackerPage({
                       )}
 
                       {/* 2. In Progress Duration Badge */}
-                      {!isCompleted && c.days_in_progress && (
+                      {!isCompleted && !c.is_archived && c.days_in_progress && (
                         <span
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-surface-muted border border-border/70 text-text-secondary shadow-2xs"
                           title={c.last_activity_text || `In progress for ${c.days_in_progress} days`}
@@ -776,6 +830,12 @@ export default function DailyTrackerPage({
                         >
                           <Sparkles className="w-3 h-3 shrink-0" />
                           <span>{c.activity_pill}</span>
+                        </span>
+                      )}
+                      {Boolean(c.is_archived) && c.archived_by_name && !(c.activity_pill || '').includes('Archived') && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25 shadow-2xs">
+                          <Archive className="w-3 h-3 shrink-0" />
+                          <span>Archived by {c.archived_by_name}</span>
                         </span>
                       )}
                     </div>
@@ -888,7 +948,7 @@ export default function DailyTrackerPage({
             <div className="flex items-center justify-between w-full">
               <div className="text-xs text-text-muted flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" />
-                <span>Created {detailedCard?.created_at ? format(parseISO(detailedCard.created_at), 'MMM d, yyyy h:mm a') : 'Today'}</span>
+                <span>Created {(detailedCard?.created_at || selectedPreviewCard.created_at) ? (formatDate(detailedCard?.created_at || selectedPreviewCard.created_at) || 'Today') : 'Today'}{(detailedCard?.created_by_name || selectedPreviewCard.created_by_name) ? ` by ${detailedCard?.created_by_name || selectedPreviewCard.created_by_name}` : ''}</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -944,8 +1004,14 @@ export default function DailyTrackerPage({
                     {selectedPreviewCard.listName}
                   </span>
                 </div>
-                <div>
-                  {selectedPreviewCard.is_complete ? (
+                <div className="flex items-center gap-1.5">
+                  {Boolean(detailedCard?.is_archived || selectedPreviewCard.is_archived) && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                      <Archive className="w-3.5 h-3.5" />
+                      Archived
+                    </span>
+                  )}
+                  {(detailedCard?.is_complete ?? selectedPreviewCard.is_complete) ? (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-success-tint text-success border border-success/30">
                       <Check className="w-3.5 h-3.5" />
                       Completed
@@ -1141,6 +1207,56 @@ export default function DailyTrackerPage({
                                 </a>
                               </div>
                             )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Card Activity History (preserved across archive/restore) */}
+              {(() => {
+                const activityList = detailedCard?.activities || selectedPreviewCard?.activities || [];
+                if (activityList.length === 0) return null;
+                return (
+                  <div className="space-y-2 pt-2 border-t border-border/60">
+                    <h5 className="text-[11px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5 text-primary" />
+                      <span>Activity History ({activityList.length})</span>
+                    </h5>
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                      {activityList.map((act) => {
+                        const isArchiveEvt = act.action_type === 'card_archived';
+                        const isRestoreEvt = act.action_type === 'card_restored';
+                        const isCreatedEvt = act.action_type === 'created_card';
+                        return (
+                          <div
+                            key={act.id || `${act.action_type}-${act.created_at}`}
+                            className={`px-3 py-2 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                              isArchiveEvt
+                                ? 'bg-amber-500/10 border-amber-500/30'
+                                : isRestoreEvt
+                                ? 'bg-emerald-500/10 border-emerald-500/30'
+                                : isCreatedEvt
+                                ? 'bg-primary-tint/30 border-primary/20'
+                                : 'bg-surface-muted/40 border-border/70'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Avatar
+                                name={act.user_name || 'Member'}
+                                src={act.user_avatar_url}
+                                size="xs"
+                                className="w-5 h-5 shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <span className="font-bold text-text-primary">{act.user_name || 'Someone'}</span>{' '}
+                                <span className="text-text-secondary">{formatTrackerActivity(act)}</span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-medium text-text-muted shrink-0">
+                              {act.created_at ? formatDate(act.created_at) : ''}
+                            </span>
                           </div>
                         );
                       })}
