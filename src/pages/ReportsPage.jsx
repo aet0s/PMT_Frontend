@@ -1,6 +1,6 @@
 // client/src/pages/ReportsPage.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldAlert, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
 import { getWorkspaceReports } from '../api/workspaces';
 import { useSocket } from '../context/SocketProvider';
@@ -19,8 +19,9 @@ import ReportsLabels from '../components/Reports/ReportsLabels';
 import ReportMemberDetailsDrawer from '../components/Reports/ReportMemberDetailsDrawer';
 import { exportWorkspaceReportCsv } from '../components/Reports/reportsUtils';
 
-export default function ReportsPage({ workspace }) {
+export default function ReportsPage({ workspace, workspaces = [] }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { addToast } = useToast();
   const { hasPermission, loading: permissionsLoading } = usePermissions();
 
@@ -29,30 +30,13 @@ export default function ReportsPage({ workspace }) {
   const canViewTeam = Boolean(hasPermission('report.view_team'));
   const canExportReports = Boolean(hasPermission('report.export'));
 
-  // Board and card navigation helper
-  const getBoardUrl = useCallback((boardId, cardId = null) => {
-    const wsId = workspace?.id;
-    const base = wsId ? `/w/${wsId}/p/${boardId}/board` : `/b/${boardId}`;
-    return cardId ? `${base}?card=${cardId}` : base;
-  }, [workspace?.id]);
+  // Unified persistent filters - Default is 'all' (Consolidated) so management sees total view across all workspaces
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(() => {
+    const fromUrl = searchParams.get('workspaceId');
+    if (fromUrl) return fromUrl;
+    return 'all';
+  });
 
-  // Real-time socket integration
-  let socketContext = null;
-  try {
-    socketContext = useSocket();
-  } catch {
-    // Fallback when outside provider
-  }
-  const socket = socketContext?.socket;
-
-  // Page state
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [reportsData, setReportsData] = useState(null);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-
-  // Unified persistent filters
   const [selectedBoardId, setSelectedBoardId] = useState('all');
   const [selectedTimeframe, setSelectedTimeframe] = useState('all');
 
@@ -63,15 +47,84 @@ export default function ReportsPage({ workspace }) {
   const activeRequestIdRef = useRef(0);
   const debounceTimerRef = useRef(null);
 
+  // Page state
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [reportsData, setReportsData] = useState(null);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Board and card navigation helper
+  const getBoardUrl = useCallback((boardId, cardId = null) => {
+    const wsId = selectedWorkspaceId !== 'all' ? selectedWorkspaceId : workspace?.id;
+    const base = wsId ? `/w/${wsId}/p/${boardId}/board` : `/b/${boardId}`;
+    return cardId ? `${base}?card=${cardId}` : base;
+  }, [selectedWorkspaceId, workspace?.id]);
+
+  // Real-time socket integration
+  let socketContext = null;
+  try {
+    socketContext = useSocket();
+  } catch {
+    // Fallback when outside provider
+  }
+  const socket = socketContext?.socket;
+
+  // Workspace options for dropdown selector
+  const workspaceOptions = useMemo(() => {
+    const wsMap = new Map();
+    wsMap.set('all', 'All Workspaces (Consolidated)');
+
+    (workspaces || []).forEach((w) => {
+      if (w && w.id) wsMap.set(String(w.id), w.name || `Workspace #${w.id}`);
+    });
+
+    (reportsData?.workspaces || []).forEach((w) => {
+      if (w && w.id) wsMap.set(String(w.id), w.name || `Workspace #${w.id}`);
+    });
+
+    if (workspace?.id && !wsMap.has(String(workspace.id))) {
+      wsMap.set(String(workspace.id), workspace.name || `Workspace #${workspace.id}`);
+    }
+
+    return Array.from(wsMap.entries()).map(([value, label]) => ({
+      value,
+      id: value,
+      label
+    }));
+  }, [workspaces, reportsData?.workspaces, workspace]);
+
+  // Handle workspace change with searchParams sync
+  const handleWorkspaceChange = useCallback((newWsId) => {
+    setSelectedWorkspaceId(newWsId);
+    setSelectedBoardId('all');
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (newWsId && newWsId !== 'all') {
+        next.set('workspaceId', newWsId);
+      } else {
+        next.delete('workspaceId');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Dynamic document title
   useEffect(() => {
-    document.title = `${workspace?.name || 'Workspace'} - Reports & Analytics | TaskFlow`;
-  }, [workspace?.name]);
+    if (selectedWorkspaceId === 'all') {
+      document.title = 'Consolidated Reports & Analytics | TaskFlow';
+    } else {
+      const wsName = workspaceOptions.find((w) => String(w.value) === String(selectedWorkspaceId))?.label || workspace?.name || 'Workspace';
+      document.title = `${wsName} - Reports & Analytics | TaskFlow`;
+    }
+  }, [selectedWorkspaceId, workspaceOptions, workspace?.name]);
 
   // Fetch report data over encrypted POST /api/secure with hybrid transport
   const fetchReports = useCallback(
     async (isManualRefresh = false) => {
-      if (!workspace?.id || !canViewReports) return;
+      if (!canViewReports) return;
 
+      const targetWs = selectedWorkspaceId || 'all';
       const requestId = ++activeRequestIdRef.current;
       if (isManualRefresh) {
         setRefreshing(true);
@@ -81,9 +134,10 @@ export default function ReportsPage({ workspace }) {
       setError(null);
 
       try {
-        const data = await getWorkspaceReports(workspace.id, {
+        const data = await getWorkspaceReports(targetWs, {
           boardId: selectedBoardId,
-          timeframe: selectedTimeframe
+          timeframe: selectedTimeframe,
+          workspaceId: targetWs
         });
 
         // Ensure we only apply results from the latest request
@@ -111,19 +165,19 @@ export default function ReportsPage({ workspace }) {
         }
       }
     },
-    [workspace?.id, canViewReports, selectedBoardId, selectedTimeframe, addToast]
+    [canViewReports, selectedWorkspaceId, selectedBoardId, selectedTimeframe, addToast]
   );
 
   // Trigger fetch when workspace or filters change
   useEffect(() => {
-    if (canViewReports && workspace?.id) {
+    if (canViewReports) {
       fetchReports();
     }
-  }, [fetchReports, canViewReports, workspace?.id]);
+  }, [fetchReports, canViewReports]);
 
   // Real-time synchronization: debounced silent refresh on board/card events
   useEffect(() => {
-    if (!socket || !workspace?.id || !canViewReports) return;
+    if (!socket || !canViewReports) return;
 
     const debouncedRefresh = () => {
       if (debounceTimerRef.current) {
@@ -150,7 +204,7 @@ export default function ReportsPage({ workspace }) {
       socket.off('card:archived', debouncedRefresh);
       socket.off('card:restored', debouncedRefresh);
     };
-  }, [socket, workspace?.id, canViewReports, fetchReports]);
+  }, [socket, canViewReports, fetchReports]);
 
   // Export full workspace report
   const handleExportCsv = useCallback(() => {
@@ -173,14 +227,14 @@ export default function ReportsPage({ workspace }) {
       });
       addToast?.({
         title: 'Report Exported',
-        message: 'Workspace CSV report downloaded successfully.',
+        message: 'CSV report downloaded successfully.',
         type: 'success'
       });
     } catch (err) {
       console.error('Error exporting CSV:', err);
       addToast?.({
         title: 'Export Failed',
-        message: 'Could not export workspace report.',
+        message: 'Could not export report.',
         type: 'danger'
       });
     }
@@ -209,7 +263,7 @@ export default function ReportsPage({ workspace }) {
           <div className="space-y-1.5">
             <h2 className="text-lg font-bold text-text-primary">Reports Access Restricted</h2>
             <p className="text-xs text-text-muted leading-relaxed">
-              Operational reports and workspace analytics are designated for management roles (Owner, Admin, Project Manager, and Team Lead).
+              Operational reports and analytics are designated for management roles (Owner, Admin, Project Manager, and Team Lead).
             </p>
           </div>
           <div className="pt-2">
@@ -256,7 +310,11 @@ export default function ReportsPage({ workspace }) {
     );
   }
 
-  const boards = reportsData?.boards || [];
+  const rawBoards = reportsData?.boards || [];
+  const filteredBoards = selectedWorkspaceId === 'all'
+    ? rawBoards
+    : rawBoards.filter((b) => !b.workspace_id || String(b.workspace_id) === String(selectedWorkspaceId));
+
   const boardsBreakdown = reportsData?.boards_breakdown || [];
   const stageBreakdown = reportsData?.stage_breakdown || {};
   const membersWorkload = reportsData?.members_workload || [];
@@ -272,7 +330,11 @@ export default function ReportsPage({ workspace }) {
         {/* Section A: Header & Unified Controls */}
         <ReportsHeader
           workspace={workspace}
-          boards={boards}
+          workspaces={workspaces}
+          workspaceOptions={workspaceOptions}
+          selectedWorkspaceId={selectedWorkspaceId}
+          onWorkspaceChange={handleWorkspaceChange}
+          boards={filteredBoards}
           selectedBoardId={selectedBoardId}
           onBoardChange={(bId) => setSelectedBoardId(bId)}
           selectedTimeframe={selectedTimeframe}
@@ -347,3 +409,4 @@ export default function ReportsPage({ workspace }) {
     </div>
   );
 }
+

@@ -2361,7 +2361,7 @@ export default function BoardPage() {
             <Navigate to={`/w/${activeWorkspace?.id || workspaceId}/audit`} replace />
           ) : subPath === 'reports' ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
-              <ReportsPage workspace={activeWorkspace} />
+              <ReportsPage workspace={activeWorkspace} workspaces={workspaces} />
             </Suspense>
           ) : subPath === 'profile' || subPath.startsWith('profile/') ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>

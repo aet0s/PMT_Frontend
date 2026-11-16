@@ -57,7 +57,10 @@ export default function ReportsAttentionList({
             </thead>
             <tbody className="divide-y divide-border/60">
               {overdueTasks.map((t) => {
-                const cardUrl = getBoardUrl ? getBoardUrl(t.board_id, t.id) : `/b/${t.board_id}?card=${t.id}`;
+                const targetWsId = t.workspace_id;
+                const cardUrl = targetWsId
+                  ? `/w/${targetWsId}/p/${t.board_id}/board?card=${t.id}`
+                  : (getBoardUrl ? getBoardUrl(t.board_id, t.id) : `/b/${t.board_id}?card=${t.id}`);
                 return (
                   <tr key={t.id} className="hover:bg-surface-elevated/40 transition-colors group">
                     <td className="py-3 px-4 font-medium text-text-primary max-w-[260px]">
@@ -72,7 +75,15 @@ export default function ReportsAttentionList({
                       </a>
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap text-text-secondary">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {t.workspace_name && (
+                          <>
+                            <span className="font-semibold text-text-secondary bg-surface-muted px-1.5 py-0.5 rounded border border-border/70 text-[10px]">
+                              {t.workspace_name}
+                            </span>
+                            <span className="text-text-muted">›</span>
+                          </>
+                        )}
                         <FolderKanban className="w-3 h-3 text-text-muted" />
                         <span className="font-medium text-text-primary">{t.board_name}</span>
                         <span className="text-text-muted">•</span>

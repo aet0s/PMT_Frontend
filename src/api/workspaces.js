@@ -99,13 +99,15 @@ export async function getWorkspaceActivity(workspaceId, { page = 1, limit = 20, 
   return apiFetch(`/api/workspaces/${workspaceId}/activity${query}`);
 }
 
-export async function getWorkspaceReports(workspaceId, { boardId = null, timeframe = 'all' } = {}) {
+export async function getWorkspaceReports(workspaceId = 'all', { boardId = null, timeframe = 'all', workspaceId: paramWs = null } = {}) {
+  const targetWs = (workspaceId && workspaceId !== 'all') ? workspaceId : (paramWs || 'all');
   const params = new URLSearchParams();
   if (boardId && boardId !== 'all') params.set('board_id', String(boardId));
   if (timeframe && timeframe !== 'all') params.set('timeframe', timeframe);
+  if (targetWs) params.set('workspace_id', String(targetWs));
 
   const query = params.toString() ? `?${params.toString()}` : '';
-  return apiFetch(`/api/workspaces/${workspaceId}/reports${query}`);
+  return apiFetch(`/api/workspaces/${targetWs}/reports${query}`);
 }
 
 export async function getCompanyMembers(workspaceId, { page = 1, limit = 20, search = '', filterWorkspaceId = 'all' } = {}) {

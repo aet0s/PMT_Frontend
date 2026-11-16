@@ -210,7 +210,10 @@ export default function ReportMemberDetailsDrawer({
               </div>
             ) : (
               filteredTasks.map((task) => {
-                const cardUrl = getBoardUrl ? getBoardUrl(task.board_id, task.id) : `/b/${task.board_id}?card=${task.id}`;
+                const targetWsId = task.workspace_id || workspace?.id;
+                const cardUrl = targetWsId
+                  ? `/w/${targetWsId}/p/${task.board_id}/board?card=${task.id}`
+                  : (getBoardUrl ? getBoardUrl(task.board_id, task.id) : `/b/${task.board_id}?card=${task.id}`);
                 return (
                   <div
                     key={task.id}
@@ -242,12 +245,20 @@ export default function ReportMemberDetailsDrawer({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 mt-2 text-[11px] text-text-muted flex-wrap">
+                    <div className="flex items-center gap-2 mt-2 text-[11px] text-text-muted flex-wrap">
+                      {task.workspace_name && (
+                        <>
+                          <span className="font-semibold text-text-secondary bg-surface-muted px-1.5 py-0.5 rounded border border-border/70 text-[10px]">
+                            {task.workspace_name}
+                          </span>
+                          <span>›</span>
+                        </>
+                      )}
                       <span className="flex items-center gap-1">
                         <FolderKanban className="w-3 h-3 text-text-muted" />
                         <span className="truncate max-w-[120px]">{task.board_name}</span>
                       </span>
-                      <span>•</span>
+                      <span>›</span>
                       <span className="truncate max-w-[100px]">{task.list_name}</span>
                       {task.due_date && (
                         <>

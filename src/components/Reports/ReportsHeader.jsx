@@ -1,6 +1,6 @@
 // client/src/components/Reports/ReportsHeader.jsx
 import React from 'react';
-import { RefreshCw, Download, BarChart3, Clock, Layers, Calendar } from 'lucide-react';
+import { RefreshCw, Download, BarChart3, Clock, Layers, Calendar, Briefcase } from 'lucide-react';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Select from '../ui/Select';
@@ -15,6 +15,10 @@ export const TIMEFRAME_OPTIONS = [
 
 export default function ReportsHeader({
   workspace,
+  workspaces = [],
+  workspaceOptions = [],
+  selectedWorkspaceId = 'all',
+  onWorkspaceChange,
   boards = [],
   selectedBoardId = 'all',
   onBoardChange,
@@ -26,10 +30,20 @@ export default function ReportsHeader({
   canExport,
   onExportCsv
 }) {
+  const isAllWorkspaces = selectedWorkspaceId === 'all';
+
   const boardOptions = [
-    { value: 'all', id: 'all', label: 'All Boards' },
-    ...boards.map((b) => ({ value: String(b.id), id: String(b.id), label: b.name }))
+    { value: 'all', id: 'all', label: isAllWorkspaces ? 'All Boards (Across Workspaces)' : 'All Boards' },
+    ...boards.map((b) => ({
+      value: String(b.id),
+      id: String(b.id),
+      label: isAllWorkspaces && b.workspace_name ? `${b.name} (${b.workspace_name})` : b.name
+    }))
   ];
+
+  const currentWorkspaceName = isAllWorkspaces
+    ? 'All Workspaces (Consolidated)'
+    : (workspaceOptions.find((w) => String(w.value) === String(selectedWorkspaceId))?.label || workspace?.name || 'Workspace');
 
   const formatLastUpdated = (date) => {
     if (!date) return 'Just now';
@@ -46,12 +60,15 @@ export default function ReportsHeader({
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold text-text-primary tracking-tight">Workspace Reports</h1>
-              {workspace?.name && (
-                <Badge variant="secondary" className="font-medium text-xs">
-                  {workspace.name}
-                </Badge>
-              )}
+              <h1 className="text-xl font-bold text-text-primary tracking-tight">
+                {isAllWorkspaces ? 'Company Consolidated Reports' : 'Workspace Reports'}
+              </h1>
+              <Badge
+                variant={isAllWorkspaces ? 'primary' : 'secondary'}
+                className="font-medium text-xs shadow-2xs"
+              >
+                {currentWorkspaceName}
+              </Badge>
             </div>
             <p className="text-xs text-text-muted mt-0.5 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
@@ -91,11 +108,31 @@ export default function ReportsHeader({
 
       {/* Unified Filters Bar */}
       <div className="flex flex-wrap items-center gap-4 pt-3.5 border-t border-border/60">
+        {/* Workspace Selector Filter */}
+        {workspaceOptions && workspaceOptions.length > 0 && (
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-semibold text-text-secondary whitespace-nowrap flex items-center gap-1.5">
+              <Briefcase className="w-3.5 h-3.5 text-text-muted" /> Workspace:
+            </span>
+            <div className="w-52 sm:w-60">
+              <Select
+                value={selectedWorkspaceId || 'all'}
+                onChange={(val) => onWorkspaceChange?.(val)}
+                options={workspaceOptions}
+                size="sm"
+                className="text-xs font-medium"
+                aria-label="Filter by workspace"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Board / Project Filter */}
         <div className="flex items-center gap-2.5">
           <span className="text-xs font-semibold text-text-secondary whitespace-nowrap flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-text-muted" /> Board:
           </span>
-          <div className="w-48 sm:w-56">
+          <div className="w-52 sm:w-60">
             <Select
               value={selectedBoardId || 'all'}
               onChange={(val) => onBoardChange?.(val)}
@@ -106,6 +143,7 @@ export default function ReportsHeader({
           </div>
         </div>
 
+        {/* Timeframe Filter */}
         <div className="flex items-center gap-2.5">
           <span className="text-xs font-semibold text-text-secondary whitespace-nowrap flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-text-muted" /> Timeframe:

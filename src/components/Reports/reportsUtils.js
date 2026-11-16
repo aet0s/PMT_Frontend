@@ -58,9 +58,9 @@ export function exportWorkspaceReportCsv({ reportsData, workspace, selectedBoard
 
   // Section 2: Board Breakdowns
   csv += `PROJECT & BOARD PERFORMANCE\n`;
-  csv += `Board Name,Total Tasks,To Do,In Progress,Completed,Overdue,Completion Rate\n`;
+  csv += `Board Name,Workspace,Total Tasks,To Do,In Progress,Completed,Overdue,Completion Rate\n`;
   boards.forEach((b) => {
-    csv += `${escapeCsvValue(b.name)},${b.total_tasks || 0},${b.todo_tasks || 0},${b.in_progress_tasks || 0},${b.completed_tasks || 0},${b.overdue_tasks || 0},${formatPercent(b.completion_rate)}\n`;
+    csv += `${escapeCsvValue(b.name)},${escapeCsvValue(b.workspace_name || '')},${b.total_tasks || 0},${b.todo_tasks || 0},${b.in_progress_tasks || 0},${b.completed_tasks || 0},${b.overdue_tasks || 0},${formatPercent(b.completion_rate)}\n`;
   });
   csv += `\n`;
 
@@ -77,10 +77,10 @@ export function exportWorkspaceReportCsv({ reportsData, workspace, selectedBoard
   // Section 4: Overdue Tasks
   if (overdue.length > 0) {
     csv += `OVERDUE TASKS REQUIRING ATTENTION\n`;
-    csv += `Task Title,Board,List,Due Date,Days Overdue,Assignees\n`;
+    csv += `Task Title,Workspace,Board,List,Due Date,Days Overdue,Assignees\n`;
     overdue.forEach((t) => {
       const assigneesStr = canViewTeam ? (t.members || []).map((m) => m.name).join('; ') : '';
-      csv += `${escapeCsvValue(t.title)},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : '')},${t.days_overdue || 0},${escapeCsvValue(assigneesStr)}\n`;
+      csv += `${escapeCsvValue(t.title)},${escapeCsvValue(t.workspace_name || '')},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : '')},${t.days_overdue || 0},${escapeCsvValue(assigneesStr)}\n`;
     });
   }
 
@@ -116,7 +116,7 @@ export function exportMemberDossierCsv({ member, workspace }) {
   csv += `Completion Rate,${formatPercent(member.completion_rate)}\n\n`;
 
   csv += `ASSIGNED TASKS BREAKDOWN\n`;
-  csv += `Task Title,Board,List,Stage,Due Date,Status\n`;
+  csv += `Task Title,Workspace,Board,List,Stage,Due Date,Status\n`;
   (member.tasks || []).forEach((t) => {
     let status = 'In Progress';
     if (t.is_complete || t.stage === 'done') status = 'Completed';
@@ -125,7 +125,7 @@ export function exportMemberDossierCsv({ member, workspace }) {
     else if (t.stage === 'review') status = 'In Review';
     else if (t.is_due_soon) status = 'Due Soon';
 
-    csv += `${escapeCsvValue(t.title)},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.stage || 'in_progress')},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : 'No due date')},${escapeCsvValue(status)}\n`;
+    csv += `${escapeCsvValue(t.title)},${escapeCsvValue(t.workspace_name || '')},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.stage || 'in_progress')},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : 'No due date')},${escapeCsvValue(status)}\n`;
   });
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

@@ -92,12 +92,17 @@ export default function ReportsBoardPerformance({ boards = [], getBoardUrl }) {
               {filteredBoards.map((b) => (
                 <tr key={b.id} className="hover:bg-surface-elevated/40 transition-colors group">
                   <td className="py-3 px-4 font-medium text-text-primary">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <div
                         className="w-3 h-3 rounded-full shrink-0 border border-black/10 dark:border-white/10"
                         style={{ backgroundColor: b.background_color || '#3b82f6' }}
                       />
                       <span className="font-semibold">{b.name}</span>
+                      {b.workspace_name && (
+                        <Badge variant="secondary" className="text-[10px] ml-1 font-normal">
+                          {b.workspace_name}
+                        </Badge>
+                      )}
                     </div>
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
@@ -138,13 +143,19 @@ export default function ReportsBoardPerformance({ boards = [], getBoardUrl }) {
                     </div>
                   </td>
                   <td className="py-3 px-4 text-right whitespace-nowrap">
-                    <a
-                      href={getBoardUrl ? getBoardUrl(b.id) : `/b/${b.id}`}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-text-secondary hover:text-primary transition-colors bg-surface-elevated hover:bg-surface-elevated/80 px-2.5 py-1 rounded-md border border-border"
-                    >
-                      <span>Open</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
+                    {(() => {
+                      const targetWsId = b.workspace_id;
+                      const boardLink = targetWsId ? `/w/${targetWsId}/p/${b.id}/board` : (getBoardUrl ? getBoardUrl(b.id) : `/b/${b.id}`);
+                      return (
+                        <a
+                          href={boardLink}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-text-secondary hover:text-primary transition-colors bg-surface-elevated hover:bg-surface-elevated/80 px-2.5 py-1 rounded-md border border-border"
+                        >
+                          <span>Open</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}
