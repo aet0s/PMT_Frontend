@@ -17,6 +17,32 @@ export function escapeCsvValue(val) {
   return `"${str.replace(/"/g, '""')}"`;
 }
 
+/**
+ * Strips HTML tags, removes <img> elements completely (including inline base64 images),
+ * unescapes common HTML entities, and normalizes whitespace into single-line clean plain text.
+ */
+export function stripHtmlToText(html) {
+  if (!html) return '';
+  let text = String(html);
+  // Remove <img> elements completely to prevent image markup or large base64 data in CSV
+  text = text.replace(/<img[^>]*>/gi, '');
+  // Replace break and paragraph tags with spaces
+  text = text.replace(/<br\s*\/?>/gi, ' ');
+  text = text.replace(/<\/(p|div|li|tr|h[1-6])>/gi, ' ');
+  // Strip all other HTML tags
+  text = text.replace(/<[^>]+>/g, '');
+  // Decode HTML entities
+  text = text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+  // Normalize whitespace: replace newlines, carriage returns, and multiple spaces with a single space
+  return text.replace(/\s+/g, ' ').trim();
+}
+
 export function formatPercent(val) {
   if (val === null || val === undefined || isNaN(val)) return '0%';
   return `${Math.round(Number(val) * 10) / 10}%`;
@@ -43,6 +69,7 @@ export function exportWorkspaceReportCsv({ reportsData, workspace, selectedBoard
   const boards = reportsData.boards_breakdown || [];
   const members = canViewTeam ? (reportsData.members_workload || []) : [];
   const overdue = reportsData.overdue_tasks_list || [];
+  const allTasks = reportsData.all_tasks_list || [];
 
   let csv = `sep=,\n`;
   csv += `WORKSPACE MANAGEMENT REPORT\n`;
@@ -77,10 +104,31 @@ export function exportWorkspaceReportCsv({ reportsData, workspace, selectedBoard
   // Section 4: Overdue Tasks
   if (overdue.length > 0) {
     csv += `OVERDUE TASKS REQUIRING ATTENTION\n`;
-    csv += `Task Title,Workspace,Board,List,Due Date,Days Overdue,Assignees\n`;
+    csv += `Task Title,Description,Workspace,Board,List,Created Date,Due Date,Days Overdue,Assignees\n`;
     overdue.forEach((t) => {
       const assigneesStr = canViewTeam ? (t.members || []).map((m) => m.name).join('; ') : '';
-      csv += `${escapeCsvValue(t.title)},${escapeCsvValue(t.workspace_name || '')},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : '')},${t.days_overdue || 0},${escapeCsvValue(assigneesStr)}\n`;
+      const cleanDesc = stripHtmlToText(t.description);
+      csv += `${escapeCsvValue(t.title)},${escapeCsvValue(cleanDesc)},${escapeCsvValue(t.workspace_name || '')},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.created_at ? formatDate(t.created_at) : '')},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : '')},${t.days_overdue || 0},${escapeCsvValue(assigneesStr)}\n`;
+    });
+    csv += `\n`;
+  }
+
+  // Section 5: All Tasks & Deliverables Inventory
+  if (allTasks.length > 0) {
+    csv += `ALL TASKS & DELIVERABLES INVENTORY\n`;
+    csv += `Task Title,Description,Workspace,Board,List,Stage,Status,Created Date,Due Date,Assignees\n`;
+    allTasks.forEach((t) => {
+      let status = 'In Progress';
+      if (t.is_complete || t.stage === 'done') status = t.is_archived ? 'Completed (Archived)' : 'Completed';
+      else if (t.is_archived) status = 'Archived';
+      else if (t.is_overdue) status = 'Overdue';
+      else if (t.stage === 'todo') status = 'To Do';
+      else if (t.stage === 'review') status = 'In Review';
+      else if (t.is_due_soon) status = 'Due Soon';
+
+      const assigneesStr = canViewTeam ? (t.members || []).map((m) => m.name).join('; ') : '';
+      const cleanDesc = stripHtmlToText(t.description);
+      csv += `${escapeCsvValue(t.title)},${escapeCsvValue(cleanDesc)},${escapeCsvValue(t.workspace_name || '')},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.stage || 'in_progress')},${escapeCsvValue(status)},${escapeCsvValue(t.created_at ? formatDate(t.created_at) : '')},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : 'No due date')},${escapeCsvValue(assigneesStr)}\n`;
     });
   }
 
@@ -116,8 +164,9 @@ export function exportMemberDossierCsv({ member, workspace }) {
   csv += `Overdue,${member.overdue_tasks || 0}\n`;
   csv += `Completion Rate,${formatPercent(member.completion_rate)}\n\n`;
 
+  // Assigned Tasks Breakdown
   csv += `ASSIGNED TASKS BREAKDOWN\n`;
-  csv += `Task Title,Workspace,Board,List,Stage,Due Date,Status\n`;
+  csv += `Task Title,Description,Workspace,Board,List,Stage,Status,Created Date,Due Date\n`;
   (member.tasks || []).forEach((t) => {
     let status = 'In Progress';
     if (t.is_complete || t.stage === 'done') status = t.is_archived ? 'Completed (Archived)' : 'Completed';
@@ -127,8 +176,29 @@ export function exportMemberDossierCsv({ member, workspace }) {
     else if (t.stage === 'review') status = 'In Review';
     else if (t.is_due_soon) status = 'Due Soon';
 
-    csv += `${escapeCsvValue(t.title)},${escapeCsvValue(t.workspace_name || '')},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.stage || 'in_progress')},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : 'No due date')},${escapeCsvValue(status)}\n`;
+    const cleanDesc = stripHtmlToText(t.description);
+    csv += `${escapeCsvValue(t.title)},${escapeCsvValue(cleanDesc)},${escapeCsvValue(t.workspace_name || '')},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.stage || 'in_progress')},${escapeCsvValue(status)},${escapeCsvValue(t.created_at ? formatDate(t.created_at) : '')},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : 'No due date')}\n`;
   });
+  csv += `\n`;
+
+  // Created / Reported Tasks Breakdown
+  if (member.created_cards && member.created_cards.length > 0) {
+    csv += `TASKS CREATED / REPORTED BY MEMBER\n`;
+    csv += `Task Title,Description,Workspace,Board,List,Stage,Status,Created Date,Due Date,Assignees\n`;
+    member.created_cards.forEach((t) => {
+      let status = 'In Progress';
+      if (t.is_complete || t.stage === 'done') status = t.is_archived ? 'Completed (Archived)' : 'Completed';
+      else if (t.is_archived) status = 'Archived';
+      else if (t.is_overdue) status = 'Overdue';
+      else if (t.stage === 'todo') status = 'To Do';
+      else if (t.stage === 'review') status = 'In Review';
+      else if (t.is_due_soon) status = 'Due Soon';
+
+      const assigneesStr = (t.members || []).map((m) => m.name).join('; ');
+      const cleanDesc = stripHtmlToText(t.description);
+      csv += `${escapeCsvValue(t.title)},${escapeCsvValue(cleanDesc)},${escapeCsvValue(t.workspace_name || '')},${escapeCsvValue(t.board_name)},${escapeCsvValue(t.list_name)},${escapeCsvValue(t.stage || 'in_progress')},${escapeCsvValue(status)},${escapeCsvValue(t.created_at ? formatDate(t.created_at) : '')},${escapeCsvValue(t.due_date ? formatDate(t.due_date) : 'No due date')},${escapeCsvValue(assigneesStr)}\n`;
+    });
+  }
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
