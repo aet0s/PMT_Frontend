@@ -1,7 +1,16 @@
 // client/src/pages/ReportsPage.jsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ShieldAlert, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
+import {
+  ShieldAlert,
+  ArrowLeft,
+  RefreshCw,
+  AlertCircle,
+  LayoutDashboard,
+  FolderKanban,
+  Users,
+  AlertTriangle
+} from 'lucide-react';
 import { getWorkspaceReports } from '../api/workspaces';
 import { useSocket } from '../context/SocketProvider';
 import { usePermissions } from '../context/PermissionContext';
@@ -42,6 +51,35 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
 
   // Selected member for detail drawer
   const [selectedMember, setSelectedMember] = useState(null);
+
+  // Active view tab: 'overview' | 'boards' | 'team' | 'risks'
+  const [activeTab, setActiveTab] = useState(() => {
+    const fromUrl = searchParams.get('tab');
+    if (['overview', 'boards', 'team', 'risks'].includes(fromUrl)) {
+      return fromUrl;
+    }
+    return 'overview';
+  });
+
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (tab === 'overview') {
+        next.delete('tab');
+      } else {
+        next.set('tab', tab);
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Sanitize activeTab if permission revoked
+  useEffect(() => {
+    if (activeTab === 'team' && !canViewTeam) {
+      handleTabChange('overview');
+    }
+  }, [activeTab, canViewTeam, handleTabChange]);
 
   // Active in-flight request tracker to prevent race conditions
   const activeRequestIdRef = useRef(0);
@@ -353,45 +391,185 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
           </div>
         ) : (
           <>
-            {/* Section B: Overall Workspace Performance KPIs */}
-            <ReportsKpiSummary
-              summary={summary}
-              canViewTeam={canViewTeam}
-            />
+            {/* View Mode Navigation Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => handleTabChange('overview')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  activeTab === 'overview'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>Executive Overview</span>
+              </button>
 
-            {/* Section C: Workflow Stage & Status Distribution */}
-            <ReportsTaskStatus
-              stageBreakdown={stageBreakdown}
-              totalTasks={summary.total_tasks || 0}
-            />
+              <button
+                type="button"
+                onClick={() => handleTabChange('boards')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  activeTab === 'boards'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
+                }`}
+              >
+                <FolderKanban className="w-3.5 h-3.5" />
+                <span>Boards & Projects</span>
+                <span
+                  className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${
+                    activeTab === 'boards'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-surface-elevated text-text-secondary border border-border'
+                  }`}
+                >
+                  {boardsBreakdown.length}
+                </span>
+              </button>
 
-            {/* Section D: Project & Board Performance */}
-            <ReportsBoardPerformance
-              boards={boardsBreakdown}
-              getBoardUrl={getBoardUrl}
-            />
+              {canViewTeam && (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('team')}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                    activeTab === 'team'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Team Workload</span>
+                  <span
+                    className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${
+                      activeTab === 'team'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-surface-elevated text-text-secondary border border-border'
+                    }`}
+                  >
+                    {membersWorkload.length}
+                  </span>
+                </button>
+              )}
 
-            {/* Section E: Team Workload & Individual Performance (Strictly gated by report.view_team) */}
-            {canViewTeam && (
-              <ReportsTeamWorkload
-                members={membersWorkload}
-                onSelectMember={(member) => setSelectedMember(member)}
-                canViewTeam={canViewTeam}
-              />
+              <button
+                type="button"
+                onClick={() => handleTabChange('risks')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  activeTab === 'risks'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Risks & Attention</span>
+                <span
+                  className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${
+                    activeTab === 'risks'
+                      ? 'bg-white/20 text-white'
+                      : overdueTasksList.length > 0
+                      ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                      : 'bg-surface-elevated text-text-secondary border border-border'
+                  }`}
+                >
+                  {overdueTasksList.length}
+                </span>
+              </button>
+            </div>
+
+            {/* TAB 1: EXECUTIVE OVERVIEW */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                {/* Section B: Overall Workspace Performance KPIs */}
+                <ReportsKpiSummary
+                  summary={summary}
+                  canViewTeam={canViewTeam}
+                />
+
+                {/* Section C: Workflow Stage & Status Distribution + 7-Day Velocity (Balanced Side-by-Side Grid) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                  <ReportsTaskStatus
+                    stageBreakdown={stageBreakdown}
+                    totalTasks={summary.total_tasks || 0}
+                  />
+                  <ReportsTrends velocity={velocity} />
+                </div>
+
+                {/* Section D: Project & Board Performance (Compact preview, 5 rows) */}
+                <ReportsBoardPerformance
+                  boards={boardsBreakdown}
+                  getBoardUrl={getBoardUrl}
+                  defaultPageSize={5}
+                  onViewAll={() => handleTabChange('boards')}
+                  title="Project & Board Performance"
+                />
+
+                {/* Section E: Team Workload (Compact preview, 5 rows) */}
+                {canViewTeam && (
+                  <ReportsTeamWorkload
+                    members={membersWorkload}
+                    onSelectMember={(member) => setSelectedMember(member)}
+                    canViewTeam={canViewTeam}
+                    defaultPageSize={5}
+                    onViewAll={() => handleTabChange('team')}
+                    title="Team Workload & Performance"
+                  />
+                )}
+
+                {/* Section F: Overdue Deliverables & Actionable Items */}
+                {overdueTasksList.length > 0 && (
+                  <ReportsAttentionList
+                    overdueTasks={overdueTasksList}
+                    canViewTeam={canViewTeam}
+                    getBoardUrl={getBoardUrl}
+                    defaultPageSize={5}
+                    onViewAll={() => handleTabChange('risks')}
+                    title="Tasks Requiring Immediate Attention"
+                  />
+                )}
+
+                {/* Section H: Label Breakdown & Tag Density */}
+                <ReportsLabels labelsBreakdown={labelsBreakdown} />
+              </div>
             )}
 
-            {/* Section F: Overdue Deliverables & Actionable Items */}
-            <ReportsAttentionList
-              overdueTasks={overdueTasksList}
-              canViewTeam={canViewTeam}
-              getBoardUrl={getBoardUrl}
-            />
+            {/* TAB 2: DEDICATED BOARDS & PROJECTS */}
+            {activeTab === 'boards' && (
+              <div className="space-y-6">
+                <ReportsBoardPerformance
+                  boards={boardsBreakdown}
+                  getBoardUrl={getBoardUrl}
+                  defaultPageSize={12}
+                  title="All Projects & Boards"
+                />
+              </div>
+            )}
 
-            {/* Section G: 7-Day Velocity & Productivity Trends */}
-            <ReportsTrends velocity={velocity} />
+            {/* TAB 3: DEDICATED TEAM WORKLOAD */}
+            {activeTab === 'team' && canViewTeam && (
+              <div className="space-y-6">
+                <ReportsTeamWorkload
+                  members={membersWorkload}
+                  onSelectMember={(member) => setSelectedMember(member)}
+                  canViewTeam={canViewTeam}
+                  defaultPageSize={12}
+                  title="All Team Members Workload & Capacity"
+                />
+              </div>
+            )}
 
-            {/* Section H: Label Breakdown & Tag Density */}
-            <ReportsLabels labelsBreakdown={labelsBreakdown} />
+            {/* TAB 4: DEDICATED RISKS & OVERDUE */}
+            {activeTab === 'risks' && (
+              <div className="space-y-6">
+                <ReportsAttentionList
+                  overdueTasks={overdueTasksList}
+                  canViewTeam={canViewTeam}
+                  getBoardUrl={getBoardUrl}
+                  defaultPageSize={10}
+                  title="All Tasks Requiring Attention & Overdue Deliverables"
+                />
+              </div>
+            )}
           </>
         )}
       </div>

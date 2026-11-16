@@ -10,7 +10,8 @@ import {
   TrendingUp,
   ListTodo,
   Calendar,
-  UserX
+  UserX,
+  Archive
 } from 'lucide-react';
 import { formatNumber, formatPercent, formatDays } from './reportsUtils';
 
@@ -21,6 +22,7 @@ export default function ReportsKpiSummary({ summary = {}, canViewTeam = false })
     in_progress_tasks = 0,
     todo_tasks = 0,
     review_tasks = 0,
+    archived_tasks = 0,
     overdue_tasks = 0,
     due_soon_tasks = 0,
     unassigned_tasks = 0,
@@ -139,6 +141,14 @@ export default function ReportsKpiSummary({ summary = {}, canViewTeam = false })
             <div>
               <p className="text-[11px] text-text-muted font-medium">Unassigned</p>
               <p className="text-sm font-semibold text-text-primary">{formatNumber(unassigned_tasks)}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 px-3 py-1 min-w-[120px]">
+            <Archive className="w-4 h-4 text-amber-500 shrink-0" />
+            <div>
+              <p className="text-[11px] text-text-muted font-medium">Archived</p>
+              <p className="text-sm font-semibold text-text-primary">{formatNumber(archived_tasks)}</p>
             </div>
           </div>
 

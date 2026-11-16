@@ -53,23 +53,23 @@ export function exportWorkspaceReportCsv({ reportsData, workspace, selectedBoard
 
   // Section 1: Summary KPIs
   csv += `WORKSPACE SUMMARY METRICS\n`;
-  csv += `Total Tasks,Completed Tasks,In Progress Tasks,To Do Tasks,Review Tasks,Overdue Tasks,Due Soon Tasks,Unassigned Tasks,Completion Rate,Overdue Rate,Avg Cycle Time\n`;
-  csv += `${summary.total_tasks || 0},${summary.completed_tasks || 0},${summary.in_progress_tasks || 0},${summary.todo_tasks || 0},${summary.review_tasks || 0},${summary.overdue_tasks || 0},${summary.due_soon_tasks || 0},${summary.unassigned_tasks || 0},${formatPercent(summary.completion_rate)},${formatPercent(summary.overdue_rate)},${formatDays(summary.avg_cycle_days)}\n\n`;
+  csv += `Total Tasks,Completed Tasks,Archived Tasks,In Progress Tasks,To Do Tasks,Review Tasks,Overdue Tasks,Due Soon Tasks,Unassigned Tasks,Completion Rate,Overdue Rate,Avg Cycle Time\n`;
+  csv += `${summary.total_tasks || 0},${summary.completed_tasks || 0},${summary.archived_tasks || 0},${summary.in_progress_tasks || 0},${summary.todo_tasks || 0},${summary.review_tasks || 0},${summary.overdue_tasks || 0},${summary.due_soon_tasks || 0},${summary.unassigned_tasks || 0},${formatPercent(summary.completion_rate)},${formatPercent(summary.overdue_rate)},${formatDays(summary.avg_cycle_days)}\n\n`;
 
   // Section 2: Board Breakdowns
   csv += `PROJECT & BOARD PERFORMANCE\n`;
-  csv += `Board Name,Workspace,Total Tasks,To Do,In Progress,Completed,Overdue,Completion Rate\n`;
+  csv += `Board Name,Workspace,Total Tasks,To Do,In Progress,Completed,Archived,Overdue,Completion Rate\n`;
   boards.forEach((b) => {
-    csv += `${escapeCsvValue(b.name)},${escapeCsvValue(b.workspace_name || '')},${b.total_tasks || 0},${b.todo_tasks || 0},${b.in_progress_tasks || 0},${b.completed_tasks || 0},${b.overdue_tasks || 0},${formatPercent(b.completion_rate)}\n`;
+    csv += `${escapeCsvValue(b.name)},${escapeCsvValue(b.workspace_name || '')},${b.total_tasks || 0},${b.todo_tasks || 0},${b.in_progress_tasks || 0},${b.completed_tasks || 0},${b.archived_tasks || 0},${b.overdue_tasks || 0},${formatPercent(b.completion_rate)}\n`;
   });
   csv += `\n`;
 
   // Section 3: Team Workload (if permitted)
   if (canViewTeam && members.length > 0) {
     csv += `TEAM WORKLOAD & PERFORMANCE\n`;
-    csv += `Name,Email,Role,Assigned Tasks,To Do,In Progress,Review,Completed,Overdue,Completion Rate\n`;
+    csv += `Name,Email,Role,Assigned Tasks,To Do,In Progress,Review,Completed,Archived,Overdue,Completion Rate\n`;
     members.forEach((m) => {
-      csv += `${escapeCsvValue(m.name)},${escapeCsvValue(m.email)},${escapeCsvValue(m.role || 'Member')},${m.assigned_tasks || 0},${m.todo_tasks || 0},${m.in_progress_tasks || 0},${m.review_tasks || 0},${m.completed_tasks || 0},${m.overdue_tasks || 0},${formatPercent(m.completion_rate)}\n`;
+      csv += `${escapeCsvValue(m.name)},${escapeCsvValue(m.email)},${escapeCsvValue(m.role || 'Member')},${m.assigned_tasks || 0},${m.todo_tasks || 0},${m.in_progress_tasks || 0},${m.review_tasks || 0},${m.completed_tasks || 0},${m.archived_tasks || 0},${m.overdue_tasks || 0},${formatPercent(m.completion_rate)}\n`;
     });
     csv += `\n`;
   }
@@ -110,6 +110,7 @@ export function exportMemberDossierCsv({ member, workspace }) {
   csv += `Workspace,${escapeCsvValue(workspace?.name || 'Workspace')}\n`;
   csv += `Total Assigned,${member.assigned_tasks || 0}\n`;
   csv += `Completed,${member.completed_tasks || 0}\n`;
+  csv += `Archived,${member.archived_tasks || 0}\n`;
   csv += `In Progress,${member.in_progress_tasks || 0}\n`;
   csv += `To Do,${member.todo_tasks || 0}\n`;
   csv += `Overdue,${member.overdue_tasks || 0}\n`;
@@ -119,7 +120,8 @@ export function exportMemberDossierCsv({ member, workspace }) {
   csv += `Task Title,Workspace,Board,List,Stage,Due Date,Status\n`;
   (member.tasks || []).forEach((t) => {
     let status = 'In Progress';
-    if (t.is_complete || t.stage === 'done') status = 'Completed';
+    if (t.is_complete || t.stage === 'done') status = t.is_archived ? 'Completed (Archived)' : 'Completed';
+    else if (t.is_archived) status = 'Archived';
     else if (t.is_overdue) status = 'Overdue';
     else if (t.stage === 'todo') status = 'To Do';
     else if (t.stage === 'review') status = 'In Review';

@@ -11,7 +11,8 @@ import {
   Calendar,
   ListTodo,
   TrendingUp,
-  FolderKanban
+  FolderKanban,
+  Archive
 } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Badge from '../ui/Badge';
@@ -45,10 +46,11 @@ export default function ReportMemberDetailsDrawer({
 
   const filteredTasks = useMemo(() => {
     if (!activeTaskList) return [];
-    if (statusTab === 'todo') return activeTaskList.filter((t) => t.stage === 'todo' && !t.is_complete);
-    if (statusTab === 'in_progress') return activeTaskList.filter((t) => (t.stage === 'in_progress' || t.stage === 'review') && !t.is_complete && !t.is_overdue);
-    if (statusTab === 'overdue') return activeTaskList.filter((t) => t.is_overdue);
+    if (statusTab === 'todo') return activeTaskList.filter((t) => t.stage === 'todo' && !t.is_complete && !t.is_archived);
+    if (statusTab === 'in_progress') return activeTaskList.filter((t) => (t.stage === 'in_progress' || t.stage === 'review') && !t.is_complete && !t.is_overdue && !t.is_archived);
+    if (statusTab === 'overdue') return activeTaskList.filter((t) => t.is_overdue && !t.is_archived);
     if (statusTab === 'completed') return activeTaskList.filter((t) => t.is_complete || t.stage === 'done');
+    if (statusTab === 'archived') return activeTaskList.filter((t) => t.is_archived);
     return activeTaskList;
   }, [activeTaskList, statusTab]);
 
@@ -115,7 +117,7 @@ export default function ReportMemberDetailsDrawer({
             </div>
 
             {/* Metrics Mini-Grid */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-2">
+            <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 pt-2">
               <div className="bg-surface p-2 rounded-lg border border-border text-center">
                 <span className="text-[10px] text-text-muted font-medium block">Assigned</span>
                 <span className="text-sm font-bold text-text-primary">{formatNumber(member.assigned_tasks)}</span>
@@ -131,6 +133,10 @@ export default function ReportMemberDetailsDrawer({
               <div className="bg-surface p-2 rounded-lg border border-border text-center">
                 <span className="text-[10px] text-text-muted font-medium block">Completed</span>
                 <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(member.completed_tasks)}</span>
+              </div>
+              <div className="bg-surface p-2 rounded-lg border border-border text-center">
+                <span className="text-[10px] text-text-muted font-medium block">Archived</span>
+                <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatNumber(member.archived_tasks || 0)}</span>
               </div>
               <div className="bg-surface p-2 rounded-lg border border-border text-center">
                 <span className="text-[10px] text-text-muted font-medium block">Overdue</span>
@@ -183,7 +189,8 @@ export default function ReportMemberDetailsDrawer({
                 { id: 'todo', label: 'To Do' },
                 { id: 'in_progress', label: 'In Progress' },
                 { id: 'overdue', label: 'Overdue' },
-                { id: 'completed', label: 'Completed' }
+                { id: 'completed', label: 'Completed' },
+                { id: 'archived', label: 'Archived' }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -232,7 +239,17 @@ export default function ReportMemberDetailsDrawer({
 
                       {task.is_complete ? (
                         <span className="shrink-0 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
-                          <CheckCircle2 className="w-2.5 h-2.5" /> Done
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          <span>Done</span>
+                          {task.is_archived && (
+                            <span className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70 font-normal">
+                              (Archived)
+                            </span>
+                          )}
+                        </span>
+                      ) : task.is_archived ? (
+                        <span className="shrink-0 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
+                          <Archive className="w-2.5 h-2.5" /> Archived
                         </span>
                       ) : task.is_overdue ? (
                         <span className="shrink-0 text-[10px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 flex items-center gap-1">
