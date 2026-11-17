@@ -13,7 +13,8 @@ export function ConfirmDialog({
   variant = 'danger', // 'danger' | 'warning' | 'primary'
   onConfirm,
   onCancel,
-  isLoading = false
+  isLoading = false,
+  zIndex = 'z-[1100]'
 }) {
   const icon =
     variant === 'danger' || variant === 'warning' ? (
@@ -43,6 +44,7 @@ export function ConfirmDialog({
       isOpen={isOpen}
       onClose={onCancel}
       size="sm"
+      zIndex={zIndex}
       showCloseButton={false}
       footer={
         <>

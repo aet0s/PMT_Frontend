@@ -24,7 +24,8 @@ export function Modal({
   showCloseButton = true,
   className = '',
   bodyClassName,
-  footer
+  footer,
+  zIndex = 'z-50'
 }) {
   const modalRef = useRef(null);
   const previousActiveElement = useRef(null);
@@ -109,7 +110,7 @@ export function Modal({
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
       aria-describedby={description ? 'modal-desc' : undefined}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none"
+      className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center p-0 sm:p-4 select-none`}
     >
       {/* Soft light backdrop */}
       <div

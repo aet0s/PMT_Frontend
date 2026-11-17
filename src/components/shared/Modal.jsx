@@ -12,7 +12,8 @@ export default function Modal({
   showCloseButton = true,
   className = '',
   bodyClassName,
-  footer
+  footer,
+  zIndex
 }) {
   let size = propSize || 'lg';
   if (!propSize) {
@@ -33,6 +34,7 @@ export default function Modal({
       className={className}
       bodyClassName={bodyClassName}
       footer={footer}
+      zIndex={zIndex}
     >
       {children}
     </UIModal>

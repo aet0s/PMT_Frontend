@@ -10,7 +10,8 @@ export default function ConfirmModal({
   variant = 'danger',
   onConfirm,
   onCancel,
-  isLoading = false
+  isLoading = false,
+  zIndex = 'z-[1100]'
 }) {
   return (
     <ConfirmDialog
@@ -23,6 +24,7 @@ export default function ConfirmModal({
       onConfirm={onConfirm}
       onCancel={onCancel}
       isLoading={isLoading}
+      zIndex={zIndex}
     />
   );
 }
