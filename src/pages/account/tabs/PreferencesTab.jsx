@@ -51,6 +51,10 @@ export default function PreferencesTab({ setFormDirty }) {
     try {
       localStorage.setItem('taskflow_density', density);
       localStorage.setItem('taskflow_reduced_motion', String(reducedMotion));
+      if (typeof document !== 'undefined') {
+        document.documentElement.classList.toggle('reduce-motion', Boolean(reducedMotion));
+        document.documentElement.classList.toggle('density-compact', density === 'compact');
+      }
       await updateUserProfile({ timezone, locale });
       toast.show('Preferences updated successfully', 'success');
       setFormDirty?.(false);
@@ -93,6 +97,9 @@ export default function PreferencesTab({ setFormDirty }) {
                 value={density}
                 onChange={(val) => {
                   setDensity(val);
+                  if (typeof document !== 'undefined') {
+                    document.documentElement.classList.toggle('density-compact', val === 'compact');
+                  }
                   setFormDirty?.(true);
                 }}
                 options={[
@@ -113,6 +120,9 @@ export default function PreferencesTab({ setFormDirty }) {
                 checked={reducedMotion}
                 onChange={(checked) => {
                   setReducedMotion(checked);
+                  if (typeof document !== 'undefined') {
+                    document.documentElement.classList.toggle('reduce-motion', Boolean(checked));
+                  }
                   setFormDirty?.(true);
                 }}
               />
