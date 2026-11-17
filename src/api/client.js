@@ -339,7 +339,15 @@ export async function apiFetch(url, options = {}, isRetry = false) {
       credentials: 'include'
     };
 
-    const response = await fetch(getApiUrl(url), config);
+    let response;
+    try {
+      response = await fetch(getApiUrl(url), config);
+    } catch (fetchErr) {
+      if (options.body instanceof FormData) {
+        throw new Error('Upload failed: network error or file size exceeds server limit (max 20MB)');
+      }
+      throw fetchErr;
+    }
     return handleApiResponse(response, url, options, isRetry);
   }
 

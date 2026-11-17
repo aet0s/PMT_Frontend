@@ -1985,6 +1985,11 @@ export default function BoardPage() {
 
   // Attachment Handlers
   const handleUploadAttachment = async (cardId, file) => {
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 20MB.`);
+      return;
+    }
     try {
       const data = await uploadAttachment(cardId, file);
       if (data?.attachment) {

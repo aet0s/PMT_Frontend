@@ -8,28 +8,46 @@ export default function AttachmentPopover({ isOpen, onClose, anchorRef, onUpload
   const [linkUrl, setLinkUrl] = useState('');
   const [displayText, setDisplayText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleFileChange = async (file) => {
-    if (!file) return;
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB limit
+
+  const handleFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+
+    for (const file of fileList) {
+      if (file.size > MAX_FILE_SIZE) {
+        setErrorMsg(`File "${file.name}" is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed size is 20MB.`);
+        return;
+      }
+    }
+
     setIsUploading(true);
     setErrorMsg('');
     try {
-      await onUploadFile(file);
+      for (let i = 0; i < fileList.length; i++) {
+        if (fileList.length > 1) {
+          setUploadProgress(`Uploading ${i + 1} of ${fileList.length}...`);
+        }
+        await onUploadFile(fileList[i]);
+      }
       onClose();
     } catch (err) {
       setErrorMsg(err.message || 'Upload failed');
     } finally {
       setIsUploading(false);
+      setUploadProgress('');
     }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDraggingOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileChange(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
     }
   };
 
@@ -103,16 +121,17 @@ export default function AttachmentPopover({ isOpen, onClose, anchorRef, onUpload
             }`}
           >
             <Upload className="w-8 h-8 text-primary mb-2" />
-            <p className="font-medium text-text-primary mb-1">Drag and drop file here</p>
+            <p className="font-medium text-text-primary mb-1">Drag and drop file(s) here</p>
             <p className="text-[10px] text-text-muted mb-4">
               All files supported (Excel, Word, PDF, CSV, JSON, images, etc. up to 20MB)
             </p>
 
             <label className="px-4 py-2 bg-primary hover:bg-primary-hover active:bg-primary-active text-white font-medium text-xs rounded-md shadow-xs cursor-pointer transition-colors">
-              {isUploading ? 'Uploading...' : 'Choose a file'}
+              {isUploading ? (uploadProgress || 'Uploading...') : 'Choose file(s)'}
               <input
                 type="file"
-                onChange={(e) => handleFileChange(e.target.files[0])}
+                multiple
+                onChange={(e) => handleFiles(e.target.files)}
                 className="hidden"
                 disabled={isUploading}
               />
