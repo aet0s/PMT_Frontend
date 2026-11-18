@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { usePermissions } from '../../context/PermissionContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useDisplayPreferences } from '../../hooks/useDisplayPreferences';
 import { getListStatusConfig, getCardDefaultStatus } from '../../lib/listStatusColors';
 
 export default function Card({
@@ -100,10 +101,12 @@ export default function Card({
     data: { type: 'card', card }
   });
 
+  const { isCompact, reducedMotion: isReducedMotion } = useDisplayPreferences();
+
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging || isRemoteDragging ? 0.35 : 1
+    transition: isReducedMotion ? 'none' : transition,
+    opacity: isDragging || (!isReducedMotion && isRemoteDragging) ? 0.35 : 1
   };
 
   // Due date status calculation
@@ -170,295 +173,360 @@ export default function Card({
         if (e.target.closest('button[aria-label="Card actions"]') || e.defaultPrevented) return;
         onClick?.();
       }}
-      className={`kanban-card group relative bg-surface border border-border/80 rounded-2xl p-4 transition-all duration-200 cursor-pointer select-none space-y-3 shadow-xs hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
+      className={`kanban-card group relative bg-surface border border-border/80 ${
+        isCompact ? 'rounded-xl p-2.5 sm:p-3 space-y-1.5' : 'rounded-2xl p-4 space-y-3'
+      } ${
+        isReducedMotion ? '' : 'transition-all duration-200'
+      } cursor-pointer select-none shadow-xs hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
         focusMode
           ? isMyCard
             ? `${
                 statusConfig?.key
                   ? `card-fullborder-${statusConfig.key}`
                   : 'card-fullborder-default'
-              } opacity-100 scale-[1.01] bg-surface z-10 hover:-translate-y-0.5`
-            : 'border-border/60 opacity-35 hover:opacity-100 hover:scale-[1.005] saturate-50 hover:saturate-100'
+              } opacity-100 ${isReducedMotion ? '' : 'scale-[1.01] hover:-translate-y-0.5'} bg-surface z-10`
+            : `border-border/60 opacity-35 hover:opacity-100 ${isReducedMotion ? '' : 'hover:scale-[1.005]'} saturate-50 hover:saturate-100`
           : statusConfig
-          ? `${statusConfig.cardClass} hover:border-t-primary/40 hover:border-x-primary/40 hover:-translate-y-0.5`
-          : 'border-border/80 hover:border-primary/40 shadow-xs hover:shadow-md hover:-translate-y-0.5'
+          ? `${statusConfig.cardClass} ${isReducedMotion ? '' : 'hover:border-t-primary/40 hover:border-x-primary/40 hover:-translate-y-0.5'}`
+          : `border-border/80 ${isReducedMotion ? '' : 'hover:border-primary/40 hover:-translate-y-0.5'}`
       } ${
-        isOverlay ? 'shadow-2xl border-primary ring-2 ring-primary/20 scale-105 rotate-1 z-50 bg-surface' : ''
+        isOverlay
+          ? isReducedMotion
+            ? 'shadow-lg border-primary ring-2 ring-primary/20 z-50 bg-surface'
+            : 'shadow-2xl border-primary ring-2 ring-primary/20 scale-105 rotate-1 z-50 bg-surface'
+          : ''
       } ${
-        isHighlighted ? 'ring-2 ring-primary border-primary shadow-lg animate-pulse' : ''
+        isHighlighted && !isReducedMotion ? 'ring-2 ring-primary border-primary shadow-lg animate-pulse' : ''
       }`}
     >
-      {/* Top Header: Label Pill, Role Badge & Action Menu */}
-      <div className="flex items-center justify-between gap-2 min-h-[24px]">
-        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-          <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
-            Task #{taskNumber ?? card.task_number ?? 1}
-          </span>
-          {/* Focused My Card Role Badge: only shown in Focus Mode */}
-          {focusMode && isMyCard && (
-            <span
-              title={
-                isAssignee && isAssigner
-                  ? 'You are both an assigner and assignee on this task'
-                  : isAssignee
-                  ? 'You are assigned to this task'
-                  : 'You assigned / created this task'
-              }
-              className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 border select-none transition-all ${
-                isAssignee && isAssigner
-                  ? 'bg-label-amber text-label-amber-text border-label-amber-text/25'
-                  : isAssignee
-                  ? 'bg-label-green text-label-green-text border-label-green-text/25'
-                  : 'bg-label-purple text-label-purple-text border-label-purple-text/25'
+      {isCompact ? (
+        <div className="space-y-1.5">
+          {/* Card Title & Complete Status */}
+          <div className="flex items-start gap-2">
+            {card.is_complete && (
+              <span className="mt-0.5 w-4 h-4 rounded-full bg-success text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <Check className="w-3 h-3 stroke-[3]" />
+              </span>
+            )}
+            <h4
+              className={`text-xs sm:text-sm font-bold leading-snug break-words transition-colors ${
+                card.is_complete
+                  ? 'line-through text-text-muted'
+                  : 'text-text-primary group-hover:text-primary'
               }`}
             >
-              <span
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                  isAssignee && isAssigner
-                    ? 'bg-label-amber-text'
-                    : isAssignee
-                    ? 'bg-label-green-text'
-                    : 'bg-label-purple-text'
-                }`}
-              />
-              <span className="truncate">
-                {isAssignee && isAssigner
-                  ? 'Mine (Both)'
-                  : isAssignee
-                  ? 'Assigned to you'
-                  : 'Assigned by you'}
-              </span>
-            </span>
-          )}
-          {card.labels && card.labels.length > 0 &&
-            card.labels.map((l) => (
-              <LabelPill key={l.id} name={l.name} color={l.color} size="sm" />
-            ))}
-        </div>
-
-        {/* 3-Dots Action Dropdown Menu */}
-        {hasAnyCardActions && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="shrink-0"
-          >
-            <Menu
-              placement="bottom-end"
-              trigger={
-                <button
-                  type="button"
-                  aria-label="Card actions"
-                  title="Card actions"
-                  className="text-text-muted hover:text-text-primary p-1 rounded-lg hover:bg-surface-muted transition-colors opacity-70 group-hover:opacity-100 cursor-pointer"
-                >
-                  <MoreHorizontal className="w-4.5 h-4.5" />
-                </button>
-              }
-            >
-              {onCopyCard && canCopyCard && (
-                <MenuItem
-                  icon={<Copy className="w-4 h-4 text-primary" />}
-                  onClick={(e) => {
-                    e?.stopPropagation?.();
-                    onCopyCard(card);
-                  }}
-                >
-                  Copy Card
-                </MenuItem>
-              )}
-              {onUpdateCard && canArchiveCard && (
-                <MenuItem
-                  icon={<Archive className="w-4 h-4 text-warning" />}
-                  onClick={(e) => {
-                    e?.stopPropagation?.();
-                    onUpdateCard(card.id, { is_archived: true });
-                  }}
-                >
-                  Archive Card
-                </MenuItem>
-              )}
-              {onDeleteCard && canDeleteCard && (
-                <>
-                  {(canCopyCard || canArchiveCard) && <MenuDivider />}
-                  <MenuItem
-                    icon={<Trash2 className="w-4 h-4 text-danger" />}
-                    danger
-                    onClick={(e) => {
-                      e?.stopPropagation?.();
-                      onDeleteCard(card.id);
-                    }}
-                  >
-                    Delete Card
-                  </MenuItem>
-                </>
-              )}
-            </Menu>
+              {card.title}
+            </h4>
           </div>
-        )}
-      </div>
 
-      {/* Card Title & Complete Status */}
-      <div className="flex items-start gap-2">
-        {card.is_complete && (
-          <span className="mt-0.5 w-4.5 h-4.5 rounded-full bg-success text-white flex items-center justify-center shrink-0 shadow-2xs">
-            <Check className="w-3.5 h-3.5 stroke-[3]" />
-          </span>
-        )}
-        <h4
-          className={`text-[15px] sm:text-base font-bold leading-snug break-words transition-colors ${
-            card.is_complete
-              ? 'line-through text-text-muted'
-              : 'text-text-primary group-hover:text-primary'
-          }`}
-        >
-          {card.title}
-        </h4>
-      </div>
-
-      {/* Description Snippet */}
-      {descriptionSnippet && (
-        <p className="text-xs sm:text-[13px] text-text-secondary line-clamp-2 leading-relaxed">
-          {descriptionSnippet}
-        </p>
-      )}
-
-      {/* Visual Image Preview (if card has an image attachment) */}
-      {imageAttachment && (
-        <div className="relative rounded-xl overflow-hidden border border-border/60 bg-surface-muted max-h-36 shadow-inner">
-          <img
-            src={imageAttachment.url || imageAttachment.file_url}
-            alt={imageAttachment.file_name || 'Card preview'}
-            className="w-full h-32 object-cover transition-transform group-hover:scale-102 duration-300"
-            onError={(e) => {
-              // Hide broken image smoothly
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-        </div>
-      )}
-
-      {/* Card Footer: Assignee Avatars on Left, Metadata Counters on Right */}
-      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-text-secondary text-xs">
-        {/* Assignee / Member Avatars (Pure circular with custom hover popup matching sidebar) */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {((card.assigners && card.assigners.length > 0) || (card.members && card.members.length > 0)) ? (
-            <div className="flex items-center">
-              {card.assigners && card.assigners.length > 0 && (
-                <div className="flex -space-x-1.5 mr-1">
-                  {card.assigners.map((a) => (
-                    <div
-                      key={a.id}
-                      onMouseEnter={(e) => showMemberTooltip(e, a, 'Assigner')}
-                      onMouseLeave={hideMemberTooltip}
-                      className="relative inline-block cursor-pointer"
-                    >
-                      <Avatar
-                        name={a.name}
-                        src={a.avatar_url || a.avatar}
-                        user={a}
-                        size="xs"
-                        className="rounded-full ring-2 ring-surface shadow-2xs"
-                        title=""
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-              {card.members && card.members.length > 0 && (
-                <div className="flex -space-x-1.5">
-                  {card.members.map((m) => (
-                    <div
-                      key={m.id}
-                      onMouseEnter={(e) => showMemberTooltip(e, m, 'Assignee')}
-                      onMouseLeave={hideMemberTooltip}
-                      className="relative inline-block cursor-pointer"
-                    >
-                      <Avatar
-                        name={m.name}
-                        src={m.avatar_url || m.avatar}
-                        user={m}
-                        size="xs"
-                        className="rounded-full ring-2 ring-surface shadow-2xs"
-                        title=""
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-5.5 h-5.5 rounded-full border border-dashed border-border flex items-center justify-center text-[10px] text-text-muted">
-              —
-            </div>
-          )}
-        </div>
-
-        {/* Metadata Icons: Comments, Attachments, Checklists, Due Date */}
-        <div className="flex items-center gap-2.5 text-xs text-text-muted font-medium">
-          {/* Date badge (Start date & Due date) */}
+          {/* Date only */}
           {(dueDateStatus || startDateText) && (
-            <div
-              title={
-                startDateText && dueDateStatus
-                  ? `Start: ${startDateText} · Due: ${dueDateStatus.fullText}`
-                  : startDateText
-                  ? `Start: ${startDateText}`
-                  : `Due: ${dueDateStatus.fullText}`
-              }
-              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                dueDateStatus?.isComplete
-                  ? 'bg-success-tint text-success-text'
-                  : dueDateStatus?.isOverdue
-                  ? 'bg-danger-tint text-danger-text'
-                  : dueDateStatus?.isDueSoon
-                  ? 'bg-warning-tint text-warning-text'
-                  : 'bg-surface-muted text-text-secondary'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>
-                {startDateText && dueDateStatus
-                  ? `${startDateText} - ${dueDateStatus.text}`
-                  : startDateText
-                  ? startDateText
-                  : dueDateStatus.text}
-              </span>
-            </div>
-          )}
-
-          {/* Checklist progress */}
-          {totalItems > 0 && (
-            <div
-              title="Checklist completion"
-              className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-md text-[11px] font-semibold ${
-                checkedItems === totalItems
-                  ? 'bg-success-tint text-success-text'
-                  : 'bg-surface-muted text-text-secondary'
-              }`}
-            >
-              <CheckSquare className="w-3.5 h-3.5" />
-              <span>{checkedItems}/{totalItems}</span>
-            </div>
-          )}
-
-          {/* Attachments count */}
-          {card.attachments && card.attachments.length > 0 && (
-            <div title="Attachments" className="flex items-center gap-1 hover:text-text-primary transition-colors">
-              <Paperclip className="w-3.5 h-3.5" />
-              <span className="text-xs">{card.attachments.length}</span>
-            </div>
-          )}
-
-          {/* Comments count */}
-          {card.comments_count > 0 && (
-            <div title="Comments" className="flex items-center gap-1 hover:text-text-primary transition-colors">
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span className="text-xs">{card.comments_count}</span>
+            <div className="flex items-center pt-0.5">
+              <div
+                title={
+                  startDateText && dueDateStatus
+                    ? `Start: ${startDateText} · Due: ${dueDateStatus.fullText}`
+                    : startDateText
+                    ? `Start: ${startDateText}`
+                    : `Due: ${dueDateStatus.fullText}`
+                }
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  dueDateStatus?.isComplete
+                    ? 'bg-success-tint text-success-text'
+                    : dueDateStatus?.isOverdue
+                    ? 'bg-danger-tint text-danger-text'
+                    : dueDateStatus?.isDueSoon
+                    ? 'bg-warning-tint text-warning-text'
+                    : 'bg-surface-muted text-text-secondary'
+                }`}
+              >
+                <Calendar className="w-3 h-3" />
+                <span>
+                  {startDateText && dueDateStatus
+                    ? `${startDateText} - ${dueDateStatus.text}`
+                    : startDateText
+                    ? startDateText
+                    : dueDateStatus.text}
+                </span>
+              </div>
             </div>
           )}
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Top Header: Label Pill, Role Badge & Action Menu */}
+          <div className="kanban-card-header flex items-center justify-between gap-2 min-h-[24px]">
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+              <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                Task #{taskNumber ?? card.task_number ?? 1}
+              </span>
+              {/* Focused My Card Role Badge: only shown in Focus Mode */}
+              {focusMode && isMyCard && (
+                <span
+                  title={
+                    isAssignee && isAssigner
+                      ? 'You are both an assigner and assignee on this task'
+                      : isAssignee
+                      ? 'You are assigned to this task'
+                      : 'You assigned / created this task'
+                  }
+                  className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 border select-none transition-all ${
+                    isAssignee && isAssigner
+                      ? 'bg-label-amber text-label-amber-text border-label-amber-text/25'
+                      : isAssignee
+                      ? 'bg-label-green text-label-green-text border-label-green-text/25'
+                      : 'bg-label-purple text-label-purple-text border-label-purple-text/25'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      isAssignee && isAssigner
+                        ? 'bg-label-amber-text'
+                        : isAssignee
+                        ? 'bg-label-green-text'
+                        : 'bg-label-purple-text'
+                    }`}
+                  />
+                  <span className="truncate">
+                    {isAssignee && isAssigner
+                      ? 'Mine (Both)'
+                      : isAssignee
+                      ? 'Assigned to you'
+                      : 'Assigned by you'}
+                  </span>
+                </span>
+              )}
+              {card.labels && card.labels.length > 0 &&
+                card.labels.map((l) => (
+                  <LabelPill key={l.id} name={l.name} color={l.color} size="sm" />
+                ))}
+            </div>
+
+            {/* 3-Dots Action Dropdown Menu */}
+            {hasAnyCardActions && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="shrink-0"
+              >
+                <Menu
+                  placement="bottom-end"
+                  trigger={
+                    <button
+                      type="button"
+                      aria-label="Card actions"
+                      title="Card actions"
+                      className="text-text-muted hover:text-text-primary p-1 rounded-lg hover:bg-surface-muted transition-colors opacity-70 group-hover:opacity-100 cursor-pointer"
+                    >
+                      <MoreHorizontal className="w-4.5 h-4.5" />
+                    </button>
+                  }
+                >
+                  {onCopyCard && canCopyCard && (
+                    <MenuItem
+                      icon={<Copy className="w-4 h-4 text-primary" />}
+                      onClick={(e) => {
+                        e?.stopPropagation?.();
+                        onCopyCard(card);
+                      }}
+                    >
+                      Copy Card
+                    </MenuItem>
+                  )}
+                  {onUpdateCard && canArchiveCard && (
+                    <MenuItem
+                      icon={<Archive className="w-4 h-4 text-warning" />}
+                      onClick={(e) => {
+                        e?.stopPropagation?.();
+                        onUpdateCard(card.id, { is_archived: true });
+                      }}
+                    >
+                      Archive Card
+                    </MenuItem>
+                  )}
+                  {onDeleteCard && canDeleteCard && (
+                    <>
+                      {(canCopyCard || canArchiveCard) && <MenuDivider />}
+                      <MenuItem
+                        icon={<Trash2 className="w-4 h-4 text-danger" />}
+                        danger
+                        onClick={(e) => {
+                          e?.stopPropagation?.();
+                          onDeleteCard(card.id);
+                        }}
+                      >
+                        Delete Card
+                      </MenuItem>
+                    </>
+                  )}
+                </Menu>
+              </div>
+            )}
+          </div>
+
+          {/* Card Title & Complete Status */}
+          <div className="kanban-card-title flex items-start gap-2">
+            {card.is_complete && (
+              <span className="mt-0.5 w-4.5 h-4.5 rounded-full bg-success text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              </span>
+            )}
+            <h4
+              className={`text-[15px] sm:text-base font-bold leading-snug break-words transition-colors ${
+                card.is_complete
+                  ? 'line-through text-text-muted'
+                  : 'text-text-primary group-hover:text-primary'
+              }`}
+            >
+              {card.title}
+            </h4>
+          </div>
+
+          {/* Description Snippet */}
+          {descriptionSnippet && (
+            <p className="kanban-card-description text-xs sm:text-[13px] text-text-secondary line-clamp-2 leading-relaxed">
+              {descriptionSnippet}
+            </p>
+          )}
+
+          {/* Visual Image Preview (if card has an image attachment) */}
+          {imageAttachment && (
+            <div className="kanban-card-image relative rounded-xl overflow-hidden border border-border/60 bg-surface-muted max-h-36 shadow-inner">
+              <img
+                src={imageAttachment.url || imageAttachment.file_url}
+                alt={imageAttachment.file_name || 'Card preview'}
+                className="w-full h-32 object-cover transition-transform group-hover:scale-102 duration-300"
+                onError={(e) => {
+                  // Hide broken image smoothly
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
+
+          {/* Card Footer: Assignee Avatars on Left, Metadata Counters on Right */}
+          <div className="kanban-card-footer flex items-center justify-between pt-1 border-t border-border/40 text-text-secondary text-xs">
+            {/* Assignee / Member Avatars (Pure circular with custom hover popup matching sidebar) */}
+            <div className="kanban-card-assignees flex items-center gap-1.5 shrink-0">
+              {((card.assigners && card.assigners.length > 0) || (card.members && card.members.length > 0)) ? (
+                <div className="flex items-center">
+                  {card.assigners && card.assigners.length > 0 && (
+                    <div className="flex -space-x-1.5 mr-1">
+                      {card.assigners.map((a) => (
+                        <div
+                          key={a.id}
+                          onMouseEnter={(e) => showMemberTooltip(e, a, 'Assigner')}
+                          onMouseLeave={hideMemberTooltip}
+                          className="relative inline-block cursor-pointer"
+                        >
+                          <Avatar
+                            name={a.name}
+                            src={a.avatar_url || a.avatar}
+                            user={a}
+                            size="xs"
+                            className="rounded-full ring-2 ring-surface shadow-2xs"
+                            title=""
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {card.members && card.members.length > 0 && (
+                    <div className="flex -space-x-1.5">
+                      {card.members.map((m) => (
+                        <div
+                          key={m.id}
+                          onMouseEnter={(e) => showMemberTooltip(e, m, 'Assignee')}
+                          onMouseLeave={hideMemberTooltip}
+                          className="relative inline-block cursor-pointer"
+                        >
+                          <Avatar
+                            name={m.name}
+                            src={m.avatar_url || m.avatar}
+                            user={m}
+                            size="xs"
+                            className="rounded-full ring-2 ring-surface shadow-2xs"
+                            title=""
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="w-5.5 h-5.5 rounded-full border border-dashed border-border flex items-center justify-center text-[10px] text-text-muted">
+                  —
+                </div>
+              )}
+            </div>
+
+            {/* Metadata Icons: Comments, Attachments, Checklists, Due Date */}
+            <div className="flex items-center gap-2.5 text-xs text-text-muted font-medium">
+              {/* Date badge (Start date & Due date) */}
+              {(dueDateStatus || startDateText) && (
+                <div
+                  title={
+                    startDateText && dueDateStatus
+                      ? `Start: ${startDateText} · Due: ${dueDateStatus.fullText}`
+                      : startDateText
+                      ? `Start: ${startDateText}`
+                      : `Due: ${dueDateStatus.fullText}`
+                  }
+                  className={`kanban-card-date flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                    dueDateStatus?.isComplete
+                      ? 'bg-success-tint text-success-text'
+                      : dueDateStatus?.isOverdue
+                      ? 'bg-danger-tint text-danger-text'
+                      : dueDateStatus?.isDueSoon
+                      ? 'bg-warning-tint text-warning-text'
+                      : 'bg-surface-muted text-text-secondary'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>
+                    {startDateText && dueDateStatus
+                      ? `${startDateText} - ${dueDateStatus.text}`
+                      : startDateText
+                      ? startDateText
+                      : dueDateStatus.text}
+                  </span>
+                </div>
+              )}
+
+              {/* Checklist progress */}
+              {totalItems > 0 && (
+                <div
+                  title="Checklist completion"
+                  className={`kanban-card-checklists flex items-center gap-1.5 px-1.5 py-0.5 rounded-md text-[11px] font-semibold ${
+                    checkedItems === totalItems
+                      ? 'bg-success-tint text-success-text'
+                      : 'bg-surface-muted text-text-secondary'
+                  }`}
+                >
+                  <CheckSquare className="w-3.5 h-3.5" />
+                  <span>{checkedItems}/{totalItems}</span>
+                </div>
+              )}
+
+              {/* Attachments count */}
+              {card.attachments && card.attachments.length > 0 && (
+                <div title="Attachments" className="kanban-card-attachments flex items-center gap-1 hover:text-text-primary transition-colors">
+                  <Paperclip className="w-3.5 h-3.5" />
+                  <span className="text-xs">{card.attachments.length}</span>
+                </div>
+              )}
+
+              {/* Comments count */}
+              {card.comments_count > 0 && (
+                <div title="Comments" className="kanban-card-comments flex items-center gap-1 hover:text-text-primary transition-colors">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span className="text-xs">{card.comments_count}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Theme-matched Member Hover Tooltip Popup (Centered directly above/below hovered avatar) */}
       {memberTooltip && !isDragging && typeof document !== 'undefined' && createPortal(

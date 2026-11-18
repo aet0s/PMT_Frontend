@@ -751,6 +751,22 @@ html.reduce-motion .animate-bounce,
   animation: none !important;
 }
 
+html.reduce-motion .kanban-card,
+:root.reduce-motion .kanban-card,
+html.reduce-motion [id^="card-"],
+:root.reduce-motion [id^="card-"] {
+  animation: none !important;
+  transition: none !important;
+}
+
+html.reduce-motion .kanban-card:hover,
+:root.reduce-motion .kanban-card:hover,
+html.reduce-motion [id^="card-"]:hover,
+:root.reduce-motion [id^="card-"]:hover {
+  transform: none !important;
+  transition: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
 
   html,
@@ -780,7 +796,7 @@ html.reduce-motion .animate-bounce,
 :root.density-compact .kanban-card,
 :root.density-compact [id^="card-"] {
   padding: 0.5rem 0.625rem !important;
-  border-radius: 0.625rem !important;
+  border-radius: 0.75rem !important;
   margin-bottom: 0.375rem !important;
 }
 
@@ -789,10 +805,25 @@ html.reduce-motion .animate-bounce,
   margin-top: 0.25rem !important;
 }
 
-/* Hide descriptions on compact cards for ultra-clean scannable view */
-:root.density-compact .kanban-card p.line-clamp-2,
-:root.density-compact [id^="card-"] p.line-clamp-2 {
+/* Hide non-essential sections on compact cards for title & date only view */
+:root.density-compact .kanban-card .kanban-card-header,
+:root.density-compact .kanban-card .kanban-card-description,
+:root.density-compact .kanban-card .kanban-card-image,
+:root.density-compact .kanban-card .kanban-card-assignees,
+:root.density-compact .kanban-card .kanban-card-checklists,
+:root.density-compact .kanban-card .kanban-card-attachments,
+:root.density-compact .kanban-card .kanban-card-comments {
   display: none !important;
+}
+
+:root.density-compact .kanban-card .kanban-card-footer {
+  border-top: none !important;
+  padding-top: 0.125rem !important;
+  margin-top: 0.125rem !important;
+}
+
+:root.density-compact [id^="list-"] .space-y-3 > * + * {
+  margin-top: 0.375rem !important;
 }
 
 /* Compact titles */

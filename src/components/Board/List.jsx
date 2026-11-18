@@ -6,6 +6,7 @@ import Card from './Card';
 import Button from '../ui/Button';
 import { Plus, MoreHorizontal, Trash2, Edit3, X, AlertTriangle, SlidersHorizontal } from 'lucide-react';
 import { getListStatusConfig } from '../../lib/listStatusColors';
+import useDisplayPreferences from '../../hooks/useDisplayPreferences';
 
 export default function List({
   list,
@@ -26,6 +27,8 @@ export default function List({
   taskNumberMap,
   focusMode = false
 }) {
+  const { reducedMotion: isReducedMotion } = useDisplayPreferences();
+
   const {
     attributes,
     listeners,
@@ -40,8 +43,8 @@ export default function List({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging || isRemoteDragging ? 0.35 : 1
+    transition: isReducedMotion ? 'none' : transition,
+    opacity: isDragging || (!isReducedMotion && isRemoteDragging) ? 0.35 : 1
   };
 
   const { hasPermission } = usePermissions();

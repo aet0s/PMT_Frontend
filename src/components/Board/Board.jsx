@@ -28,6 +28,7 @@ import { useBoardSocket } from '../../hooks/useBoardSocket';
 import { useSocket } from '../../context/SocketProvider';
 import { usePermissions } from '../../context/PermissionContext';
 import { useAuth } from '../../hooks/useAuth';
+import useDisplayPreferences from '../../hooks/useDisplayPreferences';
 import { matchesCardFilter } from '../../lib/filterCards';
 import { getTenantItem, setTenantItem, getUserPref, setUserPref } from '../../lib/storage';
 import RightContextPanel from './RightContextPanel';
@@ -258,6 +259,7 @@ export default function Board({
 
   // Mobile list view switcher state ('all' | listId)
   const [activeMobileListId, setActiveMobileListId] = useState('all');
+  const { reducedMotion: isReducedMotion } = useDisplayPreferences();
 
   // Socket & Live Multiplayer Drag Cursors State
   const { socket } = useSocket() || {};
@@ -302,7 +304,7 @@ export default function Board({
 
   // Local card drag pointer tracking & streaming
   useEffect(() => {
-    if (!activeId || activeItem?.type !== 'card' || !socket || !board?.id) return;
+    if (isReducedMotion || !activeId || activeItem?.type !== 'card' || !socket || !board?.id) return;
 
     let lastEmit = 0;
     const handlePointerMove = (e) => {
@@ -325,11 +327,11 @@ export default function Board({
       window.removeEventListener('pointermove', handlePointerMove);
       socket.emit('card_drag_end', { boardId: board.id, cardId: activeItem.card.id });
     };
-  }, [activeId, activeItem, socket, board?.id]);
+  }, [activeId, activeItem, socket, board?.id, isReducedMotion]);
 
   // Local list drag pointer tracking & streaming
   useEffect(() => {
-    if (!activeId || activeItem?.type !== 'list' || !socket || !board?.id) return;
+    if (isReducedMotion || !activeId || activeItem?.type !== 'list' || !socket || !board?.id) return;
 
     let lastEmit = 0;
     const handlePointerMove = (e) => {
@@ -351,7 +353,7 @@ export default function Board({
       window.removeEventListener('pointermove', handlePointerMove);
       socket.emit('list_drag_end', { boardId: board.id, listId: activeItem.list.id });
     };
-  }, [activeId, activeItem, socket, board?.id]);
+  }, [activeId, activeItem, socket, board?.id, isReducedMotion]);
 
   // Real-time socket & presence
   const { onlineMembers, highlightedCardId } = useBoardSocket(
@@ -1584,16 +1586,20 @@ export default function Board({
             <SortableContext items={listIds} strategy={horizontalListSortingStrategy}>
               <div className="flex items-start gap-5 h-full min-h-0 max-md:w-full">
                 {(() => {
-                  const remoteDraggedCardIds = new Set(
-                    Object.values(remoteDragCursors)
-                      .map((r) => Number(r.cardId))
-                      .filter(Boolean)
-                  );
-                  const remoteDraggedListIds = new Set(
-                    Object.values(remoteDragCursors)
-                      .map((r) => Number(r.listId))
-                      .filter(Boolean)
-                  );
+                  const remoteDraggedCardIds = isReducedMotion
+                    ? new Set()
+                    : new Set(
+                        Object.values(remoteDragCursors)
+                          .map((r) => Number(r.cardId))
+                          .filter(Boolean)
+                      );
+                  const remoteDraggedListIds = isReducedMotion
+                    ? new Set()
+                    : new Set(
+                        Object.values(remoteDragCursors)
+                          .map((r) => Number(r.listId))
+                          .filter(Boolean)
+                      );
                   return visibleLists.map((list) => (
                     <List
                       key={list.id}
@@ -1609,7 +1615,7 @@ export default function Board({
                       onUpdateCard={onUpdateCard}
                       onDeleteCard={onDeleteCard}
                       onCopyCard={onCopyCard}
-                      highlightedCardId={highlightedCardId}
+                      highlightedCardId={isReducedMotion ? null : highlightedCardId}
                       remoteDraggedCardIds={remoteDraggedCardIds}
                       isRemoteDragging={remoteDraggedListIds.has(list.id)}
                       focusMode={isFocusMyCards}
@@ -1689,7 +1695,7 @@ export default function Board({
             </SortableContext>
 
             {/* Drag Overlay */}
-            <DragOverlay>
+            <DragOverlay dropAnimation={isReducedMotion ? null : undefined}>
               {activeItem?.type === 'list' && (
                 <List
                   list={activeItem.list}
@@ -1851,7 +1857,7 @@ export default function Board({
       />
 
       {/* Real-time Multiplayer Live Dragging Cursors & Cards Overlay */}
-      {Object.values(remoteDragCursors).map((remote) => (
+      {!isReducedMotion && Object.values(remoteDragCursors).map((remote) => (
         <div
           key={remote.socketId}
           style={{

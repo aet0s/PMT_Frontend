@@ -10,20 +10,21 @@ import {
   Maximize2,
   Sparkles,
   Layers,
-  Palette
+  Palette,
+  Calendar
 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import Switch from '../../../components/ui/Switch';
 import { ThemeSelector } from '../../../components/ui/ThemeToggle';
 import { useToast } from '../../../components/ui/Toast';
+import useDisplayPreferences, { saveDisplayPreferences } from '../../../hooks/useDisplayPreferences';
 
 export default function PreferencesTab({ setFormDirty }) {
   const toast = useToast();
   const hasUserEditedRef = useRef(false);
 
-  const [density, setDensity] = useState(() => localStorage.getItem('taskflow_density') || 'detailed');
-  const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('taskflow_reduced_motion') === 'true');
+  const { density, reducedMotion, setDensity, setReducedMotion } = useDisplayPreferences();
   const [isSaving, setIsSaving] = useState(false);
   const [testAnimActive, setTestAnimActive] = useState(false);
 
@@ -31,12 +32,6 @@ export default function PreferencesTab({ setFormDirty }) {
   const handleDensityChange = (newDensity) => {
     hasUserEditedRef.current = true;
     setDensity(newDensity);
-    try {
-      localStorage.setItem('taskflow_density', newDensity);
-      if (typeof document !== 'undefined') {
-        document.documentElement.classList.toggle('density-compact', newDensity === 'compact');
-      }
-    } catch (e) { }
     setFormDirty?.(true);
   };
 
@@ -44,36 +39,16 @@ export default function PreferencesTab({ setFormDirty }) {
   const handleReducedMotionChange = (checked) => {
     hasUserEditedRef.current = true;
     setReducedMotion(checked);
-    try {
-      localStorage.setItem('taskflow_reduced_motion', String(checked));
-      if (typeof document !== 'undefined') {
-        document.documentElement.classList.toggle('reduce-motion', Boolean(checked));
-      }
-    } catch (e) { }
     setFormDirty?.(true);
   };
 
   // Reset all preferences back to defaults
   const handleResetDefaults = async () => {
-    const defaultDensity = 'detailed';
-    const defaultMotion = false;
-
     hasUserEditedRef.current = false;
-    setDensity(defaultDensity);
-    setReducedMotion(defaultMotion);
-
-    try {
-      localStorage.setItem('taskflow_density', defaultDensity);
-      localStorage.setItem('taskflow_reduced_motion', 'false');
-      if (typeof document !== 'undefined') {
-        document.documentElement.classList.remove('density-compact');
-        document.documentElement.classList.remove('reduce-motion');
-      }
-      toast.show('Preferences reset to default display settings', 'info');
-      setFormDirty?.(false);
-    } catch (err) {
-      toast.show(err.message || 'Failed to reset preferences', 'error');
-    }
+    setDensity('detailed');
+    setReducedMotion(false);
+    toast.show('Preferences reset to default display settings', 'info');
+    setFormDirty?.(false);
   };
 
   // Save preferences
@@ -81,14 +56,7 @@ export default function PreferencesTab({ setFormDirty }) {
     e.preventDefault();
     setIsSaving(true);
     try {
-      localStorage.setItem('taskflow_density', density);
-      localStorage.setItem('taskflow_reduced_motion', String(reducedMotion));
-
-      if (typeof document !== 'undefined') {
-        document.documentElement.classList.toggle('reduce-motion', Boolean(reducedMotion));
-        document.documentElement.classList.toggle('density-compact', density === 'compact');
-      }
-
+      saveDisplayPreferences({ density, reducedMotion });
       hasUserEditedRef.current = false;
       toast.show('Preferences saved successfully', 'success');
       setFormDirty?.(false);
@@ -138,8 +106,8 @@ export default function PreferencesTab({ setFormDirty }) {
                     value={density}
                     onChange={handleDensityChange}
                     options={[
-                      { value: 'detailed', label: 'Detailed (Standard comfortable spacing with descriptions & full tags)' },
-                      { value: 'compact', label: 'Compact (High information density: tight spacing, streamlined cards)' }
+                      { value: 'detailed', label: 'Detailed (Standard comfortable spacing with descriptions, tags & assignees)' },
+                      { value: 'compact', label: 'Compact (Title and date only. Click card to view full details)' }
                     ]}
                   />
                 </div>
@@ -214,24 +182,26 @@ export default function PreferencesTab({ setFormDirty }) {
                   {/* Compact Preview Card */}
                   <div
                     onClick={() => handleDensityChange('compact')}
-                    className={`bg-surface border rounded-xl p-2.5 space-y-1.5 transition-all cursor-pointer select-none ${
+                    className={`bg-surface border rounded-xl p-3 space-y-2 transition-all cursor-pointer select-none ${
                       density === 'compact'
                         ? 'ring-2 ring-primary border-primary shadow-sm bg-surface'
                         : 'border-border/70 opacity-60 hover:opacity-100 hover:border-border'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1.5">
-                      <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">TASK-102</span>
-                      <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-success-tint text-success border border-success/20">
-                        Compact (2x Density)
+                      <span className="text-[9px] font-bold text-success uppercase tracking-wider bg-success-tint px-1.5 py-0.5 rounded border border-success/20">
+                        Title & Date Only
                       </span>
+                      <span className="text-[10px] text-text-muted italic">Click to view details</span>
                     </div>
-                    <p className="text-xs font-semibold text-text-primary leading-snug truncate">
+                    <p className="text-xs font-bold text-text-primary leading-snug truncate">
                       Q3 Design System Overhaul & Component Library
                     </p>
-                    <div className="flex items-center justify-between text-[10px] text-text-muted pt-1 border-t border-border/40">
-                      <span>Due Today</span>
-                      <span className="font-medium text-text-secondary">2 assignees</span>
+                    <div className="flex items-center pt-0.5">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-muted text-text-secondary border border-border/50">
+                        <Calendar className="w-3 h-3 text-text-muted" />
+                        Due in 3 days
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -257,7 +227,7 @@ export default function PreferencesTab({ setFormDirty }) {
                     )}
                   </div>
                   <p className="text-[11px] text-text-secondary">
-                    Disable transitions, pulse beacons, modal slide-ins, and animations for accessibility and instant UI response.
+                    Completely disables all card transitions, drop animations, blinking, and live cursor streaming. Drag and drop cards directly into lists without cards flying around.
                   </p>
                 </div>
                 <Switch
@@ -347,7 +317,7 @@ export default function PreferencesTab({ setFormDirty }) {
               High Density & Scannability
             </h3>
             <p className="text-[11px] text-text-secondary leading-relaxed">
-              Compact density minimizes card margins and collapses non-essential descriptions, displaying up to 2x more tasks on your board simultaneously without scrolling.
+              Compact density displays strictly card titles and dates for ultra-clean, minimal scannability across columns. Clicking any card opens its modal with all rich details.
             </p>
           </div>
 
@@ -357,7 +327,7 @@ export default function PreferencesTab({ setFormDirty }) {
               Accessibility & Reduced Motion
             </h3>
             <p className="text-[11px] text-text-secondary leading-relaxed">
-              Enabling Reduced Motion disables animations and transition effects across modal overlays, toast notifications, drag-and-drop indicators, and buttons according to WCAG 2.1 AA guidelines.
+              Enabling Reduced Motion completely disables animations, transitions, and live card flight effects. Teammates dragging cards will not show floating cursors, and dropped cards instantly snap into place without blinking.
             </p>
           </div>
 
