@@ -199,11 +199,10 @@ export default function ReportsBoardPerformance({
               <button
                 key={tab.id}
                 onClick={() => setHealthFilter(tab.id)}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-                  healthFilter === tab.id
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${healthFilter === tab.id
                     ? 'bg-surface text-primary shadow-xs font-semibold'
                     : 'text-text-muted hover:text-text-secondary'
-                }`}
+                  }`}
               >
                 <span>{tab.label}</span>
                 <span className="text-[10px] opacity-75">({tab.count})</span>
@@ -218,11 +217,10 @@ export default function ReportsBoardPerformance({
                 <button
                   key={size}
                   onClick={() => setPageSize(size)}
-                  className={`px-2 py-0.5 rounded capitalize font-medium transition-colors ${
-                    pageSize === size
+                  className={`px-2 py-0.5 rounded capitalize font-medium transition-colors ${pageSize === size
                       ? 'bg-surface text-primary shadow-xs font-bold'
                       : 'text-text-muted hover:text-text-secondary'
-                  }`}
+                    }`}
                 >
                   {size === 'all' ? 'All' : size}
                 </button>
@@ -262,7 +260,7 @@ export default function ReportsBoardPerformance({
                     <div className="flex items-center gap-2 flex-wrap">
                       <div
                         className="w-3 h-3 rounded-full shrink-0 border border-black/10 dark:border-white/10"
-                        style={{ backgroundColor: b.background_color || '#3b82f6' }}
+                        style={{ backgroundColor: b.background_color || 'var(--color-primary)' }}
                       />
                       <span className="font-semibold text-text-primary group-hover:text-primary transition-colors">{b.name}</span>
                       {b.workspace_name && (

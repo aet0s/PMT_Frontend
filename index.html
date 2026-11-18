@@ -6,11 +6,34 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="light" />
   <meta name="theme-color" content="#F5F6F8" />
   <!-- CSP_META -->
   <title>TaskFlow</title>
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('taskflow_theme');
+        var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.style.colorScheme = 'dark';
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.setAttribute('data-theme', 'light');
+          document.documentElement.style.colorScheme = 'light';
+        }
+        if (localStorage.getItem('taskflow_reduced_motion') === 'true') {
+          document.documentElement.classList.add('reduce-motion');
+        }
+        if (localStorage.getItem('taskflow_density') === 'compact') {
+          document.documentElement.classList.add('density-compact');
+        }
+      } catch (e) { }
+    })();
+  </script>
 </head>
 
 <body>

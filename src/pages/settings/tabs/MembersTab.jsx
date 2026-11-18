@@ -68,7 +68,7 @@ export default function MembersTab({ workspace, onOpenInvite }) {
     message: '',
     confirmText: 'Confirm',
     variant: 'danger',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   const loadMembers = async () => {
@@ -197,13 +197,13 @@ export default function MembersTab({ workspace, onOpenInvite }) {
       prev.map((m) =>
         m.id === memberId
           ? {
-              ...m,
-              role: selectedRole.name,
-              role_id: newRoleId,
-              role_details: selectedRole,
-              permissions: selectedRole.permission_keys || m.permissions,
-              permissions_count: (selectedRole.permission_keys || []).length
-            }
+            ...m,
+            role: selectedRole.name,
+            role_id: newRoleId,
+            role_details: selectedRole,
+            permissions: selectedRole.permission_keys || m.permissions,
+            permissions_count: (selectedRole.permission_keys || []).length
+          }
           : m
       )
     );
@@ -338,18 +338,16 @@ export default function MembersTab({ workspace, onOpenInvite }) {
         <button
           type="button"
           onClick={() => setActiveTab('members')}
-          className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'members'
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'members'
               ? 'bg-primary text-white shadow-xs'
               : 'text-text-secondary hover:text-text-primary hover:bg-surface'
-          }`}
+            }`}
         >
           <Users className="w-3.5 h-3.5" />
           <span>Active Members</span>
           <span
-            className={`text-[11px] px-2 py-0.5 rounded-full ${
-              activeTab === 'members' ? 'bg-primary-tint text-primary-text font-bold' : 'bg-surface text-text-muted border border-border'
-            }`}
+            className={`text-[11px] px-2 py-0.5 rounded-full ${activeTab === 'members' ? 'bg-primary-tint text-primary-text font-bold' : 'bg-surface text-text-muted border border-border'
+              }`}
           >
             {members.length}
           </span>
@@ -358,18 +356,16 @@ export default function MembersTab({ workspace, onOpenInvite }) {
         <button
           type="button"
           onClick={() => setActiveTab('pending')}
-          className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'pending'
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'pending'
               ? 'bg-primary text-white shadow-xs'
               : 'text-text-secondary hover:text-text-primary hover:bg-surface'
-          }`}
+            }`}
         >
           <Clock className="w-3.5 h-3.5" />
           <span>Pending Invitations</span>
           <span
-            className={`text-[11px] px-2 py-0.5 rounded-full ${
-              activeTab === 'pending' ? 'bg-primary-tint text-primary-text font-bold' : 'bg-surface text-text-muted border border-border'
-            }`}
+            className={`text-[11px] px-2 py-0.5 rounded-full ${activeTab === 'pending' ? 'bg-primary-tint text-primary-text font-bold' : 'bg-surface text-text-muted border border-border'
+              }`}
           >
             {invitations.length}
           </span>
@@ -425,7 +421,7 @@ export default function MembersTab({ workspace, onOpenInvite }) {
                         user={member}
                         size="md"
                       />
-                      <div className="absolute inset-0 rounded-full bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                      <div className="absolute inset-0 rounded-full bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                         <Eye className="w-4 h-4 drop-shadow-xs" />
                       </div>
                     </button>

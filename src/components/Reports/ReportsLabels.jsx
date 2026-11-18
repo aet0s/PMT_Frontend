@@ -55,7 +55,7 @@ export default function ReportsLabels({ labelsBreakdown = {} }) {
               >
                 <div
                   className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: lb.color || '#6366f1' }}
+                  style={{ backgroundColor: lb.color || 'var(--color-primary)' }}
                 />
                 <span className="font-semibold text-text-primary">{lb.name}</span>
                 <span className="text-text-muted text-[11px]">({lb.board_name})</span>

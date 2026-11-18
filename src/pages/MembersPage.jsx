@@ -33,8 +33,9 @@ export default function MembersPage({ workspace }) {
 
   const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
   const isOwner = roleName === 'owner' || roleName === 'super admin';
-  const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
-  const canViewMembers = !isMemberOrBelow && roleName !== 'project manager' && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
+  // In the company-level multi-tenant model, all active company members with member.view
+  // are permitted to view fellow workspace and company members.
+  const canViewMembers = isOwner || hasPermission('member.view') || hasPermission('role.view') || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role');
 
   useEffect(() => {
     if (!permissionsLoading && userRole && !canViewMembers && workspace?.id) {
@@ -57,7 +58,7 @@ export default function MembersPage({ workspace }) {
     message: '',
     confirmText: 'Remove',
     variant: 'danger',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   const loadMembers = async () => {
@@ -249,7 +250,7 @@ export default function MembersPage({ workspace }) {
                               user={member}
                               size="sm"
                             />
-                            <div className="absolute inset-0 rounded-full bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                            <div className="absolute inset-0 rounded-full bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                               <Eye className="w-3 h-3 drop-shadow-xs" />
                             </div>
                           </button>

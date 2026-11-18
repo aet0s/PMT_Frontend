@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../shared/Modal';
-import { CheckCircle2, Link2, Sparkles, AlertCircle, Check } from 'lucide-react';
+import { CheckCircle2, Link2, AlertCircle, Check } from 'lucide-react';
 
 export default function TaskCompletionModal({
   isOpen,
@@ -13,22 +13,11 @@ export default function TaskCompletionModal({
   const [evidenceUrl, setEvidenceUrl] = useState('');
   const [error, setError] = useState(null);
 
-  // Initialize from card data or recent candidates
+  // Initialize from card completion data
   useEffect(() => {
     if (!isOpen || !card) return;
 
-    if (card.completion_note) {
-      setNote(card.completion_note);
-    } else {
-      // Find candidate from recent comments or checkins
-      const recentComment = (card.comments || []).find((c) => (c.body || c.content || '').trim().length >= 20);
-      if (recentComment) {
-        setNote((recentComment.body || recentComment.content).trim());
-      } else {
-        setNote('');
-      }
-    }
-
+    setNote(card.completion_note || '');
     setEvidenceUrl(card.completion_evidence_url || '');
     setError(null);
   }, [isOpen, card]);
@@ -37,18 +26,6 @@ export default function TaskCompletionModal({
 
   const trimmedLength = note.trim().length;
   const isLengthValid = trimmedLength >= 20;
-
-  // Candidates for quick-fill chips if note is currently empty or different
-  const candidateNotes = [];
-  if (card.comments && card.comments.length > 0) {
-    for (const c of card.comments) {
-      const content = (c.body || c.content || '').trim();
-      if (content.length >= 20 && !candidateNotes.includes(content)) {
-        candidateNotes.push(content);
-        if (candidateNotes.length >= 2) break;
-      }
-    }
-  }
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -128,31 +105,6 @@ export default function TaskCompletionModal({
           <div className="p-3 bg-danger-tint text-danger-text border border-danger/30 rounded-xl text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
-          </div>
-        )}
-
-        {/* Quick Fill Candidate chips */}
-        {candidateNotes.length > 0 && candidateNotes[0] !== note.trim() && (
-          <div className="space-y-1.5">
-            <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              Use Recent Task Update
-            </span>
-            <div className="flex flex-col gap-1.5">
-              {candidateNotes.map((cand, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setNote(cand)}
-                  className="text-left p-2.5 text-xs bg-primary-tint/30 hover:bg-primary-tint/60 border border-primary/30 rounded-lg text-text-primary transition-colors cursor-pointer group"
-                >
-                  <span className="line-clamp-2 font-medium">"{cand}"</span>
-                  <span className="text-[10px] text-primary font-bold group-hover:underline mt-1 block">
-                    Click to insert as outcome note →
-                  </span>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 

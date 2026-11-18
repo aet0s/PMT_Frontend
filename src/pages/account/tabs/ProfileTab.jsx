@@ -140,7 +140,7 @@ export default function ProfileTab({ setFormDirty }) {
                   src={user?.avatar_url}
                   size="xl"
                 />
-                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                <div className="absolute inset-0 rounded-full bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                   <Eye className="w-5 h-5 drop-shadow-md" />
                 </div>
               </button>

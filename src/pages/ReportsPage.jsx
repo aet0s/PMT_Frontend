@@ -364,7 +364,7 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
   return (
     <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-4 sm:p-6 md:p-8 custom-scrollbar">
       <div className="max-w-7xl mx-auto w-full space-y-6 pb-20">
-        
+
         {/* Section A: Header & Unified Controls */}
         <ReportsHeader
           workspace={workspace}
@@ -396,11 +396,10 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
               <button
                 type="button"
                 onClick={() => handleTabChange('overview')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                  activeTab === 'overview'
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${activeTab === 'overview'
                     ? 'bg-primary text-white shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
-                }`}
+                  }`}
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
                 <span>Executive Overview</span>
@@ -409,20 +408,18 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
               <button
                 type="button"
                 onClick={() => handleTabChange('boards')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                  activeTab === 'boards'
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${activeTab === 'boards'
                     ? 'bg-primary text-white shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
-                }`}
+                  }`}
               >
                 <FolderKanban className="w-3.5 h-3.5" />
                 <span>Boards & Projects</span>
                 <span
-                  className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${
-                    activeTab === 'boards'
-                      ? 'bg-white/20 text-white'
+                  className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${activeTab === 'boards'
+                      ? 'bg-white/15 text-white'
                       : 'bg-surface-elevated text-text-secondary border border-border'
-                  }`}
+                    }`}
                 >
                   {boardsBreakdown.length}
                 </span>
@@ -432,20 +429,18 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
                 <button
                   type="button"
                   onClick={() => handleTabChange('team')}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                    activeTab === 'team'
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${activeTab === 'team'
                       ? 'bg-primary text-white shadow-xs'
                       : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
-                  }`}
+                    }`}
                 >
                   <Users className="w-3.5 h-3.5" />
                   <span>Team Workload</span>
                   <span
-                    className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${
-                      activeTab === 'team'
-                        ? 'bg-white/20 text-white'
+                    className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${activeTab === 'team'
+                        ? 'bg-white/15 text-white'
                         : 'bg-surface-elevated text-text-secondary border border-border'
-                    }`}
+                      }`}
                   >
                     {membersWorkload.length}
                   </span>
@@ -455,22 +450,20 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
               <button
                 type="button"
                 onClick={() => handleTabChange('risks')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                  activeTab === 'risks'
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${activeTab === 'risks'
                     ? 'bg-primary text-white shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
-                }`}
+                  }`}
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
                 <span>Risks & Attention</span>
                 <span
-                  className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${
-                    activeTab === 'risks'
-                      ? 'bg-white/20 text-white'
+                  className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${activeTab === 'risks'
+                      ? 'bg-white/15 text-white'
                       : overdueTasksList.length > 0
-                      ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                      : 'bg-surface-elevated text-text-secondary border border-border'
-                  }`}
+                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                        : 'bg-surface-elevated text-text-secondary border border-border'
+                    }`}
                 >
                   {overdueTasksList.length}
                 </span>

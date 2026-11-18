@@ -64,14 +64,14 @@ export default function ReportMemberDetailsDrawer({
     <div className="fixed inset-0 z-50 overflow-hidden select-none">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 bg-text-primary/40 transition-opacity animate-in fade-in duration-200"
         onClick={onClose}
       />
 
       {/* Slide-over Drawer Panel */}
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-md md:max-w-xl bg-surface border-l border-border shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-200">
-          
+
           {/* Header */}
           <div className="p-5 border-b border-border bg-surface-elevated/40">
             <div className="flex items-start justify-between gap-3 mb-4">
@@ -157,21 +157,19 @@ export default function ReportMemberDetailsDrawer({
               <div className="flex items-center bg-surface-elevated p-0.5 rounded-lg border border-border text-xs">
                 <button
                   onClick={() => setScope('assigned')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                    scope === 'assigned'
+                  className={`px-3 py-1 rounded-md font-medium transition-colors ${scope === 'assigned'
                       ? 'bg-surface text-primary shadow-xs font-semibold'
                       : 'text-text-muted hover:text-text-secondary'
-                  }`}
+                    }`}
                 >
                   Assigned ({member.tasks?.length || 0})
                 </button>
                 <button
                   onClick={() => setScope('created')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                    scope === 'created'
+                  className={`px-3 py-1 rounded-md font-medium transition-colors ${scope === 'created'
                       ? 'bg-surface text-primary shadow-xs font-semibold'
                       : 'text-text-muted hover:text-text-secondary'
-                  }`}
+                    }`}
                 >
                   Created ({member.created_cards?.length || 0})
                 </button>
@@ -195,11 +193,10 @@ export default function ReportMemberDetailsDrawer({
                 <button
                   key={tab.id}
                   onClick={() => setStatusTab(tab.id)}
-                  className={`px-2.5 py-0.5 rounded-full border text-[11px] transition-colors whitespace-nowrap ${
-                    statusTab === tab.id
+                  className={`px-2.5 py-0.5 rounded-full border text-[11px] transition-colors whitespace-nowrap ${statusTab === tab.id
                       ? 'bg-primary/10 text-primary border-primary/30 font-semibold'
                       : 'border-border text-text-muted hover:border-border-hover hover:text-text-secondary'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>

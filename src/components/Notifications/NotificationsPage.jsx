@@ -443,9 +443,9 @@ export default function NotificationsPage({
       const eType = (item.event_type || item.type || '').toLowerCase();
       if (activeFilter === 'unread') return !item.is_read;
       if (activeFilter === 'mentions') return eType.includes('mention') || item.priority === 1;
-      if (activeFilter === 'cards') return eType.startsWith('card') || (item.card_id && !eType.startsWith('comment') && !eType.startsWith('checklist'));
+      if (activeFilter === 'cards') return eType.startsWith('card') || (item.card_id && !eType.startsWith('comment') && !eType.includes('checklist'));
       if (activeFilter === 'comments') return eType.startsWith('comment');
-      if (activeFilter === 'checklists') return eType.startsWith('checklist');
+      if (activeFilter === 'checklists') return eType.includes('checklist');
       if (activeFilter === 'boards') return eType.startsWith('board') || (item.board_id && !item.card_id);
       return true;
     });

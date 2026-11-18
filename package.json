@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "npm run lint:theme && npm run lint:ui",
     "check:contrast": "node scripts/check-contrast.js",
     "check:prod-bundle": "node scripts/check-prod-bundle.js",
     "check:ui-permissions": "node src/scripts/checkUiPermissions.cjs",

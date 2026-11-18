@@ -85,19 +85,19 @@ export default function ReportsTaskStatus({ stageBreakdown = {}, totalTasks = 0 
             })}
           </div>
 
-          {/* Legend and Values Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+          {/* Legend and Values Grid (Clean 2x2 layout to display full text without truncation) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             {stages.map((st) => (
               <div
                 key={st.id}
-                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-elevated/60 border border-border/60"
+                className="flex items-center justify-between p-3 rounded-xl bg-surface-elevated/60 border border-border/70 hover:bg-surface-elevated transition-colors"
               >
-                <div className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full ${st.dotColor} shrink-0`} />
-                  <span className="text-xs font-medium text-text-secondary">{st.label}</span>
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-3 h-3 rounded-full ${st.dotColor} shrink-0 shadow-2xs`} />
+                  <span className="text-xs font-semibold text-text-primary whitespace-nowrap">{st.label}</span>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs font-bold text-text-primary mr-1">{formatNumber(st.count)}</span>
+                <div className="text-right shrink-0 whitespace-nowrap pl-2">
+                  <span className="text-xs font-bold text-text-primary mr-1.5">{formatNumber(st.count)}</span>
                   <span className="text-[11px] text-text-muted font-medium">({formatPercent(st.percent)})</span>
                 </div>
               </div>

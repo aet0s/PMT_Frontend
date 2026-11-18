@@ -66,7 +66,7 @@ export default function ProfilePreviewModal({
           {blobUrl ? (
             <div className="relative flex items-center justify-center max-w-full max-h-full">
               {imageLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-surface/60 backdrop-blur-xs rounded-xl z-10">
+                <div className="absolute inset-0 flex items-center justify-center bg-surface/75 rounded-xl z-10">
                   <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
                 </div>
               )}

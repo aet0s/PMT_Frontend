@@ -1,76 +1,31 @@
 // client/src/pages/account/tabs/PreferencesTab.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   SlidersHorizontal,
-  Clock,
   Check,
   Eye,
-  RefreshCw,
   RotateCcw,
   Zap,
   Minimize2,
-  Maximize2
+  Maximize2,
+  Sparkles,
+  Layers,
+  Palette
 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import Switch from '../../../components/ui/Switch';
 import { ThemeSelector } from '../../../components/ui/ThemeToggle';
 import { useToast } from '../../../components/ui/Toast';
-import { useAuth } from '../../../hooks/useAuth';
-import { useServerNow, syncServerTime } from '../../../lib/serverTime';
-
-const TIMEZONE_OPTIONS = [
-  { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST - Server Time, UTC+05:30)' },
-  { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
-  { value: 'Asia/Dubai', label: 'Asia/Dubai (Gulf Standard Time, UTC+04:00)' },
-  { value: 'Asia/Singapore', label: 'Asia/Singapore (Singapore Standard Time, UTC+08:00)' },
-  { value: 'Asia/Tokyo', label: 'Asia/Tokyo (Japan Standard Time, UTC+09:00)' },
-  { value: 'Europe/London', label: 'Europe/London (Greenwich Mean Time / BST)' },
-  { value: 'Europe/Paris', label: 'Europe/Paris (Central European Time)' },
-  { value: 'Europe/Berlin', label: 'Europe/Berlin (Central European Time)' },
-  { value: 'America/New_York', label: 'America/New_York (Eastern Time - US & Canada)' },
-  { value: 'America/Chicago', label: 'America/Chicago (Central Time - US & Canada)' },
-  { value: 'America/Denver', label: 'America/Denver (Mountain Time - US & Canada)' },
-  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (Pacific Time - US & Canada)' },
-  { value: 'Australia/Sydney', label: 'Australia/Sydney (Australian Eastern Time)' }
-];
-
-const LOCALE_OPTIONS = [
-  { value: 'en-IN', label: 'English (India) — DD/MM/YYYY format (IST standard)' },
-  { value: 'en-GB', label: 'English (UK / International) — DD/MM/YYYY format' },
-  { value: 'en-US', label: 'English (United States) — MM/DD/YYYY format' }
-];
 
 export default function PreferencesTab({ setFormDirty }) {
   const toast = useToast();
-  const { user, updateUserProfile } = useAuth();
-  const serverNow = useServerNow();
   const hasUserEditedRef = useRef(false);
 
   const [density, setDensity] = useState(() => localStorage.getItem('taskflow_density') || 'detailed');
   const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('taskflow_reduced_motion') === 'true');
-  const [timezone, setTimezone] = useState(() => {
-    const tz = user?.timezone;
-    return tz && tz !== 'UTC' ? tz : 'Asia/Kolkata';
-  });
-  const [locale, setLocale] = useState(() => {
-    return localStorage.getItem('taskflow_locale') || user?.locale || 'en-IN';
-  });
   const [isSaving, setIsSaving] = useState(false);
-  const [isSyncingClock, setIsSyncingClock] = useState(false);
-
-  useEffect(() => {
-    if (!hasUserEditedRef.current) {
-      if (user?.timezone && user.timezone !== 'UTC') {
-        setTimezone(user.timezone);
-      } else {
-        setTimezone('Asia/Kolkata');
-      }
-      if (user?.locale) {
-        setLocale(user.locale);
-      }
-    }
-  }, [user]);
+  const [testAnimActive, setTestAnimActive] = useState(false);
 
   // Handle live density toggle
   const handleDensityChange = (newDensity) => {
@@ -81,7 +36,7 @@ export default function PreferencesTab({ setFormDirty }) {
       if (typeof document !== 'undefined') {
         document.documentElement.classList.toggle('density-compact', newDensity === 'compact');
       }
-    } catch (e) {}
+    } catch (e) { }
     setFormDirty?.(true);
   };
 
@@ -94,68 +49,46 @@ export default function PreferencesTab({ setFormDirty }) {
       if (typeof document !== 'undefined') {
         document.documentElement.classList.toggle('reduce-motion', Boolean(checked));
       }
-    } catch (e) {}
+    } catch (e) { }
     setFormDirty?.(true);
   };
 
-  // Synchronize server clock on demand
-  const handleSyncClock = async () => {
-    setIsSyncingClock(true);
-    try {
-      await syncServerTime();
-      toast.show('Server clock synchronized with Asia/Kolkata (IST)', 'success');
-    } catch {
-      toast.show('Clock calibration checked', 'info');
-    } finally {
-      setTimeout(() => setIsSyncingClock(false), 500);
-    }
-  };
-
-  // Reset all preferences back to company defaults
+  // Reset all preferences back to defaults
   const handleResetDefaults = async () => {
     const defaultDensity = 'detailed';
     const defaultMotion = false;
-    const defaultTz = 'Asia/Kolkata';
-    const defaultLocale = 'en-IN';
 
     hasUserEditedRef.current = false;
     setDensity(defaultDensity);
     setReducedMotion(defaultMotion);
-    setTimezone(defaultTz);
-    setLocale(defaultLocale);
 
     try {
       localStorage.setItem('taskflow_density', defaultDensity);
       localStorage.setItem('taskflow_reduced_motion', 'false');
-      localStorage.setItem('taskflow_locale', defaultLocale);
       if (typeof document !== 'undefined') {
         document.documentElement.classList.remove('density-compact');
         document.documentElement.classList.remove('reduce-motion');
       }
-      await updateUserProfile({ timezone: defaultTz, locale: defaultLocale });
-      toast.show('Preferences reset to company defaults (IST Server Time)', 'info');
+      toast.show('Preferences reset to default display settings', 'info');
       setFormDirty?.(false);
     } catch (err) {
       toast.show(err.message || 'Failed to reset preferences', 'error');
     }
   };
 
-  // Save preferences form
+  // Save preferences
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
     try {
       localStorage.setItem('taskflow_density', density);
       localStorage.setItem('taskflow_reduced_motion', String(reducedMotion));
-      localStorage.setItem('taskflow_locale', locale);
 
       if (typeof document !== 'undefined') {
         document.documentElement.classList.toggle('reduce-motion', Boolean(reducedMotion));
         document.documentElement.classList.toggle('density-compact', density === 'compact');
       }
 
-      const effectiveTimezone = timezone && timezone !== 'UTC' ? timezone : 'Asia/Kolkata';
-      await updateUserProfile({ timezone: effectiveTimezone, locale });
       hasUserEditedRef.current = false;
       toast.show('Preferences saved successfully', 'success');
       setFormDirty?.(false);
@@ -166,18 +99,10 @@ export default function PreferencesTab({ setFormDirty }) {
     }
   };
 
-  // Formatted server time string
-  const formattedServerTime = new Intl.DateTimeFormat('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
-  }).format(serverNow);
+  const triggerMotionTest = () => {
+    setTestAnimActive(true);
+    setTimeout(() => setTestAnimActive(false), 1200);
+  };
 
   return (
     <div className="space-y-6 w-full text-left">
@@ -185,10 +110,10 @@ export default function PreferencesTab({ setFormDirty }) {
         <div>
           <h2 className="text-lg font-bold text-text-primary tracking-tight flex items-center gap-2">
             <SlidersHorizontal className="w-5 h-5 text-primary" />
-            Display & Regional Preferences
+            Display & Visual Preferences
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
-            Customize visual layout density, motion accessibility, server time sync, and regional formats.
+            Customize interface density, motion accessibility, and color themes.
           </p>
         </div>
       </div>
@@ -196,7 +121,7 @@ export default function PreferencesTab({ setFormDirty }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Form Settings (2 cols) */}
         <div className="lg:col-span-2">
-          <form onSubmit={handleSave} className="space-y-5 bg-surface border border-border rounded-xl p-6 shadow-xs">
+          <form onSubmit={handleSave} className="space-y-6 bg-surface border border-border rounded-xl p-6 shadow-xs">
             <div className="border-b border-border pb-3">
               <h3 className="text-sm font-bold text-text-primary">Interface Density & Accessibility</h3>
               <p className="text-xs text-text-secondary mt-0.5">
@@ -204,8 +129,8 @@ export default function PreferencesTab({ setFormDirty }) {
               </p>
             </div>
 
-            {/* UI Density Selector & Interactive Live Preview */}
-            <div className="space-y-3 pb-5 border-b border-border">
+            {/* UI Density Selector & Interactive Live Comparison Preview */}
+            <div className="space-y-4 pb-6 border-b border-border">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex-1">
                   <Select
@@ -213,8 +138,8 @@ export default function PreferencesTab({ setFormDirty }) {
                     value={density}
                     onChange={handleDensityChange}
                     options={[
-                      { value: 'detailed', label: 'Detailed (Standard comfortable spacing)' },
-                      { value: 'compact', label: 'Compact (Higher information density)' }
+                      { value: 'detailed', label: 'Detailed (Standard comfortable spacing with descriptions & full tags)' },
+                      { value: 'compact', label: 'Compact (High information density: tight spacing, streamlined cards)' }
                     ]}
                   />
                 </div>
@@ -246,137 +171,147 @@ export default function PreferencesTab({ setFormDirty }) {
                 </div>
               </div>
 
-              {/* Mini Interactive Preview Card */}
-              <div className="p-3 bg-surface-muted/60 border border-border/80 rounded-xl space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                  <span>Live Preview — {density === 'compact' ? 'Compact Density' : 'Detailed Density'}</span>
-                  <span className="text-primary font-semibold">Active Mode</span>
+              {/* Side-by-Side or Highlighted Interactive Preview */}
+              <div className="p-4 bg-surface-muted/60 border border-border/80 rounded-xl space-y-3">
+                <div className="flex items-center justify-between text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-primary" />
+                    Live Comparison Preview
+                  </span>
+                  <span className="text-primary font-bold bg-primary-tint px-2 py-0.5 rounded-full text-[10px] border border-primary/20">
+                    Active: {density === 'compact' ? 'Compact Density' : 'Detailed Density'}
+                  </span>
                 </div>
-                <div
-                  className={`bg-surface border border-border rounded-xl transition-all shadow-xs ${
-                    density === 'compact' ? 'p-2.5 space-y-1.5' : 'p-4 space-y-3'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold text-text-muted">TASK #142</span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-primary-tint text-primary border border-primary/20">
-                      High Priority
-                    </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* Detailed Preview Card */}
+                  <div
+                    onClick={() => handleDensityChange('detailed')}
+                    className={`bg-surface border rounded-xl p-4 space-y-2.5 transition-all cursor-pointer select-none ${
+                      density === 'detailed'
+                        ? 'ring-2 ring-primary border-primary shadow-sm bg-surface'
+                        : 'border-border/70 opacity-60 hover:opacity-100 hover:border-border'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">TASK-101</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-primary-tint text-primary border border-primary/20">
+                        Detailed Mode
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-text-primary leading-tight">
+                      Q3 Design System Overhaul & Component Library
+                    </p>
+                    <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">
+                      Detailed view provides comfortable spacing, multi-line card descriptions, and generous visual padding for relaxed browsing.
+                    </p>
+                    <div className="flex items-center justify-between text-[11px] text-text-muted pt-2 border-t border-border/50">
+                      <span>Due in 3 days</span>
+                      <span className="font-semibold text-text-secondary">3 assignees</span>
+                    </div>
                   </div>
-                  <p className="text-xs font-bold text-text-primary leading-tight">
-                    Project Management & Tracking Sprint
-                  </p>
-                  <div className="flex items-center justify-between text-[11px] text-text-muted pt-1 border-t border-border/40">
-                    <span>Due Today</span>
-                    <span className="font-semibold text-text-secondary">2 assignees</span>
+
+                  {/* Compact Preview Card */}
+                  <div
+                    onClick={() => handleDensityChange('compact')}
+                    className={`bg-surface border rounded-xl p-2.5 space-y-1.5 transition-all cursor-pointer select-none ${
+                      density === 'compact'
+                        ? 'ring-2 ring-primary border-primary shadow-sm bg-surface'
+                        : 'border-border/70 opacity-60 hover:opacity-100 hover:border-border'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">TASK-102</span>
+                      <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-success-tint text-success border border-success/20">
+                        Compact (2x Density)
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-text-primary leading-snug truncate">
+                      Q3 Design System Overhaul & Component Library
+                    </p>
+                    <div className="flex items-center justify-between text-[10px] text-text-muted pt-1 border-t border-border/40">
+                      <span>Due Today</span>
+                      <span className="font-medium text-text-secondary">2 assignees</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Reduced Motion Switch with Live Animation Beacon */}
-            <div className="flex items-center justify-between pb-5 border-b border-border gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-semibold text-text-primary">Reduced Motion</p>
-                  {reducedMotion ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-surface-muted text-text-muted border border-border">
-                      <span className="w-1.5 h-1.5 rounded-full bg-text-muted" />
-                      Animations Off
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-success-tint text-success-text border border-success/30">
-                      <span className="w-1.5 h-1.5 rounded-full bg-success animate-ping" />
-                      Smooth Motion On
-                    </span>
-                  )}
+            {/* Reduced Motion Switch with Live Animation Beacon & Test */}
+            <div className="pb-6 border-b border-border space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold text-text-primary">Reduced Motion</p>
+                    {reducedMotion ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-surface-muted text-text-muted border border-border">
+                        <span className="w-1.5 h-1.5 rounded-full bg-text-muted" />
+                        Animations Off
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-success-tint text-success-text border border-success/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-success animate-ping" />
+                        Smooth Motion Active
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-text-secondary">
+                    Disable transitions, pulse beacons, modal slide-ins, and animations for accessibility and instant UI response.
+                  </p>
                 </div>
-                <p className="text-[11px] text-text-secondary">
-                  Disable drag-and-drop transitions, modal animations, and smooth scrolling for faster response and accessibility.
-                </p>
+                <Switch
+                  aria-label="Reduced motion"
+                  checked={reducedMotion}
+                  onChange={handleReducedMotionChange}
+                />
               </div>
-              <Switch
-                aria-label="Reduced motion"
-                checked={reducedMotion}
-                onChange={handleReducedMotionChange}
-              />
+
+              {/* Interactive Motion Test Area */}
+              <div className="p-3 bg-surface-muted/50 border border-border/70 rounded-xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                      reducedMotion
+                        ? 'bg-surface border border-border text-text-muted'
+                        : testAnimActive
+                        ? 'bg-primary text-white scale-110 rotate-12 duration-300'
+                        : 'bg-primary-tint text-primary animate-pulse'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-text-primary block">
+                      {reducedMotion ? 'Static Mode Active (No Motion)' : 'Smooth Animation Enabled'}
+                    </span>
+                    <span className="text-[11px] text-text-muted block">
+                      {reducedMotion
+                        ? 'Transitions and loops are completely stopped.'
+                        : 'Elements smoothly ease, slide, and animate.'}
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="xs"
+                  onClick={triggerMotionTest}
+                  className="shrink-0 text-xs"
+                >
+                  Test Motion
+                </Button>
+              </div>
             </div>
 
             {/* Theme Appearance */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-border gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3">
               <div>
                 <p className="text-xs font-semibold text-text-primary">Theme Appearance</p>
                 <p className="text-[11px] text-text-secondary">Choose between Light, Dark, or System color themes.</p>
               </div>
               <ThemeSelector />
-            </div>
-
-            {/* Timezone Section with Prominent Server Time Status */}
-            <div className="space-y-3 pb-5 border-b border-border">
-              <Select
-                label="Primary Timezone"
-                value={timezone}
-                onChange={(val) => {
-                  hasUserEditedRef.current = true;
-                  setTimezone(val);
-                  setFormDirty?.(true);
-                }}
-                options={TIMEZONE_OPTIONS}
-              />
-
-              {/* Authoritative Server Time Status Banner */}
-              <div className="bg-primary-tint/20 border border-primary/25 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
-                    <span className="text-xs font-bold text-text-primary">Authoritative Server Time (IST)</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-white font-bold tracking-wider">
-                      UTC+05:30
-                    </span>
-                  </div>
-                  <p className="text-sm font-mono font-bold text-primary tracking-wide">
-                    {formattedServerTime}
-                  </p>
-                  <p className="text-[11px] text-text-secondary leading-snug">
-                    Daily tracker cutoffs (8:00 PM IST), card deadlines, audit logs, and reports strictly adhere to Server Time.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="xs"
-                  onClick={handleSyncClock}
-                  disabled={isSyncingClock}
-                  leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isSyncingClock ? 'animate-spin text-primary' : ''}`} />}
-                  className="shrink-0 self-start sm:self-center"
-                >
-                  {isSyncingClock ? 'Syncing...' : 'Sync Server Clock'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Regional Locale & Date Format */}
-            <div className="space-y-2 pb-2">
-              <Select
-                label="Language & Regional Date Format"
-                value={locale}
-                onChange={(val) => {
-                  hasUserEditedRef.current = true;
-                  setLocale(val);
-                  try {
-                    localStorage.setItem('taskflow_locale', val);
-                  } catch (e) {}
-                  setFormDirty?.(true);
-                }}
-                options={LOCALE_OPTIONS}
-              />
-              <p className="text-[11px] text-text-muted flex items-center gap-1.5">
-                <span>Active Date Format:</span>
-                <span className="font-mono font-semibold text-text-secondary bg-surface-muted px-1.5 py-0.5 rounded border border-border text-[10px]">
-                  {locale === 'en-US' ? 'MM/DD/YYYY' : 'DD/MM/YYYY'}
-                </span>
-                <span>(e.g. {locale === 'en-US' ? '11/17/2026' : '17/11/2026'})</span>
-              </p>
             </div>
 
             {/* Bottom Actions */}
@@ -389,7 +324,7 @@ export default function PreferencesTab({ setFormDirty }) {
                 leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
                 className="text-text-muted hover:text-text-primary text-xs"
               >
-                Reset to Server Defaults
+                Reset to Defaults
               </Button>
               <Button
                 type="submit"
@@ -408,31 +343,31 @@ export default function PreferencesTab({ setFormDirty }) {
         <div className="space-y-6">
           <div className="bg-surface border border-border rounded-xl p-5 shadow-xs space-y-3">
             <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              Server Time Synchronization
-            </h3>
-            <p className="text-[11px] text-text-secondary leading-relaxed">
-              PMT operates on Indian Standard Time (<strong className="text-text-primary">Asia/Kolkata, UTC+05:30</strong>). Daily Tracker 8:00 PM cutoffs, leave policies, audit stamps, and reminder schedules strictly synchronize with the server clock regardless of local browser offsets.
-            </p>
-          </div>
-
-          <div className="bg-surface border border-border rounded-xl p-5 shadow-xs space-y-3">
-            <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
               <Zap className="w-4 h-4 text-primary" />
-              High Density & Performance
+              High Density & Scannability
             </h3>
             <p className="text-[11px] text-text-secondary leading-relaxed">
-              Compact density mode minimizes vertical padding and spacing across board cards and issue tables, allowing you to view more tasks simultaneously without scrolling.
+              Compact density minimizes card margins and collapses non-essential descriptions, displaying up to 2x more tasks on your board simultaneously without scrolling.
             </p>
           </div>
 
           <div className="bg-surface border border-border rounded-xl p-5 shadow-xs space-y-3">
             <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
               <Eye className="w-4 h-4 text-primary" />
-              Accessibility Standard
+              Accessibility & Reduced Motion
             </h3>
             <p className="text-[11px] text-text-secondary leading-relaxed">
-              All UI controls meet WCAG 2.1 AA accessibility guidelines with full keyboard navigation, screen reader indicators, high-contrast borders, and motion toggle support.
+              Enabling Reduced Motion disables animations and transition effects across modal overlays, toast notifications, drag-and-drop indicators, and buttons according to WCAG 2.1 AA guidelines.
+            </p>
+          </div>
+
+          <div className="bg-surface border border-border rounded-xl p-5 shadow-xs space-y-3">
+            <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+              <Palette className="w-4 h-4 text-primary" />
+              Adaptive Color Theme
+            </h3>
+            <p className="text-[11px] text-text-secondary leading-relaxed">
+              Themes apply instantly across all workspaces and boards. The System theme automatically syncs with your operating system light and dark schedule.
             </p>
           </div>
         </div>

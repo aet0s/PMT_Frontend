@@ -55,7 +55,7 @@ export default function GeneralTab({
     message: '',
     confirmText: 'Confirm',
     variant: 'danger',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   useEffect(() => {
@@ -194,10 +194,10 @@ export default function GeneralTab({
 
   const createdDate = workspace?.created_at
     ? new Date(workspace.created_at).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
     : 'Active';
 
   return (
@@ -246,7 +246,7 @@ export default function GeneralTab({
                   className="w-full h-full rounded-2xl"
                   imgClassName="w-full h-full object-cover rounded-2xl"
                 />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                <div className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                   <Eye className="w-5 h-5 drop-shadow-md" />
                 </div>
               </button>

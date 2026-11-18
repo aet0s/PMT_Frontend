@@ -170,7 +170,7 @@ export default function Card({
         if (e.target.closest('button[aria-label="Card actions"]') || e.defaultPrevented) return;
         onClick?.();
       }}
-      className={`group relative bg-surface border border-border/80 rounded-2xl p-4 transition-all duration-200 cursor-pointer select-none space-y-3 shadow-xs hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
+      className={`kanban-card group relative bg-surface border border-border/80 rounded-2xl p-4 transition-all duration-200 cursor-pointer select-none space-y-3 shadow-xs hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
         focusMode
           ? isMyCard
             ? `${

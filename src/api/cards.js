@@ -49,8 +49,10 @@ export async function toggleCardMember(cardId, userId) {
 export async function uploadAttachment(cardId, file) {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('card_id', String(cardId));
+  formData.append('purpose', 'card_attachment');
 
-  return apiFetch(`/api/cards/${cardId}/attachments`, {
+  return apiFetch('/api/upload', {
     method: 'POST',
     body: formData
   });

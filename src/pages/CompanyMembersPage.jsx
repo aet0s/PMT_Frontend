@@ -65,8 +65,9 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
 
   const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || workspace?.role_name || workspace?.role || '')?.toLowerCase();
   const isOwner = roleName === 'owner' || roleName === 'super admin' || (userRole?.is_system === 1 && (userRole?.rank >= 100 || userRole?.is_editable === 0));
-  const isMemberOrBelow = ['team member', 'member', 'viewer', 'guest'].includes(roleName);
-  const canView = !isMemberOrBelow && roleName !== 'project manager' && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view') || hasPermission('member.view'));
+  // In the company-level multi-tenant model, all active company members with member.view
+  // are permitted to view fellow company profiles and rosters.
+  const canView = isOwner || hasPermission('member.view') || hasPermission('role.view') || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role');
 
   useEffect(() => {
     if (!permissionsLoading && userRole && !canView && workspace?.id) {
@@ -141,7 +142,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
     message: '',
     confirmText: 'Confirm',
     variant: 'danger',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   // Debounce search input
@@ -682,7 +683,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                                   user={member}
                                   size="sm"
                                 />
-                                <div className="absolute inset-0 rounded-full bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                                <div className="absolute inset-0 rounded-full bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                                   <Eye className="w-3 h-3 drop-shadow-xs" />
                                 </div>
                               </button>
@@ -808,11 +809,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                               key={p}
                               type="button"
                               onClick={() => handlePageChange(p)}
-                              className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                p === currentPage
+                              className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${p === currentPage
                                   ? 'bg-primary text-white shadow-2xs'
                                   : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                              }`}
+                                }`}
                             >
                               {p}
                             </button>
@@ -930,9 +930,8 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                                 onClick={() => handleResendEmail(inv)}
                                 leftIcon={
                                   <Mail
-                                    className={`w-3.5 h-3.5 text-primary ${
-                                      resendingEmailId === inv.id ? 'animate-pulse' : ''
-                                    }`}
+                                    className={`w-3.5 h-3.5 text-primary ${resendingEmailId === inv.id ? 'animate-pulse' : ''
+                                      }`}
                                   />
                                 }
                                 className="text-xs font-semibold cursor-pointer"
@@ -965,9 +964,8 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                                 onClick={() => handleRegenerateInvite(inv.id)}
                                 leftIcon={
                                   <RefreshCw
-                                    className={`w-3.5 h-3.5 ${
-                                      regeneratingId === inv.id ? 'animate-spin' : ''
-                                    }`}
+                                    className={`w-3.5 h-3.5 ${regeneratingId === inv.id ? 'animate-spin' : ''
+                                      }`}
                                   />
                                 }
                                 className="text-xs font-semibold cursor-pointer"
@@ -1175,11 +1173,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                         key={tab.id}
                         type="button"
                         onClick={() => setEditWsFilterTab(tab.id)}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                          editWsFilterTab === tab.id
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${editWsFilterTab === tab.id
                             ? 'bg-primary text-white shadow-2xs'
                             : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
-                        }`}
+                          }`}
                       >
                         {tab.label} ({tab.count})
                       </button>
@@ -1227,11 +1224,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                       return (
                         <div
                           key={ws.id}
-                          className={`rounded-xl border transition-all ${
-                            isWsChecked
+                          className={`rounded-xl border transition-all ${isWsChecked
                               ? 'bg-surface border-primary/40 shadow-xs'
                               : 'bg-surface/80 border-border/70 hover:border-border-strong'
-                          }`}
+                            }`}
                         >
                           {/* Workspace Header Row */}
                           <div className="flex items-center justify-between p-3 gap-2 select-none">
@@ -1255,11 +1251,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
 
                               {/* Selected Boards Badge */}
                               <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                                  selectedBoardsInWs.length > 0
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${selectedBoardsInWs.length > 0
                                     ? 'bg-primary-tint text-primary border border-primary/20'
                                     : 'bg-surface-muted text-text-muted border border-border/60'
-                                }`}
+                                  }`}
                               >
                                 {selectedBoardsInWs.length} of {wsBoards.length} boards
                               </span>
@@ -1298,11 +1293,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                                       <div
                                         key={board.id}
                                         onClick={() => handleToggleBoardInEdit(board.id, ws.id)}
-                                        className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer text-xs select-none ${
-                                          isBoardChecked
+                                        className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer text-xs select-none ${isBoardChecked
                                             ? 'bg-primary-tint/30 border-primary text-text-primary font-semibold shadow-2xs'
                                             : 'bg-surface hover:bg-surface-muted/60 border-border/60 text-text-secondary'
-                                        }`}
+                                          }`}
                                       >
                                         {isBoardChecked ? (
                                           <CheckSquare className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -1469,11 +1463,10 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                               : [...prev, board.id]
                           );
                         }}
-                        className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer ${
-                          isChecked
+                        className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer ${isChecked
                             ? 'bg-info/10 border-info text-text-primary'
                             : 'bg-surface hover:bg-surface-muted/60 border-border/60 text-text-secondary'
-                        } ${generatedInviteUrl ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          } ${generatedInviteUrl ? 'opacity-60 cursor-not-allowed' : ''}`}
                       >
                         {isChecked ? (
                           <CheckSquare className="w-4 h-4 text-info shrink-0" />

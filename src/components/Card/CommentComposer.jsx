@@ -311,7 +311,7 @@ export default function CommentComposer({
       {mentionQuery !== null && (
         <div
           ref={dropdownRef}
-          className="absolute z-50 top-full left-0 mt-1.5 w-72 max-h-56 overflow-y-auto bg-surface border border-border rounded-xl shadow-xl py-1 backdrop-blur-md"
+          className="absolute z-50 top-full left-0 mt-1.5 w-72 max-h-56 overflow-y-auto bg-surface border border-border rounded-xl shadow-xl py-1"
         >
           <div className="px-3 py-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider border-b border-border/50 flex items-center justify-between">
             <span className="flex items-center gap-1">
@@ -336,9 +336,8 @@ export default function CommentComposer({
                     e.preventDefault(); // prevent losing focus
                     handleSelectMention(c);
                   }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors cursor-pointer ${
-                    isSelected ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-surface-muted text-text-primary'
-                  }`}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors cursor-pointer ${isSelected ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-surface-muted text-text-primary'
+                    }`}
                 >
                   <Avatar
                     name={c.name}

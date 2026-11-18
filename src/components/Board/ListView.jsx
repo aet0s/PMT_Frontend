@@ -219,7 +219,7 @@ export default function ListView({
   const handleClearFilters = () => {
     setSearchInput('');
     setDebouncedSearch('');
-    setSelectedBoardId('all');
+    setSelectedBoardId(board?.id ? String(board.id) : 'all');
     setSelectedStage('all');
     setSelectedListId('all');
     setSelectedAssigneeId('all');
@@ -244,15 +244,6 @@ export default function ListView({
     { value: 'review', label: 'Review' },
     { value: 'done', label: 'Done' }
   ];
-
-  const listOptions = useMemo(() => {
-    const base = [{ value: 'all', label: 'All Columns' }];
-    const relevantLists = selectedBoardId === 'all'
-      ? filterOptions.lists || []
-      : (filterOptions.lists || []).filter((l) => String(l.board_id) === String(selectedBoardId));
-    const items = relevantLists.map((l) => ({ value: String(l.id), label: l.name }));
-    return [...base, ...items];
-  }, [filterOptions.lists, selectedBoardId]);
 
   const assigneeOptions = useMemo(() => {
     const base = [
@@ -326,18 +317,6 @@ export default function ListView({
               value={selectedStage}
               onChange={(val) => setSelectedStage(val || 'all')}
               options={stageOptions}
-            />
-          </div>
-
-          {/* Column/List Filter */}
-          <div className="w-32 sm:w-36">
-            <Select
-              id="filter-list"
-              aria-label="Filter by column"
-              size="sm"
-              value={selectedListId}
-              onChange={(val) => setSelectedListId(val || 'all')}
-              options={listOptions}
             />
           </div>
 
