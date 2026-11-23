@@ -153,22 +153,22 @@ export default function GlobalHeader({
   const isProjectRoute = pathParts[0] === 'p' && pathParts[1];
   const isWorkspaceToolRoute = ['audit', 'home', 'members', 'company-members', 'reports', 'settings', 'archive', 'notifications', 'daily-tracker', 'my-tasks'].includes(subPath);
   const isOnBoard = Boolean(board && (isProjectRoute || !isWorkspaceToolRoute));
+  const cleanSub = subPath ? subPath.split('/')[0] : 'home';
 
   // Page title and icon mapping for non-board pages
   const pageMeta = useMemo(() => {
     if (isOnBoard) return null;
-    const cleanSub = subPath.split('/')[0] || 'home';
     switch (cleanSub) {
       case 'home':
         return { title: workspace?.name || 'Workspace', badge: 'Overview', icon: FolderKanban };
       case 'my-tasks':
-        return { title: 'My Tasks & Work', badge: 'Personal Hub', icon: CheckSquare };
+        return { title: 'My Tasks', badge: null, icon: CheckSquare };
       case 'members':
         return { title: 'Workspace Members', badge: 'Access', icon: Users };
       case 'company-members':
         return { title: 'Company Members', badge: 'Directory', icon: Users };
       case 'reports':
-        return { title: 'Reports & Insights', badge: 'Analytics', icon: BarChart3 };
+        return { title: 'Report', badge: null, icon: BarChart3 };
       case 'settings':
         return { title: 'Workspace Settings', badge: 'Admin', icon: Settings };
       case 'account':
@@ -197,7 +197,7 @@ export default function GlobalHeader({
 
   return (
     <header
-      className={`relative z-30 h-16 px-4 sm:px-6 lg:px-8 bg-app flex items-center justify-between shrink-0 select-none border-b border-border/40 ${className}`}
+      className={`relative z-30 h-16 px-3 sm:px-6 lg:px-8 bg-app flex items-center justify-between shrink-0 select-none border-b border-border/40 ${className}`}
     >
       {/* ======================================================== */}
       {/* LEFT ZONE: Mobile Menu Toggle + Title / Switcher         */}
@@ -327,8 +327,8 @@ export default function GlobalHeader({
               )}
             </div>
 
-            {/* Quick Switch to Projects Dropdown from ANY page */}
-            {boards && boards.length > 0 && (
+            {/* Quick Switch to Projects Dropdown from ANY page (except My Tasks & Reports) */}
+            {boards && boards.length > 0 && cleanSub !== 'my-tasks' && cleanSub !== 'reports' && (
               <div className="relative shrink-0 ml-1" ref={boardSwitcherRef}>
                 <button
                   type="button"
@@ -375,9 +375,9 @@ export default function GlobalHeader({
       {/* ======================================================== */}
       {/* CENTER ZONE: Global Search & Action Badges               */}
       {/* ======================================================== */}
-      <div className="flex-1 flex items-center justify-center gap-2 sm:gap-3 px-2 min-w-0">
+      <div className="hidden md:flex flex-1 items-center justify-center gap-2 sm:gap-3 px-2 min-w-0">
         {/* Universal Pill Search */}
-        <div className="relative hidden md:block w-52 lg:w-72 xl:w-80">
+        <div className="relative w-52 lg:w-72 xl:w-80">
           <label htmlFor="global-search-input" className="sr-only">
             Search task, project, label
           </label>
@@ -481,18 +481,16 @@ export default function GlobalHeader({
             )}
           </>
         )}
+      </div>
 
-        {/* Global Notification Bell (Universal on every page) */}
+      {/* ======================================================== */}
+      {/* RIGHT ZONE: Global Notification Bell & User Dropdown     */}
+      {/* ======================================================== */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 pl-2">
         <NotificationBell
           onSelectNotificationCard={onSelectNotificationCard}
           onOpenAllNotifications={onOpenAllNotifications}
         />
-      </div>
-
-      {/* ======================================================== */}
-      {/* RIGHT ZONE: Top Right Corner User Dropdown               */}
-      {/* ======================================================== */}
-      <div className="flex items-center gap-2.5 shrink-0 pl-2">
         <UserDropdown workspaceId={workspace?.id} />
       </div>
 
@@ -502,7 +500,7 @@ export default function GlobalHeader({
       {isOnBoard && isPaletteOpen && (
         <div
           ref={paletteRef}
-          className="absolute right-4 sm:right-20 top-18 bg-surface border border-border rounded-2xl shadow-xl p-4 z-50 w-80 space-y-3 text-left animate-sassy-dropdown"
+          className="absolute right-2 sm:right-20 top-18 bg-surface border border-border rounded-2xl shadow-xl p-4 z-50 w-[calc(100vw-1rem)] max-w-xs sm:w-80 space-y-3 text-left animate-sassy-dropdown"
         >
           <div className="flex items-center justify-between pb-1 border-b border-border/50">
             <span className="text-xs font-bold text-text-primary uppercase tracking-wider">

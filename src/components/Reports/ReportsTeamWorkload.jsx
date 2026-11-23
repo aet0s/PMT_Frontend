@@ -15,7 +15,16 @@ import {
 import Avatar from '../ui/Avatar';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
+import Select from '../ui/Select';
 import { formatNumber, formatPercent } from './reportsUtils';
+
+const TEAM_SORT_OPTIONS = [
+  { value: 'assigned', label: 'Most Assigned' },
+  { value: 'completion', label: 'Highest Progress' },
+  { value: 'overdue', label: 'Most Overdue' },
+  { value: 'active', label: 'Most Active' },
+  { value: 'name', label: 'Name (A–Z)' }
+];
 
 export default function ReportsTeamWorkload({
   members = [],
@@ -150,26 +159,22 @@ export default function ReportsTeamWorkload({
             <p className="text-xs text-text-muted mt-0.5">Individual task allocations, completion rates, and workload capacity</p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
             {/* Sort Selector */}
-            <div className="flex items-center gap-1.5 bg-surface-elevated px-2.5 py-1.5 rounded-lg border border-border text-xs text-text-muted">
-              <ArrowUpDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
-              <select
+            <div className="w-full sm:w-44">
+              <Select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-transparent text-text-primary text-xs font-medium focus:outline-none cursor-pointer"
-              >
-                <option value="assigned">Most Assigned</option>
-                <option value="completion">Highest Progress</option>
-                <option value="overdue">Most Overdue</option>
-                <option value="active">Most Active</option>
-                <option value="name">Name (A–Z)</option>
-              </select>
+                onChange={(val) => setSortBy(val)}
+                options={TEAM_SORT_OPTIONS}
+                size="sm"
+                className="text-xs"
+                aria-label="Sort team workload by"
+              />
             </div>
 
             {/* Search Box */}
             <div className="relative w-full sm:w-56">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search member..."

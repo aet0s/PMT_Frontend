@@ -15,8 +15,15 @@ import {
 } from 'lucide-react';
 import Badge from '../ui/Badge';
 import Avatar from '../ui/Avatar';
+import Select from '../ui/Select';
 import { formatDate } from '../../lib/dateFormat';
 import { formatNumber } from './reportsUtils';
+
+const ATTENTION_SORT_OPTIONS = [
+  { value: 'overdue_desc', label: 'Most Overdue' },
+  { value: 'due_date_asc', label: 'Due Date (Oldest First)' },
+  { value: 'title_asc', label: 'Title (A–Z)' }
+];
 
 export default function ReportsAttentionList({
   overdueTasks = [],
@@ -119,24 +126,22 @@ export default function ReportsAttentionList({
           </div>
 
           {overdueTasks.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
               {/* Sort Selector */}
-              <div className="flex items-center gap-1.5 bg-surface-elevated px-2.5 py-1.5 rounded-lg border border-border text-xs text-text-muted">
-                <ArrowUpDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                <select
+              <div className="w-full sm:w-44">
+                <Select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-transparent text-text-primary text-xs font-medium focus:outline-none cursor-pointer"
-                >
-                  <option value="overdue_desc">Most Overdue</option>
-                  <option value="due_date_asc">Due Date (Oldest First)</option>
-                  <option value="title_asc">Title (A–Z)</option>
-                </select>
+                  onChange={(val) => setSortBy(val)}
+                  options={ATTENTION_SORT_OPTIONS}
+                  size="sm"
+                  className="text-xs"
+                  aria-label="Sort overdue tasks by"
+                />
               </div>
 
               {/* Search Box */}
               <div className="relative w-full sm:w-56">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search overdue tasks..."

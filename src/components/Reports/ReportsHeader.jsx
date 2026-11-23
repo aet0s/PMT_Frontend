@@ -107,14 +107,14 @@ export default function ReportsHeader({
       </div>
 
       {/* Unified Filters Bar */}
-      <div className="flex flex-wrap items-center gap-4 pt-3.5 border-t border-border/60">
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-3.5 border-t border-border/60">
         {/* Workspace Selector Filter */}
         {workspaceOptions && workspaceOptions.length > 0 && (
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto">
             <span className="text-xs font-semibold text-text-secondary whitespace-nowrap flex items-center gap-1.5">
               <Briefcase className="w-3.5 h-3.5 text-text-muted" /> Workspace:
             </span>
-            <div className="w-52 sm:w-60">
+            <div className="w-full sm:w-52 md:w-60">
               <Select
                 value={selectedWorkspaceId || 'all'}
                 onChange={(val) => onWorkspaceChange?.(val)}
@@ -128,11 +128,11 @@ export default function ReportsHeader({
         )}
 
         {/* Board / Project Filter */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto">
           <span className="text-xs font-semibold text-text-secondary whitespace-nowrap flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-text-muted" /> Board:
           </span>
-          <div className="w-52 sm:w-60">
+          <div className="w-full sm:w-52 md:w-60">
             <Select
               value={selectedBoardId || 'all'}
               onChange={(val) => onBoardChange?.(val)}
@@ -144,11 +144,11 @@ export default function ReportsHeader({
         </div>
 
         {/* Timeframe Filter */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto">
           <span className="text-xs font-semibold text-text-secondary whitespace-nowrap flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-text-muted" /> Timeframe:
           </span>
-          <div className="w-40 sm:w-48">
+          <div className="w-full sm:w-40 md:w-48">
             <Select
               value={selectedTimeframe || 'all'}
               onChange={(val) => onTimeframeChange?.(val)}

@@ -438,18 +438,15 @@ async function handleApiResponse(response, url, options, isRetry) {
       url.includes('/api/auth/refresh') ||
       url.includes('/api/auth/register') ||
       url.includes('/api/auth/logout') ||
-      url.includes('/api/auth/me') ||
       url.includes('/api/invitations/verify') ||
       url === 'auth.login' ||
       url === 'auth.refresh' ||
       url === 'auth.register' ||
       url === 'auth.logout' ||
-      url === 'auth.me' ||
       options?.operation === 'auth.login' ||
       options?.operation === 'auth.refresh' ||
       options?.operation === 'auth.register' ||
-      options?.operation === 'auth.logout' ||
-      options?.operation === 'auth.me';
+      options?.operation === 'auth.logout';
 
     if (response.status === 401 && !isAuthRoute && !isRetry) {
       const refreshed = await refreshAuthToken();

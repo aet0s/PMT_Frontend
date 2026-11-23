@@ -94,22 +94,22 @@ export default function ReportsKpiSummary({ summary = {}, canViewTeam = false })
 
   return (
     <div className="space-y-4">
-      {/* 6 Primary KPIs Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      {/* 6 Primary KPIs Grid: 2 per line on mobile, 3 on tablet, 6 on desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
         {primaryKpis.map((kpi) => {
           const IconComponent = kpi.icon;
           return (
             <div
               key={kpi.id}
-              className="bg-surface border border-border rounded-xl p-4 flex flex-col justify-between shadow-xs hover:border-border-hover transition-colors"
+              className="bg-surface border border-border rounded-xl p-3 sm:p-4 flex flex-col justify-between shadow-xs hover:border-border-hover transition-colors min-w-0"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-text-muted">{kpi.label}</span>
-                <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${kpi.badgeBg}`}>
-                  <IconComponent className="w-3.5 h-3.5" />
+              <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
+                <span className="text-[11px] sm:text-xs font-medium text-text-muted truncate">{kpi.label}</span>
+                <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg border flex items-center justify-center shrink-0 ${kpi.badgeBg}`}>
+                  <IconComponent className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </div>
               </div>
-              <div className="text-2xl font-bold tracking-tight text-text-primary">
+              <div className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary truncate">
                 {kpi.value}
               </div>
             </div>
@@ -119,70 +119,70 @@ export default function ReportsKpiSummary({ summary = {}, canViewTeam = false })
 
       {/* Supporting Secondary Metrics Strip */}
       <div className="bg-surface border border-border rounded-xl p-3 sm:p-4 shadow-xs">
-        <div className="flex items-center justify-between flex-wrap gap-y-3 divide-y sm:divide-y-0 sm:divide-x divide-border/60">
-          <div className="flex items-center gap-2.5 px-3 py-1 min-w-[120px]">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+          <div className="flex items-center gap-2 p-1.5 rounded-lg bg-surface-muted/40 border border-border/40">
             <Clock className="w-4 h-4 text-amber-500 shrink-0" />
-            <div>
-              <p className="text-[11px] text-text-muted font-medium">In Review</p>
-              <p className="text-sm font-semibold text-text-primary">{formatNumber(review_tasks)}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] text-text-muted font-medium truncate">In Review</p>
+              <p className="text-xs sm:text-sm font-semibold text-text-primary">{formatNumber(review_tasks)}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 px-3 py-1 min-w-[120px]">
+          <div className="flex items-center gap-2 p-1.5 rounded-lg bg-surface-muted/40 border border-border/40">
             <Calendar className="w-4 h-4 text-orange-500 shrink-0" />
-            <div>
-              <p className="text-[11px] text-text-muted font-medium">Due Soon</p>
-              <p className="text-sm font-semibold text-text-primary">{formatNumber(due_soon_tasks)}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] text-text-muted font-medium truncate">Due Soon</p>
+              <p className="text-xs sm:text-sm font-semibold text-text-primary">{formatNumber(due_soon_tasks)}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 px-3 py-1 min-w-[120px]">
+          <div className="flex items-center gap-2 p-1.5 rounded-lg bg-surface-muted/40 border border-border/40">
             <UserX className="w-4 h-4 text-text-muted shrink-0" />
-            <div>
-              <p className="text-[11px] text-text-muted font-medium">Unassigned</p>
-              <p className="text-sm font-semibold text-text-primary">{formatNumber(unassigned_tasks)}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] text-text-muted font-medium truncate">Unassigned</p>
+              <p className="text-xs sm:text-sm font-semibold text-text-primary">{formatNumber(unassigned_tasks)}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 px-3 py-1 min-w-[120px]">
+          <div className="flex items-center gap-2 p-1.5 rounded-lg bg-surface-muted/40 border border-border/40">
             <Archive className="w-4 h-4 text-amber-500 shrink-0" />
-            <div>
-              <p className="text-[11px] text-text-muted font-medium">Archived</p>
-              <p className="text-sm font-semibold text-text-primary">{formatNumber(archived_tasks)}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] text-text-muted font-medium truncate">Archived</p>
+              <p className="text-xs sm:text-sm font-semibold text-text-primary">{formatNumber(archived_tasks)}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 px-3 py-1 min-w-[120px]">
+          <div className="flex items-center gap-2 p-1.5 rounded-lg bg-surface-muted/40 border border-border/40">
             <Layers className="w-4 h-4 text-indigo-500 shrink-0" />
-            <div>
-              <p className="text-[11px] text-text-muted font-medium">Boards</p>
-              <p className="text-sm font-semibold text-text-primary">{formatNumber(total_boards)}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] text-text-muted font-medium truncate">Boards</p>
+              <p className="text-xs sm:text-sm font-semibold text-text-primary">{formatNumber(total_boards)}</p>
             </div>
           </div>
 
           {canViewTeam && (
-            <div className="flex items-center gap-2.5 px-3 py-1 min-w-[120px]">
+            <div className="flex items-center gap-2 p-1.5 rounded-lg bg-surface-muted/40 border border-border/40">
               <Users className="w-4 h-4 text-sky-500 shrink-0" />
-              <div>
-                <p className="text-[11px] text-text-muted font-medium">Team Members</p>
-                <p className="text-sm font-semibold text-text-primary">{formatNumber(total_members)}</p>
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-[11px] text-text-muted font-medium truncate">Team</p>
+                <p className="text-xs sm:text-sm font-semibold text-text-primary">{formatNumber(total_members)}</p>
               </div>
             </div>
           )}
 
-          <div className="flex items-center gap-2.5 px-3 py-1 min-w-[120px]">
+          <div className="flex items-center gap-2 p-1.5 rounded-lg bg-surface-muted/40 border border-border/40">
             <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-            <div>
-              <p className="text-[11px] text-text-muted font-medium">Overdue Rate</p>
-              <p className="text-sm font-semibold text-text-primary">{formatPercent(overdue_rate)}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] text-text-muted font-medium truncate">Overdue Rate</p>
+              <p className="text-xs sm:text-sm font-semibold text-text-primary">{formatPercent(overdue_rate)}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 px-3 py-1 min-w-[130px]">
+          <div className="flex items-center gap-2 p-1.5 rounded-lg bg-surface-muted/40 border border-border/40">
             <TrendingUp className="w-4 h-4 text-teal-500 shrink-0" />
-            <div>
-              <p className="text-[11px] text-text-muted font-medium">Avg Cycle Time</p>
-              <p className="text-sm font-semibold text-text-primary">{formatDays(avg_cycle_days)}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] text-text-muted font-medium truncate">Cycle Time</p>
+              <p className="text-xs sm:text-sm font-semibold text-text-primary">{formatDays(avg_cycle_days)}</p>
             </div>
           </div>
         </div>

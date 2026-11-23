@@ -124,15 +124,13 @@ export default function List({
       id={`list-${list.id}`}
       ref={setNodeRef}
       style={style}
-      className={`w-72 lg:w-76 shrink-0 flex flex-col max-h-full snap-center transition-all ${
-        isOverlay ? 'shadow-2xl scale-105 rotate-1 z-50 bg-surface rounded-2xl p-2 border border-primary' : ''
-      }`}
+      className={`w-72 max-sm:w-[calc(100vw-2.5rem)] max-sm:max-w-72 lg:w-76 shrink-0 flex flex-col max-h-full snap-center transition-all ${isOverlay ? 'shadow-2xl scale-105 rotate-1 z-50 bg-surface rounded-2xl p-2 border border-primary' : ''
+        }`}
     >
       {/* Column Header (White rounded box matching reference Image 1) */}
       <div
-        className={`bg-surface border border-border-strong/70 rounded-2xl px-4 py-3 flex items-center justify-between select-none shadow-xs mb-3 transition-all ${
-          listStatusConfig ? listStatusConfig.headerClass : ''
-        }`}
+        className={`bg-surface border border-border-strong/70 rounded-2xl px-4 py-3 flex items-center justify-between select-none shadow-xs mb-3 transition-all ${listStatusConfig ? listStatusConfig.headerClass : ''
+          }`}
       >
         {isEditingTitle && canEditList ? (
           <form onSubmit={handleRenameSubmit} className="flex items-center gap-1.5 flex-1 pr-2">
@@ -169,21 +167,19 @@ export default function List({
               onClick={() => {
                 if (canEditList) setIsMenuOpen((prev) => !prev);
               }}
-              className={`text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs transition-colors ${
-                canEditList ? 'cursor-pointer hover:ring-2 hover:ring-primary/20' : ''
-              } ${
-                isWipExceeded
+              className={`text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs transition-colors ${canEditList ? 'cursor-pointer hover:ring-2 hover:ring-primary/20' : ''
+                } ${isWipExceeded
                   ? 'bg-danger text-white border-danger font-black animate-pulse'
                   : 'bg-surface-muted text-text-secondary border-border-strong/50'
-              }`}
+                }`}
               title={
                 canEditList
                   ? (isListWipEnabled
-                      ? `WIP Limit: ${cards.length}/${effectiveWipMax} cards (Click to configure)`
-                      : `${cards.length} cards (WIP limit is OFF - click to configure)`)
+                    ? `WIP Limit: ${cards.length}/${effectiveWipMax} cards (Click to configure)`
+                    : `${cards.length} cards (WIP limit is OFF - click to configure)`)
                   : (isWipExceeded
-                      ? `WIP Limit Exceeded: ${cards.length} cards (Limit: ${effectiveWipMax})`
-                      : undefined)
+                    ? `WIP Limit Exceeded: ${cards.length} cards (Limit: ${effectiveWipMax})`
+                    : undefined)
               }
             >
               {isListWipEnabled && effectiveWipMax > 0 ? `${cards.length}/${effectiveWipMax}` : cards.length}
@@ -250,11 +246,10 @@ export default function List({
                           <span>WIP Limit</span>
                         </div>
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
-                            isListWipEnabled
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${isListWipEnabled
                               ? 'bg-primary text-white shadow-2xs'
                               : 'bg-surface-muted text-text-muted border border-border/80'
-                          }`}
+                            }`}
                         >
                           {isListWipEnabled ? 'ON' : 'OFF'}
                         </span>

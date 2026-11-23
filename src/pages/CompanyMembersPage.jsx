@@ -563,7 +563,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
   }, [editModalSearch, allWorkspaces, allBoards]);
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-6 md:p-8">
+    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-3.5 sm:p-6 md:p-8">
       <div className="max-w-6xl mx-auto w-full space-y-6">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-6">
@@ -615,7 +615,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                 />
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-xs font-semibold text-text-muted whitespace-nowrap">
                   Workspace:
                 </span>
@@ -623,7 +623,7 @@ export default function CompanyMembersPage({ workspace, workspaces = [], boards 
                   value={filterWorkspaceId}
                   onChange={setFilterWorkspaceId}
                   size="sm"
-                  className="w-48 text-xs font-semibold"
+                  className="w-full sm:w-48 text-xs font-semibold"
                   options={[
                     { value: 'all', label: 'All Workspaces' },
                     ...allWorkspaces.map((w) => ({ value: String(w.id), label: w.name }))

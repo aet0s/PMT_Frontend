@@ -988,796 +988,785 @@ export default function Board({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app text-text-primary select-none relative pt-2">
       {/* Main Workspace Body with Floating Inset Rounded Board & Right Context Area */}
-      <div className="flex-1 flex overflow-hidden min-h-0 px-3 pb-3 sm:px-5 sm:pb-5 lg:px-6 lg:pb-6 gap-4 lg:gap-6 relative">
+      <div className="flex-1 flex overflow-hidden min-h-0 px-2 pb-2 sm:px-5 sm:pb-5 lg:px-6 lg:pb-6 gap-3 sm:gap-4 lg:gap-6 relative">
         {/* ======================================================== */}
         {/* FLOATING INSET ROUNDED BOARD SURFACE (Matching Reference) */}
         {/* ======================================================== */}
         <div className="flex-1 min-w-0 h-full relative">
           <section
             aria-label="Sprint Board Workspace"
-            className={`w-full h-full rounded-[28px] lg:rounded-[36px] ${boardBgClass} p-4 sm:p-5 lg:p-6 flex flex-col overflow-hidden shadow-xs relative`}
+            className={`w-full h-full rounded-2xl sm:rounded-[28px] lg:rounded-[36px] ${boardBgClass} p-3 sm:p-5 lg:p-6 flex flex-col overflow-hidden shadow-xs relative`}
           >
-          {/* Top of Board Surface: Teammates, Invite Pill, and "Create Task +" CTA (Matching Reference Image) */}
-          <div className="flex items-center justify-between gap-3 text-xs shrink-0 select-none pb-4">
-            {/* Left: Clickable Member Count Button & Board Permissions Dropdown */}
-            <div className="flex items-center gap-3">
-              <div className="relative" ref={boardMembersDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsBoardMembersDropdownOpen((prev) => !prev)}
-                  className={`flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-surface hover:bg-surface-hover border border-border/80 rounded-full shadow-2xs transition-all cursor-pointer min-h-[36px] text-xs sm:text-sm font-bold ${
-                    isBoardMembersDropdownOpen ? 'ring-2 ring-primary/20 border-primary/40 bg-surface-muted/60' : ''
-                  }`}
-                  title="Click to view all users with permission to access this board"
-                  aria-label="Click to view all users with permission to access this board"
-                  aria-expanded={isBoardMembersDropdownOpen}
-                >
-                  <Users className="w-4 h-4 text-primary" />
-                  <span className="text-text-primary">
-                    {permittedMembers.length === 1 ? '1 Member' : `${permittedMembers.length} Members`}
-                  </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform duration-200 ${isBoardMembersDropdownOpen ? 'rotate-180 text-primary' : ''}`} />
-                </button>
-
-                {isBoardMembersDropdownOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-80 sm:w-88 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 p-3 space-y-2.5 animate-sassy-dropdown-left text-left">
-                    {/* Header */}
-                    <div className="pb-2 border-b border-border/60">
-                      <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-primary" />
-                        Board Access
-                      </h4>
-                      <p className="text-[11px] text-text-secondary mt-0.5">
-                        Users with permission to view this board
-                      </p>
-                    </div>
-
-                    {/* Filter query if list has more than 4 members */}
-                    {permittedMembers.length > 4 && (
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
-                        <input
-                          type="text"
-                          placeholder="Search members..."
-                          value={memberFilterQuery}
-                          onChange={(e) => setMemberFilterQuery(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-muted/60 border border-border/80 rounded-xl focus:outline-none focus:border-primary text-text-primary placeholder:text-text-muted"
-                        />
-                      </div>
-                    )}
-
-                    {/* Member List */}
-                    <div className="max-h-64 overflow-y-auto space-y-1 pr-0.5">
-                      {filteredDropdownMembers.length === 0 ? (
-                        <div className="py-4 text-center text-xs text-text-muted">
-                          No matching users found
-                        </div>
-                      ) : (
-                        filteredDropdownMembers.map((m) => {
-                          const isOnline = onlineMembers.some((om) => om.id === m.id);
-                          const roleLabel = m.is_workspace_admin
-                            ? 'Admin'
-                            : m.board_role || m.workspace_role || m.role || 'Member';
-                          return (
-                            <div
-                              key={m.id}
-                              className="flex items-center justify-between gap-2.5 p-2 rounded-xl hover:bg-surface-muted/50 transition-colors"
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                <Avatar
-                                  name={m.name}
-                                  src={m.avatar_url || m.avatar}
-                                  user={m}
-                                  size="sm"
-                                  status={isOnline ? 'online' : undefined}
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-bold text-xs text-text-primary truncate">{m.name}</span>
-                                    {isOnline && (
-                                      <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" title="Online" />
-                                    )}
-                                  </div>
-                                  <span className="text-[11px] text-text-muted truncate block">{m.email}</span>
-                                </div>
-                              </div>
-                              <div className="shrink-0">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                                  m.is_workspace_admin || String(roleLabel).toLowerCase().includes('admin') || String(roleLabel).toLowerCase().includes('owner')
-                                    ? 'bg-primary-tint text-primary border-primary/20'
-                                    : 'bg-surface-muted text-text-secondary border-border/60'
-                                }`}>
-                                  {roleLabel}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Add Member Button: for top level users and managers */}
-              {canAddMember && (
-                <div className="relative" ref={addMemberDropdownRef}>
+            {/* Top of Board Surface: Teammates, Invite Pill, and "Create Task +" CTA (Matching Reference Image) */}
+            <div className="flex items-center justify-between gap-3 text-xs shrink-0 select-none pb-4">
+              {/* Left: Clickable Member Count Button & Board Permissions Dropdown */}
+              <div className="flex items-center gap-3">
+                <div className="relative" ref={boardMembersDropdownRef}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsAddBoardMemberDropdownOpen((prev) => !prev);
-                      setIsBoardMembersDropdownOpen(false);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-primary hover:bg-primary-hover active:bg-primary-active text-white rounded-full shadow-2xs transition-all cursor-pointer min-h-[36px] text-xs sm:text-sm font-bold ${
-                      isAddBoardMemberDropdownOpen ? 'ring-2 ring-primary/40 brightness-110' : ''
-                    }`}
-                    title="Add already invited workspace member to this board"
-                    aria-label="Add Member to board"
-                    aria-expanded={isAddBoardMemberDropdownOpen}
+                    onClick={() => setIsBoardMembersDropdownOpen((prev) => !prev)}
+                    className={`flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-surface hover:bg-surface-hover border border-border/80 rounded-full shadow-2xs transition-all cursor-pointer min-h-[36px] text-xs sm:text-sm font-bold ${isBoardMembersDropdownOpen ? 'ring-2 ring-primary/20 border-primary/40 bg-surface-muted/60' : ''
+                      }`}
+                    title="Click to view all users with permission to access this board"
+                    aria-label="Click to view all users with permission to access this board"
+                    aria-expanded={isBoardMembersDropdownOpen}
                   >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>Add Member</span>
+                    <Users className="w-4 h-4 text-primary" />
+                    <span className="text-text-primary">
+                      {permittedMembers.length === 1 ? '1 Member' : `${permittedMembers.length} Members`}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform duration-200 ${isBoardMembersDropdownOpen ? 'rotate-180 text-primary' : ''}`} />
                   </button>
 
-                  {isAddBoardMemberDropdownOpen && (
+                  {isBoardMembersDropdownOpen && (
                     <div className="absolute left-0 top-full mt-2 w-80 sm:w-88 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 p-3 space-y-2.5 animate-sassy-dropdown-left text-left">
+                      {/* Header */}
                       <div className="pb-2 border-b border-border/60">
                         <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
-                          <UserPlus className="w-3.5 h-3.5 text-primary" />
-                          Add Member to Board
+                          <Users className="w-3.5 h-3.5 text-primary" />
+                          Board Access
                         </h4>
                         <p className="text-[11px] text-text-secondary mt-0.5">
-                          Add an invited workspace member to this board
+                          Users with permission to view this board
                         </p>
                       </div>
 
-                      {unassignedWorkspaceMembers.length > 3 && (
+                      {/* Filter query if list has more than 4 members */}
+                      {permittedMembers.length > 4 && (
                         <div className="relative">
                           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
                           <input
                             type="text"
                             placeholder="Search members..."
-                            value={addMemberFilterQuery}
-                            onChange={(e) => setAddMemberFilterQuery(e.target.value)}
+                            value={memberFilterQuery}
+                            onChange={(e) => setMemberFilterQuery(e.target.value)}
                             className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-muted/60 border border-border/80 rounded-xl focus:outline-none focus:border-primary text-text-primary placeholder:text-text-muted"
                           />
                         </div>
                       )}
 
-                      <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
-                        {filteredUnassignedMembers.length === 0 ? (
-                          <p className="text-xs text-text-muted italic py-3 text-center">
-                            {unassignedWorkspaceMembers.length === 0
-                              ? 'All workspace members already have access to this board.'
-                              : 'No matching workspace members found.'}
-                          </p>
+                      {/* Member List */}
+                      <div className="max-h-64 overflow-y-auto space-y-1 pr-0.5">
+                        {filteredDropdownMembers.length === 0 ? (
+                          <div className="py-4 text-center text-xs text-text-muted">
+                            No matching users found
+                          </div>
                         ) : (
-                          filteredUnassignedMembers.map((m) => (
-                            <div
-                              key={m.id}
-                              className="flex items-center justify-between p-2 rounded-xl hover:bg-surface-muted/70 transition-colors gap-2"
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <Avatar name={m.name} email={m.email} src={m.avatar_url || m.avatar} user={m} size="sm" />
-                                <div className="min-w-0">
-                                  <p className="text-xs font-semibold text-text-primary truncate">{m.name}</p>
-                                  <p className="text-[10px] text-text-muted truncate">{m.workspace_role || m.email}</p>
+                          filteredDropdownMembers.map((m) => {
+                            const isOnline = onlineMembers.some((om) => om.id === m.id);
+                            const roleLabel = m.is_workspace_admin
+                              ? 'Admin'
+                              : m.board_role || m.workspace_role || m.role || 'Member';
+                            return (
+                              <div
+                                key={m.id}
+                                className="flex items-center justify-between gap-2.5 p-2 rounded-xl hover:bg-surface-muted/50 transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                  <Avatar
+                                    name={m.name}
+                                    src={m.avatar_url || m.avatar}
+                                    user={m}
+                                    size="sm"
+                                    status={isOnline ? 'online' : undefined}
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-bold text-xs text-text-primary truncate">{m.name}</span>
+                                      {isOnline && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" title="Online" />
+                                      )}
+                                    </div>
+                                    <span className="text-[11px] text-text-muted truncate block">{m.email}</span>
+                                  </div>
+                                </div>
+                                <div className="shrink-0">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${m.is_workspace_admin || String(roleLabel).toLowerCase().includes('admin') || String(roleLabel).toLowerCase().includes('owner')
+                                      ? 'bg-primary-tint text-primary border-primary/20'
+                                      : 'bg-surface-muted text-text-secondary border-border/60'
+                                    }`}>
+                                    {roleLabel}
+                                  </span>
                                 </div>
                               </div>
-                              <button
-                                type="button"
-                                disabled={addingMemberId === m.id}
-                                onClick={() => handleAddMemberToBoard(m)}
-                                className="px-2.5 py-1 text-xs font-semibold bg-primary hover:bg-primary-hover active:bg-primary-active text-white rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                              >
-                                {addingMemberId === m.id ? 'Adding...' : 'Add'}
-                              </button>
-                            </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            {/* Right: Board Filter Controls replacing Create Task button */}
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              {/* Quick Label Filter */}
-              <div className="w-28 sm:w-32 hidden md:block">
-                <Select
-                  value={filterLabelId || 'all'}
-                  onChange={(val) => setFilterLabelId(val)}
-                  size="sm"
-                  aria-label="Filter by label"
-                  options={[
-                    { value: 'all', label: 'All Labels' },
-                    { value: 'no-label', label: 'No Label' },
-                    ...boardLabels.map((l) => ({ value: String(l.id), label: l.name }))
-                  ]}
-                  className="w-full text-xs font-semibold"
-                />
-              </div>
-
-              {/* Quick Due Date Filter */}
-              <div className="w-28 sm:w-32 hidden lg:block">
-                <Select
-                  value={filterDueDate}
-                  onChange={(val) => setFilterDueDate(val)}
-                  size="sm"
-                  aria-label="Filter by date"
-                  options={[
-                    { value: 'all', label: 'All Dates' },
-                    { value: 'today', label: 'Due Today' },
-                    { value: 'tomorrow', label: 'Due Tomorrow' },
-                    { value: 'this-week', label: 'This Week' },
-                    { value: 'overdue', label: 'Overdue' },
-                    { value: 'no-date', label: 'No Date' }
-                  ]}
-                  className="w-full text-xs font-semibold"
-                />
-              </div>
-
-              {/* Quick Assignee Filter */}
-              <div className="w-28 sm:w-32 hidden xl:block">
-                <Select
-                  value={filterMemberId || 'all'}
-                  onChange={(val) => setFilterMemberId(val)}
-                  size="sm"
-                  aria-label="Filter by assignee"
-                  options={[
-                    { value: 'all', label: 'All Assignees' },
-                    { value: 'unassigned', label: 'Unassigned' },
-                    ...boardAssignees.map((m) => ({ value: String(m.id), label: m.name }))
-                  ]}
-                  className="w-full text-xs font-semibold"
-                />
-              </div>
-
-              {/* 1-Click "Focus My Cards" Spotlight Toggle Button */}
-              <button
-                type="button"
-                onClick={toggleFocusMyCards}
-                aria-pressed={isFocusMyCards}
-                aria-label="Toggle Focus My Cards mode"
-                title={
-                  isFocusMyCards
-                    ? 'Focus My Cards is ON: Your cards are spotlighted while other cards are dimmed'
-                    : 'Spotlight your cards: Highlights cards assigned to or by you and dims other cards'
-                }
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${
-                  isFocusMyCards
-                    ? 'bg-primary text-white border-primary shadow-xs ring-2 ring-primary/30'
-                    : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary hover:border-primary/50'
-                }`}
-              >
-                <Sparkles className={`w-3.5 h-3.5 ${isFocusMyCards ? 'text-primary-foreground' : 'text-primary'}`} />
-                <span>Focus My Cards</span>
-                {myCardsCount > 0 && (
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                      isFocusMyCards ? 'bg-white text-primary' : 'bg-primary-tint text-primary-text'
-                    }`}
-                  >
-                    {myCardsCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Hide / Show Completed Quick Toggle */}
-              <button
-                type="button"
-                onClick={() => setFilterStatus(filterStatus === 'incomplete' ? 'all' : 'incomplete')}
-                title={filterStatus === 'incomplete' ? 'Completed cards are hidden. Click to show.' : 'Click to hide completed cards.'}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${
-                  filterStatus === 'incomplete'
-                    ? 'bg-primary-tint border-primary/40 text-primary-text shadow-xs'
-                    : 'bg-surface hover:bg-surface-hover border-border/80 text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                <CheckCircle2 className={`w-3.5 h-3.5 ${filterStatus === 'incomplete' ? 'text-primary' : 'text-text-muted'}`} />
-                <span>{filterStatus === 'incomplete' ? 'Completed Hidden' : 'Hide Completed'}</span>
-              </button>
-
-              {/* Detailed Filters Toggle Button */}
-              <button
-                type="button"
-                onClick={() => setIsDetailedFilterOpen(!isDetailedFilterOpen)}
-                aria-expanded={isDetailedFilterOpen}
-                aria-label="Toggle detailed filters"
-                title="Detailed Filters (Label, Date, List, Assignee, Assigner)"
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${
-                  isDetailedFilterOpen || activeFiltersCount > 0
-                    ? 'bg-primary text-white border-primary shadow-xs'
-                    : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary'
-                }`}
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span>Filters</span>
-                {activeFiltersCount > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-white text-primary text-[10px] font-black flex items-center justify-center">
-                    {activeFiltersCount}
-                  </span>
-                )}
-                <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                    isDetailedFilterOpen ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {/* Clear All Filters Button */}
-              {activeFiltersCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAllFilters}
-                  className="px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-danger-tint rounded-full transition-colors cursor-pointer border border-danger/30"
-                  title="Clear all filters"
-                  aria-label="Clear all filters"
-                >
-                  Reset
-                </button>
-              )}
-              {/* Calendar Toggle Button on < xl (< 1280px) */}
-              <button
-                type="button"
-                onClick={handleToggleRightPanel}
-                aria-label="Toggle Calendar & Tasks sidebar"
-                title="Calendar & Tasks"
-                className={`flex xl:hidden items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${
-                  isRightPanelOpen
-                    ? 'bg-primary text-white border-primary shadow-xs'
-                    : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary'
-                }`}
-              >
-                <Calendar className="w-3.5 h-3.5 text-primary" />
-                <span>Calendar</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Detailed Filter Section (Collapsible Full-Width Panel with Smooth Height & Fade Transition) */}
-          <div
-            className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
-              isDetailedFilterOpen
-                ? 'grid-rows-[1fr] opacity-100 mb-4'
-                : 'grid-rows-[0fr] opacity-0 mb-0 pointer-events-none'
-            }`}
-          >
-            <div className="overflow-hidden">
-              <div className="bg-surface border border-border/90 rounded-2xl p-4 shadow-sm space-y-3.5">
-                {/* Header of Detailed Filters */}
-                <div className="flex items-center justify-between pb-2 border-b border-border/70 text-xs">
-                  <div className="flex items-center gap-2">
-                    <SlidersHorizontal className="w-4 h-4 text-primary" />
-                    <span className="font-bold text-text-primary text-sm">
-                      Detailed Board Filters
-                    </span>
-                    <span className="text-text-muted">
-                      ({visibleCardsCount} of {totalCardsCount} tasks visible)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {activeFiltersCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleClearAllFilters}
-                        className="text-xs font-semibold text-danger hover:underline cursor-pointer flex items-center gap-1"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span>Reset all</span>
-                      </button>
-                    )}
+                {/* Add Member Button: for top level users and managers */}
+                {canAddMember && (
+                  <div className="relative" ref={addMemberDropdownRef}>
                     <button
                       type="button"
-                      onClick={() => setIsDetailedFilterOpen(false)}
-                      className="p-1 text-text-muted hover:text-text-primary rounded-lg cursor-pointer"
-                      title="Close filter section"
-                      aria-label="Close filter section"
+                      onClick={() => {
+                        setIsAddBoardMemberDropdownOpen((prev) => !prev);
+                        setIsBoardMembersDropdownOpen(false);
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-primary hover:bg-primary-hover active:bg-primary-active text-white rounded-full shadow-2xs transition-all cursor-pointer min-h-[36px] text-xs sm:text-sm font-bold ${isAddBoardMemberDropdownOpen ? 'ring-2 ring-primary/40 brightness-110' : ''
+                        }`}
+                      title="Add already invited workspace member to this board"
+                      aria-label="Add Member to board"
+                      aria-expanded={isAddBoardMemberDropdownOpen}
                     >
-                      <X className="w-4 h-4" />
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Add Member</span>
                     </button>
-                  </div>
-                </div>
 
-                {/* 5-Column Grid of Dedicated Filters */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                  {/* 1. Filter by Label */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
-                      Label
-                    </label>
-                    <Select
-                      value={filterLabelId || 'all'}
-                      onChange={(val) => setFilterLabelId(val)}
-                      size="sm"
-                      aria-label="Detailed filter by label"
-                      options={[
-                        { value: 'all', label: 'All Labels' },
-                        { value: 'no-label', label: 'No Label' },
-                        ...boardLabels.map((l) => ({ value: String(l.id), label: l.name }))
-                      ]}
-                      className="w-full text-xs font-medium"
-                    />
-                  </div>
-
-                  {/* 2. Filter by Due Date */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
-                      Due Date
-                    </label>
-                    <Select
-                      value={filterDueDate}
-                      onChange={(val) => setFilterDueDate(val)}
-                      size="sm"
-                      aria-label="Detailed filter by date"
-                      options={[
-                        { value: 'all', label: 'All Dates' },
-                        { value: 'today', label: 'Due Today' },
-                        { value: 'tomorrow', label: 'Due Tomorrow' },
-                        { value: 'this-week', label: 'This Week' },
-                        { value: 'overdue', label: 'Overdue' },
-                        { value: 'has-date', label: 'Has Due Date' },
-                        { value: 'no-date', label: 'No Due Date' }
-                      ]}
-                      className="w-full text-xs font-medium"
-                    />
-                  </div>
-
-                  {/* 3. Filter by List */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
-                      List / Column
-                    </label>
-                    <Select
-                      value={filterListId || 'all'}
-                      onChange={(val) => setFilterListId(val)}
-                      size="sm"
-                      aria-label="Detailed filter by list"
-                      options={[
-                        { value: 'all', label: 'All Lists' },
-                        ...(board?.lists || []).map((l) => ({ value: String(l.id), label: l.name }))
-                      ]}
-                      className="w-full text-xs font-medium"
-                    />
-                  </div>
-
-                  {/* 4. Filter by Assignee */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
-                      Assignee
-                    </label>
-                    <Select
-                      value={filterMemberId || 'all'}
-                      onChange={(val) => setFilterMemberId(val)}
-                      size="sm"
-                      aria-label="Detailed filter by assignee"
-                      options={[
-                        { value: 'all', label: 'All Assignees' },
-                        { value: 'unassigned', label: 'Unassigned' },
-                        ...boardAssignees.map((m) => ({ value: String(m.id), label: m.name }))
-                      ]}
-                      className="w-full text-xs font-medium"
-                    />
-                  </div>
-
-                  {/* 5. Filter by Assigner */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
-                      Assigner / Creator
-                    </label>
-                    <Select
-                      value={filterAssignerId || 'all'}
-                      onChange={(val) => setFilterAssignerId(val)}
-                      size="sm"
-                      aria-label="Detailed filter by assigner"
-                      options={[
-                        { value: 'all', label: 'All Assigners' },
-                        ...boardAssigners.map((a) => ({ value: String(a.id), label: a.name }))
-                      ]}
-                      className="w-full text-xs font-medium"
-                    />
-                  </div>
-
-                  {/* 6. Filter by Status */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
-                      Status
-                    </label>
-                    <Select
-                      value={filterStatus || 'all'}
-                      onChange={(val) => setFilterStatus(val)}
-                      size="sm"
-                      aria-label="Detailed filter by status"
-                      options={[
-                        { value: 'all', label: 'All Tasks' },
-                        { value: 'incomplete', label: 'Active Only' },
-                        { value: 'completed', label: 'Completed Only' }
-                      ]}
-                      className="w-full text-xs font-medium"
-                    />
-                  </div>
-                </div>
-
-                {/* Active Filter Chips Bar */}
-                {activeFiltersCount > 0 && (
-                  <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] font-bold text-text-muted mr-1">Active:</span>
-
-                    {filterLabelId && filterLabelId !== 'all' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
-                        <span>Label: {boardLabels.find((l) => String(l.id) === String(filterLabelId))?.name || filterLabelId}</span>
-                        <button type="button" onClick={() => setFilterLabelId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove label filter">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-
-                    {filterDueDate && filterDueDate !== 'all' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
-                        <span>Date: {filterDueDate}</span>
-                        <button type="button" onClick={() => setFilterDueDate('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove date filter">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-
-                    {filterListId && filterListId !== 'all' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
-                        <span>List: {(board?.lists || []).find((l) => String(l.id) === String(filterListId))?.name || filterListId}</span>
-                        <button type="button" onClick={() => setFilterListId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove list filter">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-
-                    {filterMemberId && filterMemberId !== 'all' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
-                        <span>Assignee: {boardAssignees.find((m) => String(m.id) === String(filterMemberId))?.name || filterMemberId}</span>
-                        <button type="button" onClick={() => setFilterMemberId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove assignee filter">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-
-                    {filterAssignerId && filterAssignerId !== 'all' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
-                        <span>Assigner: {boardAssigners.find((a) => String(a.id) === String(filterAssignerId))?.name || filterAssignerId}</span>
-                        <button type="button" onClick={() => setFilterAssignerId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove assigner filter">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-
-                    {filterStatus && filterStatus !== 'all' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
-                        <span>Status: {filterStatus === 'incomplete' ? 'Active Only' : 'Completed Only'}</span>
-                        <button type="button" onClick={() => setFilterStatus('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove status filter">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Kanban Columns Container with Smooth Horizontal Mouse Scroll */}
-          <div
-            ref={boardScrollRef}
-            onMouseDown={handleBoardMouseDown}
-            onMouseMove={handleBoardMouseMove}
-            onMouseUp={handleBoardMouseUpOrLeave}
-            onMouseLeave={handleBoardMouseUpOrLeave}
-            className="flex-1 overflow-x-auto min-h-0 max-md:snap-x max-md:snap-mandatory custom-scrollbar pt-1 pb-3 cursor-default"
-          >
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            accessibility={{
-              announcements,
-              screenReaderInstructions
-            }}
-          >
-            <SortableContext items={listIds} strategy={horizontalListSortingStrategy}>
-              <div className="flex items-start gap-5 h-full min-h-0 max-md:w-full">
-                {(() => {
-                  const remoteDraggedCardIds = isReducedMotion
-                    ? new Set()
-                    : new Set(
-                        Object.values(remoteDragCursors)
-                          .map((r) => Number(r.cardId))
-                          .filter(Boolean)
-                      );
-                  const remoteDraggedListIds = isReducedMotion
-                    ? new Set()
-                    : new Set(
-                        Object.values(remoteDragCursors)
-                          .map((r) => Number(r.listId))
-                          .filter(Boolean)
-                      );
-                  return visibleLists.map((list) => (
-                    <List
-                      key={list.id}
-                      list={list}
-                      cards={list.cards}
-                      wipLimitEnabled={wipLimitEnabled}
-                      wipLimitMax={wipLimitMax}
-                      taskNumberMap={taskNumberMap}
-                      onUpdateList={onUpdateList}
-                      onDeleteList={onDeleteList}
-                      onCardClick={onCardClick}
-                      onCreateCard={onCreateCard}
-                      onUpdateCard={onUpdateCard}
-                      onDeleteCard={onDeleteCard}
-                      onCopyCard={onCopyCard}
-                      highlightedCardId={isReducedMotion ? null : highlightedCardId}
-                      remoteDraggedCardIds={remoteDraggedCardIds}
-                      isRemoteDragging={remoteDraggedListIds.has(list.id)}
-                      focusMode={isFocusMyCards}
-                    />
-                  ));
-                })()}
-
-                {/* Add New List Button */}
-                {canCreateList && (
-                  <div className="w-76 shrink-0 max-md:w-full snap-center">
-                    {isAddingList ? (
-                      <form
-                        onSubmit={handleAddListSubmit}
-                        className="p-4 bg-surface border border-border/80 rounded-2xl shadow-md space-y-3"
-                      >
-                        <input
-                          type="text"
-                          autoFocus
-                          required
-                          placeholder="Enter list title..."
-                          value={newListTitle}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setNewListTitle(val);
-                            if (/^(done|completed|finished|closed|released|shipped|archive)/i.test(val.trim())) {
-                              setNewListWipLimitEnabled(false);
-                            }
-                          }}
-                          className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 min-h-[40px]"
-                        />
-
-                        {/* List-Level WIP Limit Setting Checkbox */}
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary select-none">
-                          <input
-                            type="checkbox"
-                            checked={newListWipLimitEnabled}
-                            onChange={(e) => setNewListWipLimitEnabled(e.target.checked)}
-                            className="w-4 h-4 rounded border-border text-primary focus:ring-primary/40 cursor-pointer accent-primary"
-                          />
-                          <span>Enable WIP limit on this list</span>
-                        </label>
-
-                        <div className="flex items-center gap-2 pt-1">
-                          <Button
-                            type="submit"
-                            variant="primary"
-                            size="sm"
-                            className="rounded-xl font-bold"
-                          >
-                            Add List
-                          </Button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsAddingList(false);
-                              setNewListWipLimitEnabled(true);
-                            }}
-                            className="p-1.5 text-text-muted hover:text-text-primary rounded-xl transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                    {isAddBoardMemberDropdownOpen && (
+                      <div className="absolute left-0 top-full mt-2 w-80 sm:w-88 bg-surface border border-border/80 rounded-2xl shadow-xl z-50 p-3 space-y-2.5 animate-sassy-dropdown-left text-left">
+                        <div className="pb-2 border-b border-border/60">
+                          <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                            <UserPlus className="w-3.5 h-3.5 text-primary" />
+                            Add Member to Board
+                          </h4>
+                          <p className="text-[11px] text-text-secondary mt-0.5">
+                            Add an invited workspace member to this board
+                          </p>
                         </div>
-                      </form>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setIsAddingList(true)}
-                        className="w-full flex items-center gap-2.5 p-3.5 bg-surface-muted/60 hover:bg-surface border border-dashed border-border/80 hover:border-primary/40 rounded-2xl text-sm font-bold text-text-secondary hover:text-primary transition-all cursor-pointer shadow-2xs min-h-[44px]"
-                      >
-                        <Plus className="w-4 h-4 text-primary" />
-                        <span>Add column</span>
-                      </button>
+
+                        {unassignedWorkspaceMembers.length > 3 && (
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                            <input
+                              type="text"
+                              placeholder="Search members..."
+                              value={addMemberFilterQuery}
+                              onChange={(e) => setAddMemberFilterQuery(e.target.value)}
+                              className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-muted/60 border border-border/80 rounded-xl focus:outline-none focus:border-primary text-text-primary placeholder:text-text-muted"
+                            />
+                          </div>
+                        )}
+
+                        <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                          {filteredUnassignedMembers.length === 0 ? (
+                            <p className="text-xs text-text-muted italic py-3 text-center">
+                              {unassignedWorkspaceMembers.length === 0
+                                ? 'All workspace members already have access to this board.'
+                                : 'No matching workspace members found.'}
+                            </p>
+                          ) : (
+                            filteredUnassignedMembers.map((m) => (
+                              <div
+                                key={m.id}
+                                className="flex items-center justify-between p-2 rounded-xl hover:bg-surface-muted/70 transition-colors gap-2"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <Avatar name={m.name} email={m.email} src={m.avatar_url || m.avatar} user={m} size="sm" />
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-text-primary truncate">{m.name}</p>
+                                    <p className="text-[10px] text-text-muted truncate">{m.workspace_role || m.email}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={addingMemberId === m.id}
+                                  onClick={() => handleAddMemberToBoard(m)}
+                                  className="px-2.5 py-1 text-xs font-semibold bg-primary hover:bg-primary-hover active:bg-primary-active text-white rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                                >
+                                  {addingMemberId === m.id ? 'Adding...' : 'Add'}
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
               </div>
-            </SortableContext>
 
-            {/* Drag Overlay */}
-            <DragOverlay dropAnimation={isReducedMotion ? null : undefined}>
-              {activeItem?.type === 'list' && (
-                <List
-                  list={activeItem.list}
-                  cards={listsWithFilteredCards.find((l) => l.id === activeItem.list.id)?.cards || activeItem.list.cards || []}
-                  taskNumberMap={taskNumberMap}
-                  isOverlay={true}
-                />
-              )}
-              {activeItem?.type === 'card' && (
-                <div className="w-72">
-                  <Card
-                    card={activeItem.card}
-                    listName={(board?.lists || visibleLists || []).find((l) => l.id === activeItem.card.list_id)?.name || activeItem.card.list_name}
-                    taskNumber={taskNumberMap.get(activeItem.card.id) ?? activeItem.card.task_number}
-                    isOverlay={true}
+              {/* Right: Board Filter Controls replacing Create Task button */}
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {/* Quick Label Filter */}
+                <div className="w-28 sm:w-32 hidden md:block">
+                  <Select
+                    value={filterLabelId || 'all'}
+                    onChange={(val) => setFilterLabelId(val)}
+                    size="sm"
+                    aria-label="Filter by label"
+                    options={[
+                      { value: 'all', label: 'All Labels' },
+                      { value: 'no-label', label: 'No Label' },
+                      ...boardLabels.map((l) => ({ value: String(l.id), label: l.name }))
+                    ]}
+                    className="w-full text-xs font-semibold"
                   />
                 </div>
-              )}
-            </DragOverlay>
-          </DndContext>
-        </div>
-      </section>
 
-      {/* Shutter Toggle Circle Button (Positioned over the right edge in both open and closed states) */}
-      <button
-        type="button"
-        onClick={handleToggleRightPanel}
-        title={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
-        aria-label={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
-        className="flex absolute right-0 xl:-right-4.5 top-1/2 -translate-y-1/2 z-40 items-center justify-center w-8 h-8 xl:w-9 xl:h-9 rounded-full bg-surface border border-border shadow-md hover:shadow-lg hover:border-primary/60 hover:bg-surface-muted text-text-secondary hover:text-primary transition-all duration-200 cursor-pointer group hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        {isRightPanelOpen ? (
-          <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-        ) : (
-          <ChevronLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
-        )}
-      </button>
-    </div>
+                {/* Quick Due Date Filter */}
+                <div className="w-28 sm:w-32 hidden lg:block">
+                  <Select
+                    value={filterDueDate}
+                    onChange={(val) => setFilterDueDate(val)}
+                    size="sm"
+                    aria-label="Filter by date"
+                    options={[
+                      { value: 'all', label: 'All Dates' },
+                      { value: 'today', label: 'Due Today' },
+                      { value: 'tomorrow', label: 'Due Tomorrow' },
+                      { value: 'this-week', label: 'This Week' },
+                      { value: 'overdue', label: 'Overdue' },
+                      { value: 'no-date', label: 'No Date' }
+                    ]}
+                    className="w-full text-xs font-semibold"
+                  />
+                </div>
 
-      {/* Right Context Panel (Calendar & Upcoming Tasks) */}
-      {/* 1. Backdrop on < xl */}
-      {isRightPanelOpen && (
-        <div
-          className="fixed inset-0 bg-text-primary/40 z-50 xl:hidden transition-opacity"
-          onClick={handleCloseRightPanel}
-          aria-hidden="true"
-        />
-      )}
+                {/* Quick Assignee Filter */}
+                <div className="w-28 sm:w-32 hidden xl:block">
+                  <Select
+                    value={filterMemberId || 'all'}
+                    onChange={(val) => setFilterMemberId(val)}
+                    size="sm"
+                    aria-label="Filter by assignee"
+                    options={[
+                      { value: 'all', label: 'All Assignees' },
+                      { value: 'unassigned', label: 'Unassigned' },
+                      ...boardAssignees.map((m) => ({ value: String(m.id), label: m.name }))
+                    ]}
+                    className="w-full text-xs font-semibold"
+                  />
+                </div>
 
-      {/* 2. Container: Slide-over drawer on < xl, side-by-side flex panel on >= xl */}
-      <div
-        className={`fixed top-0 right-0 bottom-0 z-50 xl:static xl:z-auto flex flex-col h-full shrink-0 transition-all duration-300 ease-in-out ${
-          isRightPanelOpen
-            ? 'translate-x-0 w-80 sm:w-88 xl:w-84 opacity-100 bg-surface shadow-2xl xl:shadow-none'
-            : 'translate-x-full xl:translate-x-0 xl:w-0 xl:opacity-0 pointer-events-none xl:-mr-4 xl:lg:-mr-6'
-        }`}
-        aria-hidden={!isRightPanelOpen}
-      >
-        {/* Sliding Inner Panel Container */}
-        <div className="w-80 sm:w-88 xl:w-84 h-full shrink-0 overflow-hidden relative">
-          {/* Close button for < xl drawer */}
+                {/* 1-Click "Focus My Cards" Spotlight Toggle Button */}
+                <button
+                  type="button"
+                  onClick={toggleFocusMyCards}
+                  aria-pressed={isFocusMyCards}
+                  aria-label="Toggle Focus My Cards mode"
+                  title={
+                    isFocusMyCards
+                      ? 'Focus My Cards is ON: Your cards are spotlighted while other cards are dimmed'
+                      : 'Spotlight your cards: Highlights cards assigned to or by you and dims other cards'
+                  }
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${isFocusMyCards
+                      ? 'bg-primary text-white border-primary shadow-xs ring-2 ring-primary/30'
+                      : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary hover:border-primary/50'
+                    }`}
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${isFocusMyCards ? 'text-primary-foreground' : 'text-primary'}`} />
+                  <span>Focus My Cards</span>
+                  {myCardsCount > 0 && (
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${isFocusMyCards ? 'bg-white text-primary' : 'bg-primary-tint text-primary-text'
+                        }`}
+                    >
+                      {myCardsCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Hide / Show Completed Quick Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus(filterStatus === 'incomplete' ? 'all' : 'incomplete')}
+                  title={filterStatus === 'incomplete' ? 'Completed cards are hidden. Click to show.' : 'Click to hide completed cards.'}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${filterStatus === 'incomplete'
+                      ? 'bg-primary-tint border-primary/40 text-primary-text shadow-xs'
+                      : 'bg-surface hover:bg-surface-hover border-border/80 text-text-secondary hover:text-text-primary'
+                    }`}
+                >
+                  <CheckCircle2 className={`w-3.5 h-3.5 ${filterStatus === 'incomplete' ? 'text-primary' : 'text-text-muted'}`} />
+                  <span>{filterStatus === 'incomplete' ? 'Completed Hidden' : 'Hide Completed'}</span>
+                </button>
+
+                {/* Detailed Filters Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsDetailedFilterOpen(!isDetailedFilterOpen)}
+                  aria-expanded={isDetailedFilterOpen}
+                  aria-label="Toggle detailed filters"
+                  title="Detailed Filters (Label, Date, List, Assignee, Assigner)"
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${isDetailedFilterOpen || activeFiltersCount > 0
+                      ? 'bg-primary text-white border-primary shadow-xs'
+                      : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary'
+                    }`}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>Filters</span>
+                  {activeFiltersCount > 0 && (
+                    <span className="w-4 h-4 rounded-full bg-white text-primary text-[10px] font-black flex items-center justify-center">
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${isDetailedFilterOpen ? 'rotate-180' : ''
+                      }`}
+                  />
+                </button>
+
+                {/* Clear All Filters Button */}
+                {activeFiltersCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllFilters}
+                    className="px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-danger-tint rounded-full transition-colors cursor-pointer border border-danger/30"
+                    title="Clear all filters"
+                    aria-label="Clear all filters"
+                  >
+                    Reset
+                  </button>
+                )}
+                {/* Calendar Toggle Button on < xl (< 1280px) */}
+                <button
+                  type="button"
+                  onClick={handleToggleRightPanel}
+                  aria-label="Toggle Calendar & Tasks sidebar"
+                  title="Calendar & Tasks"
+                  className={`flex xl:hidden items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all cursor-pointer min-h-[36px] shadow-2xs border ${isRightPanelOpen
+                      ? 'bg-primary text-white border-primary shadow-xs'
+                      : 'bg-surface hover:bg-surface-hover border-border/80 text-text-primary'
+                    }`}
+                >
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  <span>Calendar</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Detailed Filter Section (Collapsible Full-Width Panel with Smooth Height & Fade Transition) */}
+            <div
+              className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${isDetailedFilterOpen
+                  ? 'grid-rows-[1fr] opacity-100 mb-4'
+                  : 'grid-rows-[0fr] opacity-0 mb-0 pointer-events-none'
+                }`}
+            >
+              <div className="overflow-hidden">
+                <div className="bg-surface border border-border/90 rounded-2xl p-4 shadow-sm space-y-3.5">
+                  {/* Header of Detailed Filters */}
+                  <div className="flex items-center justify-between pb-2 border-b border-border/70 text-xs">
+                    <div className="flex items-center gap-2">
+                      <SlidersHorizontal className="w-4 h-4 text-primary" />
+                      <span className="font-bold text-text-primary text-sm">
+                        Detailed Board Filters
+                      </span>
+                      <span className="text-text-muted">
+                        ({visibleCardsCount} of {totalCardsCount} tasks visible)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {activeFiltersCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearAllFilters}
+                          className="text-xs font-semibold text-danger hover:underline cursor-pointer flex items-center gap-1"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Reset all</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsDetailedFilterOpen(false)}
+                        className="p-1 text-text-muted hover:text-text-primary rounded-lg cursor-pointer"
+                        title="Close filter section"
+                        aria-label="Close filter section"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 5-Column Grid of Dedicated Filters */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {/* 1. Filter by Label */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                        Label
+                      </label>
+                      <Select
+                        value={filterLabelId || 'all'}
+                        onChange={(val) => setFilterLabelId(val)}
+                        size="sm"
+                        aria-label="Detailed filter by label"
+                        options={[
+                          { value: 'all', label: 'All Labels' },
+                          { value: 'no-label', label: 'No Label' },
+                          ...boardLabels.map((l) => ({ value: String(l.id), label: l.name }))
+                        ]}
+                        className="w-full text-xs font-medium"
+                      />
+                    </div>
+
+                    {/* 2. Filter by Due Date */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                        Due Date
+                      </label>
+                      <Select
+                        value={filterDueDate}
+                        onChange={(val) => setFilterDueDate(val)}
+                        size="sm"
+                        aria-label="Detailed filter by date"
+                        options={[
+                          { value: 'all', label: 'All Dates' },
+                          { value: 'today', label: 'Due Today' },
+                          { value: 'tomorrow', label: 'Due Tomorrow' },
+                          { value: 'this-week', label: 'This Week' },
+                          { value: 'overdue', label: 'Overdue' },
+                          { value: 'has-date', label: 'Has Due Date' },
+                          { value: 'no-date', label: 'No Due Date' }
+                        ]}
+                        className="w-full text-xs font-medium"
+                      />
+                    </div>
+
+                    {/* 3. Filter by List */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                        List / Column
+                      </label>
+                      <Select
+                        value={filterListId || 'all'}
+                        onChange={(val) => setFilterListId(val)}
+                        size="sm"
+                        aria-label="Detailed filter by list"
+                        options={[
+                          { value: 'all', label: 'All Lists' },
+                          ...(board?.lists || []).map((l) => ({ value: String(l.id), label: l.name }))
+                        ]}
+                        className="w-full text-xs font-medium"
+                      />
+                    </div>
+
+                    {/* 4. Filter by Assignee */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                        Assignee
+                      </label>
+                      <Select
+                        value={filterMemberId || 'all'}
+                        onChange={(val) => setFilterMemberId(val)}
+                        size="sm"
+                        aria-label="Detailed filter by assignee"
+                        options={[
+                          { value: 'all', label: 'All Assignees' },
+                          { value: 'unassigned', label: 'Unassigned' },
+                          ...boardAssignees.map((m) => ({ value: String(m.id), label: m.name }))
+                        ]}
+                        className="w-full text-xs font-medium"
+                      />
+                    </div>
+
+                    {/* 5. Filter by Assigner */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                        Assigner / Creator
+                      </label>
+                      <Select
+                        value={filterAssignerId || 'all'}
+                        onChange={(val) => setFilterAssignerId(val)}
+                        size="sm"
+                        aria-label="Detailed filter by assigner"
+                        options={[
+                          { value: 'all', label: 'All Assigners' },
+                          ...boardAssigners.map((a) => ({ value: String(a.id), label: a.name }))
+                        ]}
+                        className="w-full text-xs font-medium"
+                      />
+                    </div>
+
+                    {/* 6. Filter by Status */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                        Status
+                      </label>
+                      <Select
+                        value={filterStatus || 'all'}
+                        onChange={(val) => setFilterStatus(val)}
+                        size="sm"
+                        aria-label="Detailed filter by status"
+                        options={[
+                          { value: 'all', label: 'All Tasks' },
+                          { value: 'incomplete', label: 'Active Only' },
+                          { value: 'completed', label: 'Completed Only' }
+                        ]}
+                        className="w-full text-xs font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Active Filter Chips Bar */}
+                  {activeFiltersCount > 0 && (
+                    <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-bold text-text-muted mr-1">Active:</span>
+
+                      {filterLabelId && filterLabelId !== 'all' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                          <span>Label: {boardLabels.find((l) => String(l.id) === String(filterLabelId))?.name || filterLabelId}</span>
+                          <button type="button" onClick={() => setFilterLabelId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove label filter">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+
+                      {filterDueDate && filterDueDate !== 'all' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                          <span>Date: {filterDueDate}</span>
+                          <button type="button" onClick={() => setFilterDueDate('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove date filter">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+
+                      {filterListId && filterListId !== 'all' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                          <span>List: {(board?.lists || []).find((l) => String(l.id) === String(filterListId))?.name || filterListId}</span>
+                          <button type="button" onClick={() => setFilterListId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove list filter">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+
+                      {filterMemberId && filterMemberId !== 'all' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                          <span>Assignee: {boardAssignees.find((m) => String(m.id) === String(filterMemberId))?.name || filterMemberId}</span>
+                          <button type="button" onClick={() => setFilterMemberId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove assignee filter">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+
+                      {filterAssignerId && filterAssignerId !== 'all' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                          <span>Assigner: {boardAssigners.find((a) => String(a.id) === String(filterAssignerId))?.name || filterAssignerId}</span>
+                          <button type="button" onClick={() => setFilterAssignerId('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove assigner filter">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+
+                      {filterStatus && filterStatus !== 'all' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary-tint text-primary border border-primary/20">
+                          <span>Status: {filterStatus === 'incomplete' ? 'Active Only' : 'Completed Only'}</span>
+                          <button type="button" onClick={() => setFilterStatus('all')} className="hover:opacity-75 cursor-pointer" aria-label="Remove status filter">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Kanban Columns Container with Smooth Horizontal Mouse Scroll */}
+            <div
+              ref={boardScrollRef}
+              onMouseDown={handleBoardMouseDown}
+              onMouseMove={handleBoardMouseMove}
+              onMouseUp={handleBoardMouseUpOrLeave}
+              onMouseLeave={handleBoardMouseUpOrLeave}
+              className="flex-1 overflow-x-auto min-h-0 max-md:snap-x max-md:snap-mandatory custom-scrollbar pt-1 pb-3 cursor-default"
+            >
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCorners}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                accessibility={{
+                  announcements,
+                  screenReaderInstructions
+                }}
+              >
+                <SortableContext items={listIds} strategy={horizontalListSortingStrategy}>
+                  <div className="flex items-start gap-5 h-full min-h-0 max-md:w-full">
+                    {(() => {
+                      const remoteDraggedCardIds = isReducedMotion
+                        ? new Set()
+                        : new Set(
+                          Object.values(remoteDragCursors)
+                            .map((r) => Number(r.cardId))
+                            .filter(Boolean)
+                        );
+                      const remoteDraggedListIds = isReducedMotion
+                        ? new Set()
+                        : new Set(
+                          Object.values(remoteDragCursors)
+                            .map((r) => Number(r.listId))
+                            .filter(Boolean)
+                        );
+                      return visibleLists.map((list) => (
+                        <List
+                          key={list.id}
+                          list={list}
+                          cards={list.cards}
+                          wipLimitEnabled={wipLimitEnabled}
+                          wipLimitMax={wipLimitMax}
+                          taskNumberMap={taskNumberMap}
+                          onUpdateList={onUpdateList}
+                          onDeleteList={onDeleteList}
+                          onCardClick={onCardClick}
+                          onCreateCard={onCreateCard}
+                          onUpdateCard={onUpdateCard}
+                          onDeleteCard={onDeleteCard}
+                          onCopyCard={onCopyCard}
+                          highlightedCardId={isReducedMotion ? null : highlightedCardId}
+                          remoteDraggedCardIds={remoteDraggedCardIds}
+                          isRemoteDragging={remoteDraggedListIds.has(list.id)}
+                          focusMode={isFocusMyCards}
+                        />
+                      ));
+                    })()}
+
+                    {/* Add New List Button */}
+                    {canCreateList && (
+                      <div className="w-76 shrink-0 max-md:w-full snap-center">
+                        {isAddingList ? (
+                          <form
+                            onSubmit={handleAddListSubmit}
+                            className="p-4 bg-surface border border-border/80 rounded-2xl shadow-md space-y-3"
+                          >
+                            <input
+                              type="text"
+                              autoFocus
+                              required
+                              placeholder="Enter list title..."
+                              value={newListTitle}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setNewListTitle(val);
+                                if (/^(done|completed|finished|closed|released|shipped|archive)/i.test(val.trim())) {
+                                  setNewListWipLimitEnabled(false);
+                                }
+                              }}
+                              className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 min-h-[40px]"
+                            />
+
+                            {/* List-Level WIP Limit Setting Checkbox */}
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary select-none">
+                              <input
+                                type="checkbox"
+                                checked={newListWipLimitEnabled}
+                                onChange={(e) => setNewListWipLimitEnabled(e.target.checked)}
+                                className="w-4 h-4 rounded border-border text-primary focus:ring-primary/40 cursor-pointer accent-primary"
+                              />
+                              <span>Enable WIP limit on this list</span>
+                            </label>
+
+                            <div className="flex items-center gap-2 pt-1">
+                              <Button
+                                type="submit"
+                                variant="primary"
+                                size="sm"
+                                className="rounded-xl font-bold"
+                              >
+                                Add List
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsAddingList(false);
+                                  setNewListWipLimitEnabled(true);
+                                }}
+                                className="p-1.5 text-text-muted hover:text-text-primary rounded-xl transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingList(true)}
+                            className="w-full flex items-center gap-2.5 p-3.5 bg-surface-muted/60 hover:bg-surface border border-dashed border-border/80 hover:border-primary/40 rounded-2xl text-sm font-bold text-text-secondary hover:text-primary transition-all cursor-pointer shadow-2xs min-h-[44px]"
+                          >
+                            <Plus className="w-4 h-4 text-primary" />
+                            <span>Add column</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </SortableContext>
+
+                {/* Drag Overlay */}
+                <DragOverlay dropAnimation={isReducedMotion ? null : undefined}>
+                  {activeItem?.type === 'list' && (
+                    <List
+                      list={activeItem.list}
+                      cards={listsWithFilteredCards.find((l) => l.id === activeItem.list.id)?.cards || activeItem.list.cards || []}
+                      taskNumberMap={taskNumberMap}
+                      isOverlay={true}
+                    />
+                  )}
+                  {activeItem?.type === 'card' && (
+                    <div className="w-72">
+                      <Card
+                        card={activeItem.card}
+                        listName={(board?.lists || visibleLists || []).find((l) => l.id === activeItem.card.list_id)?.name || activeItem.card.list_name}
+                        taskNumber={taskNumberMap.get(activeItem.card.id) ?? activeItem.card.task_number}
+                        isOverlay={true}
+                      />
+                    </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
+            </div>
+          </section>
+
+          {/* Shutter Toggle Circle Button (Positioned over the right edge in both open and closed states) */}
           <button
             type="button"
-            onClick={() => setIsRightPanelOpen(false)}
-            className="xl:hidden absolute top-3 right-3 p-1.5 rounded-full bg-surface-muted hover:bg-surface-hover text-text-muted hover:text-text-primary z-20 cursor-pointer shadow-xs border border-border"
-            aria-label="Close calendar sidebar"
+            onClick={handleToggleRightPanel}
+            title={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
+            aria-label={isRightPanelOpen ? 'Close calendar sidebar' : 'Open calendar sidebar'}
+            className="flex absolute right-0 xl:-right-4.5 top-1/2 -translate-y-1/2 z-40 items-center justify-center w-8 h-8 xl:w-9 xl:h-9 rounded-full bg-surface border border-border shadow-md hover:shadow-lg hover:border-primary/60 hover:bg-surface-muted text-text-secondary hover:text-primary transition-all duration-200 cursor-pointer group hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <X className="w-4 h-4" />
+            {isRightPanelOpen ? (
+              <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+            ) : (
+              <ChevronLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+            )}
           </button>
+        </div>
 
-          <RightContextPanel
-            user={user}
-            board={board}
-            cards={allBoardCards}
-            onCardClick={onCardClick}
-            onSelectNotificationCard={onSelectNotificationCard}
-            onOpenAllNotifications={onOpenAllNotifications}
-            className="w-full h-full"
+        {/* Right Context Panel (Calendar & Upcoming Tasks) */}
+        {/* 1. Backdrop on < xl */}
+        {isRightPanelOpen && (
+          <div
+            className="fixed inset-0 bg-text-primary/40 z-50 xl:hidden transition-opacity"
+            onClick={handleCloseRightPanel}
+            aria-hidden="true"
           />
+        )}
+
+        {/* 2. Container: Slide-over drawer on < xl, side-by-side flex panel on >= xl */}
+        <div
+          className={`fixed top-0 right-0 bottom-0 z-50 xl:static xl:z-auto flex flex-col h-full shrink-0 transition-all duration-300 ease-in-out ${isRightPanelOpen
+              ? 'translate-x-0 w-[min(320px,100vw)] sm:w-88 xl:w-84 opacity-100 bg-surface shadow-2xl xl:shadow-none'
+              : 'translate-x-full xl:translate-x-0 xl:w-0 xl:opacity-0 pointer-events-none xl:-mr-4 xl:lg:-mr-6'
+            }`}
+          aria-hidden={!isRightPanelOpen}
+        >
+          {/* Sliding Inner Panel Container */}
+          <div className="w-full max-w-full sm:w-88 xl:w-84 h-full shrink-0 overflow-hidden relative">
+            {/* Close button for < xl drawer */}
+            <button
+              type="button"
+              onClick={() => setIsRightPanelOpen(false)}
+              className="xl:hidden absolute top-3 right-3 p-1.5 rounded-full bg-surface-muted hover:bg-surface-hover text-text-muted hover:text-text-primary z-20 cursor-pointer shadow-xs border border-border"
+              aria-label="Close calendar sidebar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <RightContextPanel
+              user={user}
+              board={board}
+              cards={allBoardCards}
+              onCardClick={onCardClick}
+              onSelectNotificationCard={onSelectNotificationCard}
+              onOpenAllNotifications={onOpenAllNotifications}
+              className="w-full h-full"
+            />
+          </div>
         </div>
       </div>
-    </div>
 
       {/* Board Theme Palette Picker */}
       {isPaletteOpen && (
@@ -1803,11 +1792,10 @@ export default function Board({
                   onUpdateBoard(board.id, { background_color: p.bg });
                   setIsPaletteOpen(false);
                 }}
-                className={`h-14 rounded-lg ${p.bg} cursor-pointer border-2 transition-all p-2 flex flex-col justify-end ${
-                  board.background_color === p.bg
+                className={`h-14 rounded-lg ${p.bg} cursor-pointer border-2 transition-all p-2 flex flex-col justify-end ${board.background_color === p.bg
                     ? 'border-primary shadow-sm scale-102'
                     : 'border-border hover:border-border-strong'
-                }`}
+                  }`}
               >
                 <span className="text-[11px] font-semibold text-text-primary truncate">
                   {p.name}

@@ -167,7 +167,7 @@ export default function SettingsPage({
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-app select-none">
       {/* Top Horizontal Tabs Navigation Bar */}
       <nav aria-label="Settings Tabs" className="border-b border-border bg-surface shrink-0">
-        <div className="px-6 md:px-8">
+        <div className="px-3 sm:px-6 md:px-8">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1.5">
             {allowedTabs.map((t) => {
               const isActive = t.id === currentTab.id;
@@ -199,7 +199,7 @@ export default function SettingsPage({
         tabIndex={-1}
         className="flex-1 overflow-y-auto bg-app"
       >
-        <div className="max-w-7xl mx-auto px-6 md:px-8 py-6 w-full">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-4 sm:py-6 w-full">
           <Suspense
             fallback={
               <div className="p-16 flex flex-col items-center justify-center space-y-3">

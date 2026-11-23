@@ -499,7 +499,7 @@ export default function AuditLogPage({ workspace }) {
   return (
     <div className="flex-1 flex flex-col h-full bg-app overflow-hidden">
       {/* Utility & Forensic Trust Status Bar */}
-      <div className="px-6 py-2.5 bg-surface border-b border-border/80 flex flex-wrap items-center justify-between gap-3 shrink-0 select-none">
+      <div className="px-3 sm:px-6 py-2.5 bg-surface border-b border-border/80 flex flex-wrap items-center justify-between gap-3 shrink-0 select-none">
         {/* Left: Forensic Ledger Trust Indicators */}
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <span className="font-semibold text-text-secondary text-[11px] uppercase tracking-wider mr-1 flex items-center gap-1.5">
@@ -614,7 +614,7 @@ export default function AuditLogPage({ workspace }) {
       </div>
 
       {/* Enterprise Filter Toolbar - Fixed height, single row, no jumping */}
-      <div className="px-6 py-2 bg-surface-muted/60 border-b border-border/80 flex items-center gap-2 overflow-x-auto flex-nowrap h-12 min-h-[48px] max-h-[48px] shrink-0 scrollbar-thin">
+      <div className="px-3 sm:px-6 py-2 bg-surface-muted/60 border-b border-border/80 flex items-center gap-2 overflow-x-auto flex-nowrap h-12 min-h-[48px] max-h-[48px] shrink-0 scrollbar-thin">
         {/* Date Preset Dropdown */}
         <div className="w-32 shrink-0">
           <Select

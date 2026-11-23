@@ -99,7 +99,7 @@ export default function SessionsTab() {
               sessions.map((sess) => (
                 <div
                   key={sess.id}
-                  className="p-4 flex items-center justify-between gap-4 hover:bg-surface-muted/30 transition-colors"
+                  className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:bg-surface-muted/30 transition-colors"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-surface-muted flex items-center justify-center text-primary shrink-0 border border-border">

@@ -99,27 +99,24 @@ export default function PreferencesTab({ setFormDirty }) {
 
             {/* UI Density Selector & Interactive Live Comparison Preview */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex-1">
-                  <Select
-                    label="Card & List Density"
-                    value={density}
-                    onChange={handleDensityChange}
-                    options={[
-                      { value: 'detailed', label: 'Detailed (Standard comfortable spacing with descriptions, tags & assignees)' },
-                      { value: 'compact', label: 'Compact (Title and date only. Click card to view full details)' }
-                    ]}
-                  />
-                </div>
-                <div className="inline-flex items-center p-1 rounded-xl bg-surface-muted border border-border gap-1 self-start sm:self-end sm:mb-1">
+              <div className="flex flex-col gap-3">
+                <Select
+                  label="Card & List Density"
+                  value={density}
+                  onChange={handleDensityChange}
+                  options={[
+                    { value: 'detailed', label: 'Detailed (Standard comfortable spacing with descriptions, tags & assignees)' },
+                    { value: 'compact', label: 'Compact (Title and date only. Click card to view full details)' }
+                  ]}
+                />
+                <div className="inline-flex items-center p-1 rounded-xl bg-surface-muted border border-border gap-1 self-start">
                   <button
                     type="button"
                     onClick={() => handleDensityChange('detailed')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
-                      density === 'detailed'
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${density === 'detailed'
                         ? 'bg-surface text-primary font-bold shadow-xs border border-border'
                         : 'text-text-secondary hover:text-text-primary'
-                    }`}
+                      }`}
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
                     <span>Detailed</span>
@@ -127,11 +124,10 @@ export default function PreferencesTab({ setFormDirty }) {
                   <button
                     type="button"
                     onClick={() => handleDensityChange('compact')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
-                      density === 'compact'
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${density === 'compact'
                         ? 'bg-surface text-primary font-bold shadow-xs border border-border'
                         : 'text-text-secondary hover:text-text-primary'
-                    }`}
+                      }`}
                   >
                     <Minimize2 className="w-3.5 h-3.5" />
                     <span>Compact</span>
@@ -155,11 +151,10 @@ export default function PreferencesTab({ setFormDirty }) {
                   {/* Detailed Preview Card */}
                   <div
                     onClick={() => handleDensityChange('detailed')}
-                    className={`bg-surface border rounded-xl p-4 space-y-2.5 transition-all cursor-pointer select-none ${
-                      density === 'detailed'
+                    className={`bg-surface border rounded-xl p-4 space-y-2.5 transition-all cursor-pointer select-none ${density === 'detailed'
                         ? 'ring-2 ring-primary border-primary shadow-sm bg-surface'
                         : 'border-border/70 opacity-60 hover:opacity-100 hover:border-border'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">TASK-101</span>
@@ -182,11 +177,10 @@ export default function PreferencesTab({ setFormDirty }) {
                   {/* Compact Preview Card */}
                   <div
                     onClick={() => handleDensityChange('compact')}
-                    className={`bg-surface border rounded-xl p-3 space-y-2 transition-all cursor-pointer select-none ${
-                      density === 'compact'
+                    className={`bg-surface border rounded-xl p-3 space-y-2 transition-all cursor-pointer select-none ${density === 'compact'
                         ? 'ring-2 ring-primary border-primary shadow-sm bg-surface'
                         : 'border-border/70 opacity-60 hover:opacity-100 hover:border-border'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between gap-1.5">
                       <span className="text-[9px] font-bold text-success uppercase tracking-wider bg-success-tint px-1.5 py-0.5 rounded border border-success/20">
@@ -241,13 +235,12 @@ export default function PreferencesTab({ setFormDirty }) {
               <div className="p-3 bg-surface-muted/50 border border-border/70 rounded-xl flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                      reducedMotion
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${reducedMotion
                         ? 'bg-surface border border-border text-text-muted'
                         : testAnimActive
-                        ? 'bg-primary text-white scale-110 rotate-12 duration-300'
-                        : 'bg-primary-tint text-primary animate-pulse'
-                    }`}
+                          ? 'bg-primary text-white scale-110 rotate-12 duration-300'
+                          : 'bg-primary-tint text-primary animate-pulse'
+                      }`}
                   >
                     <Sparkles className="w-4 h-4" />
                   </div>

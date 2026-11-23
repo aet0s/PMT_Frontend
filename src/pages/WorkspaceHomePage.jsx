@@ -238,7 +238,7 @@ export default function WorkspaceHomePage({
   }, [filteredAndSortedBoards, currentPage, itemsPerPage]);
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-6 sm:p-8 lg:p-10 no-scrollbar">
+    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-3.5 sm:p-6 lg:p-8 xl:p-10 no-scrollbar">
       <div className="max-w-6xl mx-auto w-full space-y-8">
         
         {/* ======================================================== */}
@@ -305,7 +305,7 @@ export default function WorkspaceHomePage({
         {/* ======================================================== */}
         {/* KEY WORKSPACE METRICS (Modern Rounded SaaS Cards)         */}
         {/* ======================================================== */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div className="p-5 bg-surface border border-border rounded-2xl shadow-xs hover:shadow-sm transition-all flex flex-col justify-between group">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
@@ -408,7 +408,7 @@ export default function WorkspaceHomePage({
             {boards.length > 0 && (
               <div className="flex flex-wrap items-center gap-2.5">
                 {/* Search Bar */}
-                <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+                <div className="relative min-w-0 w-full sm:w-auto sm:min-w-[200px] flex-1 sm:flex-initial">
                   <label htmlFor="filter-projects-input" className="sr-only">
                     Search projects
                   </label>
@@ -758,12 +758,107 @@ export default function WorkspaceHomePage({
             /* ======================================================== */
             <div className="space-y-4">
               <div className="bg-surface border border-border rounded-2xl shadow-xs overflow-hidden">
-                <div className="overflow-x-auto">
+                {/* 1. Mobile List Card View: Displays all info inside frame without horizontal scrollbar */}
+                <div className="md:hidden divide-y divide-border">
+                  {paginatedBoards.map((b) => {
+                    const cardCount = Number(b.card_count) || 0;
+                    const listCount = Number(b.list_count) || 0;
+                    const memberCount = Number(b.member_count) || 0;
+                    const isPinned = String(pinnedBoardId) === String(b.id);
+                    const completedCount = Number(b.completed_card_count) || 0;
+                    const progressPercent = cardCount === 0 ? 0 : Math.min(100, Math.round((completedCount / cardCount) * 100));
+                    const rowBgStyle = getBoardStyle(b.background_color);
+
+                    return (
+                      <div
+                        key={`m-${b.id}`}
+                        onClick={() => navigate(`/w/${currentWsId}/p/${b.id}/board`)}
+                        className="p-3.5 hover:bg-surface-hover/70 transition-colors cursor-pointer space-y-2.5 group"
+                      >
+                        {/* Top: Icon, Title, Pin, Action */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-7 h-7 rounded-lg bg-surface-muted border border-border flex items-center justify-center text-primary shrink-0 group-hover:border-primary/40 transition-colors">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full bg-primary"
+                                style={rowBgStyle?.backgroundColor ? { backgroundColor: rowBgStyle.backgroundColor } : undefined}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="font-bold text-text-primary text-xs sm:text-sm group-hover:text-primary transition-colors truncate">
+                                  {b.name}
+                                </span>
+                                {isPinned && (
+                                  <Star className="w-3.5 h-3.5 fill-warning-text text-warning-text shrink-0" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={(e) => handleTogglePinBoard(e, b.id)}
+                              title={isPinned ? 'Unpin this project' : 'Pin as default project'}
+                              aria-label={isPinned ? `Unpin ${b.name}` : `Pin ${b.name} as default`}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                isPinned
+                                  ? 'bg-warning-tint text-warning-text'
+                                  : 'text-text-muted hover:text-text-primary hover:bg-surface-muted'
+                              }`}
+                            >
+                              <Star className={`w-3.5 h-3.5 ${isPinned ? 'fill-current' : ''}`} />
+                            </button>
+                            <Link
+                              to={`/w/${currentWsId}/p/${b.id}/board`}
+                              className="p-1.5 rounded-lg text-primary hover:text-primary-hover hover:bg-surface-muted transition-colors inline-flex items-center"
+                              title="Open project board"
+                              aria-label={`Open ${b.name}`}
+                            >
+                              <ArrowUpRight className="w-4 h-4" />
+                            </Link>
+                          </div>
+                        </div>
+
+                        {/* Middle: Progress */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-text-secondary">Project Progress</span>
+                            <span className="font-semibold text-text-primary">{progressPercent}%</span>
+                          </div>
+                          <ProgressBar value={progressPercent} max={100} variant="primary" size="sm" />
+                        </div>
+
+                        {/* Bottom: Info pills / metadata */}
+                        <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-[11px] text-text-secondary pt-0.5">
+                          <Badge variant="secondary" size="sm" className="px-1.5 py-0.5">
+                            {cardCount} tasks
+                          </Badge>
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-text-muted">•</span>
+                            <span>{listCount} lists</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-text-muted">•</span>
+                            <span>{memberCount} members</span>
+                          </span>
+                          <span className="ml-auto text-text-muted text-[10px]">
+                            {formatBoardDate(b.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 2. Desktop Full Table View (Scrolls cleanly if window is narrow, displays all columns) */}
+                <div className="hidden md:block w-full overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-surface-muted/80 border-b border-border text-text-secondary uppercase text-[10px] tracking-wider">
                       <tr>
                         <th className="py-3 px-4 font-semibold">Project Board</th>
-                        <th className="py-3 px-3 font-semibold min-w-[120px]">Project Progress</th>
+                        <th className="py-3 px-3 font-semibold w-40">Project Progress</th>
                         <th className="py-3 px-3 font-semibold text-center">Tasks</th>
                         <th className="py-3 px-3 font-semibold text-center">Lists</th>
                         <th className="py-3 px-3 font-semibold text-center">Members</th>
@@ -788,7 +883,7 @@ export default function WorkspaceHomePage({
                             onClick={() => navigate(`/w/${currentWsId}/p/${b.id}/board`)}
                             className="hover:bg-surface-hover/70 transition-colors cursor-pointer group"
                           >
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-4 min-w-0">
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="w-8 h-8 rounded-lg bg-surface-muted border border-border flex items-center justify-center text-primary shrink-0 group-hover:border-primary/40 transition-colors">
                                   <span
@@ -796,27 +891,27 @@ export default function WorkspaceHomePage({
                                     style={rowBgStyle?.backgroundColor ? { backgroundColor: rowBgStyle.backgroundColor } : undefined}
                                   />
                                 </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-bold text-text-primary text-xs sm:text-sm group-hover:text-primary transition-colors truncate block">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="font-bold text-text-primary text-sm group-hover:text-primary transition-colors truncate block">
                                       {b.name}
                                     </span>
                                     {isPinned && (
                                       <Star className="w-3.5 h-3.5 fill-warning-text text-warning-text shrink-0" />
                                     )}
                                   </div>
-                                  <span className="text-[11px] text-text-secondary">
+                                  <div className="text-[11px] text-text-secondary truncate">
                                     {isPinned ? (
                                       <span className="text-warning-text font-bold">★ Pinned Project</span>
                                     ) : (
                                       'Project Board'
                                     )}
-                                  </span>
+                                  </div>
                                 </div>
                               </div>
                             </td>
 
-                            <td className="py-3 px-3">
+                            <td className="py-3 px-3 w-40">
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between text-[11px]">
                                   <span className="font-semibold text-text-primary">{progressPercent}%</span>
@@ -860,7 +955,8 @@ export default function WorkspaceHomePage({
                                 </button>
                                 <Link
                                   to={`/w/${currentWsId}/p/${b.id}/board`}
-                                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
+                                  className="px-2 py-1 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
+                                  title="Open project board"
                                 >
                                   <span>Open</span>
                                   <ArrowUpRight className="w-3.5 h-3.5" />

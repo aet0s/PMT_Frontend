@@ -5,12 +5,9 @@ import {
   Download,
   ExternalLink,
   CheckCircle2,
-  Clock,
   AlertTriangle,
-  Layers,
   Calendar,
   ListTodo,
-  TrendingUp,
   FolderKanban,
   Archive
 } from 'lucide-react';
@@ -61,55 +58,56 @@ export default function ReportMemberDetailsDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden select-none">
+    <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-text-primary/40 transition-opacity animate-in fade-in duration-200"
         onClick={onClose}
       />
 
-      {/* Slide-over Drawer Panel */}
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md md:max-w-xl bg-surface border-l border-border shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-200">
+      {/* Slide-over Drawer Panel Container */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex w-full sm:w-auto sm:pl-10 pointer-events-none">
+        <div className="w-full sm:w-screen sm:max-w-md md:max-w-xl bg-surface border-l border-border shadow-2xl flex flex-col h-full max-h-[100dvh] min-h-0 pointer-events-auto animate-in slide-in-from-right duration-200">
 
           {/* Header */}
-          <div className="p-5 border-b border-border bg-surface-elevated/40">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div className="flex items-center gap-3">
+          <div className="p-4 sm:p-5 border-b border-border bg-surface-elevated/40 shrink-0">
+            <div className="flex items-center justify-between gap-3 mb-3.5">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                 <Avatar
                   src={member.avatar_url}
                   alt={member.name}
                   name={member.name}
                   size="md"
-                  className="w-11 h-11 text-sm shrink-0 border border-border"
+                  className="w-10 h-10 sm:w-11 sm:h-11 text-sm shrink-0 border border-border"
                 />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-text-primary">{member.name}</h2>
-                    <Badge variant="secondary" className="text-[10px]">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm sm:text-base font-bold text-text-primary truncate">{member.name}</h2>
+                    <Badge variant="secondary" className="text-[10px] shrink-0 font-normal">
                       {member.role || 'Member'}
                     </Badge>
                   </div>
-                  <p className="text-xs text-text-muted mt-0.5">{member.email}</p>
+                  <p className="text-xs text-text-muted truncate mt-0.5">{member.email}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {canExport && (
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant="secondary"
                     onClick={handleExport}
-                    className="flex items-center gap-1.5 text-xs font-medium"
-                    title="Export member CSV"
+                    leftIcon={<Download className="w-4 h-4 text-text-muted" />}
+                    className="h-9 px-3.5 text-xs font-semibold whitespace-nowrap shrink-0 shadow-2xs border-border"
+                    title="Export member tasks to CSV"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>CSV</span>
+                    Export CSV
                   </Button>
                 )}
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
+                  className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors shrink-0 cursor-pointer"
+                  aria-label="Close details"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -117,47 +115,48 @@ export default function ReportMemberDetailsDrawer({
             </div>
 
             {/* Metrics Mini-Grid */}
-            <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 pt-2">
-              <div className="bg-surface p-2 rounded-lg border border-border text-center">
-                <span className="text-[10px] text-text-muted font-medium block">Assigned</span>
-                <span className="text-sm font-bold text-text-primary">{formatNumber(member.assigned_tasks)}</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pt-1">
+              <div className="bg-surface p-1.5 sm:p-2 rounded-lg border border-border text-center flex-1 min-w-[50px]">
+                <span className="text-[9px] sm:text-[10px] text-text-muted font-medium block truncate">Assigned</span>
+                <span className="text-xs sm:text-sm font-bold text-text-primary">{formatNumber(member.assigned_tasks)}</span>
               </div>
-              <div className="bg-surface p-2 rounded-lg border border-border text-center">
-                <span className="text-[10px] text-text-muted font-medium block">To Do</span>
-                <span className="text-sm font-bold text-slate-600 dark:text-slate-400">{formatNumber(member.todo_tasks)}</span>
+              <div className="bg-surface p-1.5 sm:p-2 rounded-lg border border-border text-center flex-1 min-w-[50px]">
+                <span className="text-[9px] sm:text-[10px] text-text-muted font-medium block truncate">To Do</span>
+                <span className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400">{formatNumber(member.todo_tasks)}</span>
               </div>
-              <div className="bg-surface p-2 rounded-lg border border-border text-center">
-                <span className="text-[10px] text-text-muted font-medium block">Active</span>
-                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatNumber(member.in_progress_tasks)}</span>
+              <div className="bg-surface p-1.5 sm:p-2 rounded-lg border border-border text-center flex-1 min-w-[50px]">
+                <span className="text-[9px] sm:text-[10px] text-text-muted font-medium block truncate">Active</span>
+                <span className="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400">{formatNumber(member.in_progress_tasks)}</span>
               </div>
-              <div className="bg-surface p-2 rounded-lg border border-border text-center">
-                <span className="text-[10px] text-text-muted font-medium block">Completed</span>
-                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(member.completed_tasks)}</span>
+              <div className="bg-surface p-1.5 sm:p-2 rounded-lg border border-border text-center flex-1 min-w-[50px]">
+                <span className="text-[9px] sm:text-[10px] text-text-muted font-medium block truncate">Completed</span>
+                <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(member.completed_tasks)}</span>
               </div>
-              <div className="bg-surface p-2 rounded-lg border border-border text-center">
-                <span className="text-[10px] text-text-muted font-medium block">Archived</span>
-                <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatNumber(member.archived_tasks || 0)}</span>
+              <div className="bg-surface p-1.5 sm:p-2 rounded-lg border border-border text-center flex-1 min-w-[50px]">
+                <span className="text-[9px] sm:text-[10px] text-text-muted font-medium block truncate">Archived</span>
+                <span className="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400">{formatNumber(member.archived_tasks || 0)}</span>
               </div>
-              <div className="bg-surface p-2 rounded-lg border border-border text-center">
-                <span className="text-[10px] text-text-muted font-medium block">Overdue</span>
-                <span className={`text-sm font-bold ${member.overdue_tasks > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-text-muted'}`}>
+              <div className="bg-surface p-1.5 sm:p-2 rounded-lg border border-border text-center flex-1 min-w-[50px]">
+                <span className="text-[9px] sm:text-[10px] text-text-muted font-medium block truncate">Overdue</span>
+                <span className={`text-xs sm:text-sm font-bold ${member.overdue_tasks > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-text-muted'}`}>
                   {formatNumber(member.overdue_tasks)}
                 </span>
               </div>
-              <div className="bg-surface p-2 rounded-lg border border-border text-center">
-                <span className="text-[10px] text-text-muted font-medium block">Rate</span>
-                <span className="text-sm font-bold text-primary">{formatPercent(member.completion_rate)}</span>
+              <div className="bg-surface p-1.5 sm:p-2 rounded-lg border border-border text-center flex-1 min-w-[50px]">
+                <span className="text-[9px] sm:text-[10px] text-text-muted font-medium block truncate">Rate</span>
+                <span className="text-xs sm:text-sm font-bold text-primary">{formatPercent(member.completion_rate)}</span>
               </div>
             </div>
           </div>
 
           {/* Scope Toggle & Sub-filters */}
-          <div className="px-5 pt-3 pb-2 border-b border-border bg-surface flex flex-col gap-2.5">
+          <div className="px-4 sm:px-5 pt-3 pb-2 border-b border-border bg-surface flex flex-col gap-2.5 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center bg-surface-elevated p-0.5 rounded-lg border border-border text-xs">
                 <button
+                  type="button"
                   onClick={() => setScope('assigned')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${scope === 'assigned'
+                  className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${scope === 'assigned'
                       ? 'bg-surface text-primary shadow-xs font-semibold'
                       : 'text-text-muted hover:text-text-secondary'
                     }`}
@@ -165,8 +164,9 @@ export default function ReportMemberDetailsDrawer({
                   Assigned ({member.tasks?.length || 0})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setScope('created')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${scope === 'created'
+                  className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${scope === 'created'
                       ? 'bg-surface text-primary shadow-xs font-semibold'
                       : 'text-text-muted hover:text-text-secondary'
                     }`}
@@ -181,7 +181,7 @@ export default function ReportMemberDetailsDrawer({
             </div>
 
             {/* Status Filter Chips */}
-            <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] pb-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] pb-1 no-scrollbar">
               {[
                 { id: 'all', label: 'All' },
                 { id: 'todo', label: 'To Do' },
@@ -191,9 +191,10 @@ export default function ReportMemberDetailsDrawer({
                 { id: 'archived', label: 'Archived' }
               ].map((tab) => (
                 <button
+                  type="button"
                   key={tab.id}
                   onClick={() => setStatusTab(tab.id)}
-                  className={`px-2.5 py-0.5 rounded-full border text-[11px] transition-colors whitespace-nowrap ${statusTab === tab.id
+                  className={`px-2.5 py-0.5 rounded-full border text-[11px] transition-colors whitespace-nowrap cursor-pointer ${statusTab === tab.id
                       ? 'bg-primary/10 text-primary border-primary/30 font-semibold'
                       : 'border-border text-text-muted hover:border-border-hover hover:text-text-secondary'
                     }`}
@@ -204,8 +205,8 @@ export default function ReportMemberDetailsDrawer({
             </div>
           </div>
 
-          {/* Tasks List */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-2.5 custom-scrollbar">
+          {/* Tasks List: Fully scrollable with min-h-0 and overscroll-contain */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-2.5 custom-scrollbar overscroll-contain">
             {filteredTasks.length === 0 ? (
               <div className="py-12 text-center text-text-muted border border-dashed border-border rounded-xl">
                 <ListTodo className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -294,4 +295,3 @@ export default function ReportMemberDetailsDrawer({
     </div>
   );
 }
-

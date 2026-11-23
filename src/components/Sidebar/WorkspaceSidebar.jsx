@@ -91,9 +91,10 @@ export default function WorkspaceSidebar({
     const updateDropdownPos = () => {
       if (!menuRef.current) return;
       const rect = menuRef.current.getBoundingClientRect();
+      const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 320;
       setWsDropdownPos({
         top: Math.round(rect.bottom + 6),
-        left: Math.round(rect.left),
+        left: Math.max(8, Math.min(Math.round(rect.left), viewportWidth - 280)),
         minWidth: Math.max(Math.round(rect.width), 260),
       });
     };
@@ -411,9 +412,10 @@ export default function WorkspaceSidebar({
                 onClick={() => {
                   if (!isWsDropdownOpen && menuRef.current) {
                     const rect = menuRef.current.getBoundingClientRect();
+                    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 320;
                     setWsDropdownPos({
                       top: Math.round(rect.bottom + 6),
-                      left: Math.round(rect.left),
+                      left: Math.max(8, Math.min(Math.round(rect.left), viewportWidth - 280)),
                       minWidth: Math.max(Math.round(rect.width), 260),
                     });
                   }

@@ -240,13 +240,13 @@ export const Select = React.forwardRef(function Select(
           aria-label={props['aria-label'] || (!label ? (selectedOption?.label || placeholder) : undefined)}
           aria-controls={isOpen ? listboxId : undefined}
           {...getReferenceProps()}
-          className={`w-full flex items-center justify-between gap-2 bg-surface text-text-primary border transition-colors duration-150 select-none cursor-pointer focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:bg-surface-muted disabled:cursor-not-allowed disabled:text-text-muted ${
+          className={`w-full flex items-center justify-between gap-2 bg-surface text-text-primary border transition-colors duration-150 select-none cursor-pointer outline-none focus:outline-none focus-visible:outline-none focus-visible:border-primary disabled:bg-surface-muted disabled:cursor-not-allowed disabled:text-text-muted ${
             sizeStyles[controlSize] || sizeStyles.md
           } ${
             error
-              ? 'border-danger focus-visible:border-danger focus-visible:ring-danger/30'
+              ? 'border-danger focus-visible:border-danger'
               : isOpen
-              ? 'border-primary ring-2 ring-primary/40'
+              ? 'border-primary ring-1 ring-inset ring-primary/25'
               : 'border-border hover:border-border-strong'
           }`}
           {...props}
@@ -319,7 +319,7 @@ export const Select = React.forwardRef(function Select(
               onClick={() => setIsOpen(false)}
             >
               <div
-                className="w-full bg-surface border-t border-border rounded-t-2xl p-4 max-h-[75vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200"
+                className="w-full max-w-full overflow-x-hidden bg-surface border-t border-border rounded-t-2xl p-4 max-h-[75vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Drag-to-close Handle */}
@@ -335,7 +335,7 @@ export const Select = React.forwardRef(function Select(
                   id={listboxId}
                   role="listbox"
                   aria-labelledby={label ? `${selectId}-label` : undefined}
-                  className="overflow-y-auto space-y-1 py-1"
+                  className="overflow-y-auto overflow-x-hidden no-scrollbar space-y-1 py-1"
                 >
                   {parsedOptions.length === 0 ? (
                     <div className="py-6 text-center text-sm text-text-muted">
@@ -360,19 +360,19 @@ export const Select = React.forwardRef(function Select(
                               : 'text-text-primary hover:bg-surface-muted active:bg-surface-muted'
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            {opt.icon && <span className="text-text-secondary">{opt.icon}</span>}
-                            {opt.avatar && <span>{opt.avatar}</span>}
-                            <div className="text-left">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
+                            {opt.icon && <span className="text-text-secondary shrink-0">{opt.icon}</span>}
+                            {opt.avatar && <span className="shrink-0">{opt.avatar}</span>}
+                            <div className="text-left min-w-0 flex-1">
                               <span className="block truncate">{opt.label}</span>
                               {opt.description && (
-                                <span className="block text-xs text-text-secondary">
+                                <span className="block text-xs text-text-secondary truncate">
                                   {opt.description}
                                 </span>
                               )}
                             </div>
                           </div>
-                          {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
+                          {isSelected && <Check className="w-4 h-4 text-primary shrink-0 ml-1.5" />}
                         </button>
                       );
                     })
@@ -397,7 +397,7 @@ export const Select = React.forwardRef(function Select(
                   role="listbox"
                   aria-labelledby={label ? `${selectId}-label` : undefined}
                   {...getFloatingProps()}
-                  className="bg-surface border border-border rounded-xl shadow-xl p-1 overflow-y-auto outline-none animate-sassy-dropdown max-h-[280px]"
+                  className="bg-surface border border-border rounded-xl shadow-xl p-1 overflow-y-auto no-scrollbar outline-none animate-sassy-dropdown max-h-[280px]"
                 >
                 {parsedOptions.length === 0 ? (
                   <div className="py-4 text-center text-xs text-text-muted italic">

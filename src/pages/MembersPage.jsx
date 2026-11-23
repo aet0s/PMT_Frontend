@@ -161,7 +161,7 @@ export default function MembersPage({ workspace }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-6 md:p-8">
+    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-3.5 sm:p-6 md:p-8">
       <div className="max-w-6xl mx-auto w-full space-y-6">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-6">

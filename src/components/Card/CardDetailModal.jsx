@@ -98,12 +98,23 @@ export default function CardDetailModal({
   if (!card) return null;
 
   const userRank = Number(userRole?.rank || 30);
-  const roleName = String(userRole?.name || '').toLowerCase();
-  const isTopLevel = userRank >= 50 || ['owner', 'admin', 'project manager', 'team lead'].includes(roleName);
+  const roleName = String(userRole?.name || '').toLowerCase().trim();
+  const isTopLevel = userRank >= 50 || [
+    'owner',
+    'super admin',
+    'admin',
+    'project manager',
+    'project lead',
+    'pm',
+    'team lead',
+    'team leader',
+    'tl',
+    'lead'
+  ].includes(roleName);
   const isCreator = user && card.created_by && Number(card.created_by) === Number(user.id);
   const isAssignee = user && (card.members || []).some((m) => Number(m.id) === Number(user.id));
   const isAssigner = user && (card.assigners || []).some((a) => Number(a.id) === Number(user.id));
-  const canModifyCard = isTopLevel || isCreator || isAssignee || isAssigner || (typeof hasPermission === 'function' && (hasPermission('task.edit') || hasPermission('task.assign')));
+  const canModifyCard = isTopLevel || isCreator || isAssignee || isAssigner;
   const canCompleteCard = isTopLevel || isAssigner;
   const canManageAssigners = isTopLevel || isAssigner || isCreator;
 

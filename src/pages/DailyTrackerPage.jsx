@@ -409,7 +409,7 @@ export default function DailyTrackerPage({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app text-text-primary select-none text-left">
       {/* Top Controls Bar */}
-      <div className="px-4 sm:px-6 lg:px-8 py-3.5 bg-app border-b border-border/60 shrink-0 space-y-3">
+      <div className="px-3 sm:px-6 lg:px-8 py-3.5 bg-app border-b border-border/60 shrink-0 space-y-3">
         {/* Navigation / Tab Switcher Bar & Date Controls */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-wrap">
           <div className="inline-flex p-1 bg-surface border border-border/80 rounded-xl shadow-2xs self-start shrink-0">
@@ -456,7 +456,7 @@ export default function DailyTrackerPage({
                 type="button"
                 onClick={handleOpenCalendar}
                 title="Click to select date"
-                className="px-3 py-1 flex items-center gap-2 border-x border-border/60 min-w-[150px] justify-center hover:bg-surface-muted transition-colors cursor-pointer"
+                className="px-2.5 sm:px-3 py-1 flex items-center gap-1.5 sm:gap-2 border-x border-border/60 min-w-[110px] sm:min-w-[150px] justify-center hover:bg-surface-muted transition-colors cursor-pointer"
               >
                 <CalendarIcon className="w-3.5 h-3.5 text-primary" />
                 <span className="text-xs font-bold text-text-primary">{formattedDisplayDate}</span>

@@ -16,7 +16,7 @@ function checkFile(filePath) {
   lines.forEach((line, index) => {
     const lineNum = index + 1;
     // Check for native <select> usage (must be lowercase HTML tag, not uppercase React Component <Select>)
-    if (/<select[\s>]/g.test(line) && !line.trim().startsWith('//') && !line.trim().startsWith('*')) {
+    if (/<select(\s|>|$)/.test(line.trim()) && !line.trim().startsWith('//') && !line.trim().startsWith('*') && !line.trim().startsWith('{/*')) {
       violations.push({
         file: path.relative(path.resolve(__dirname, '..'), filePath),
         line: lineNum,

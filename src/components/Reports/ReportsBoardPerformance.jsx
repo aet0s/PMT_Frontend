@@ -15,7 +15,15 @@ import {
 } from 'lucide-react';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import Select from '../ui/Select';
 import { formatNumber, formatPercent } from './reportsUtils';
+
+const BOARD_SORT_OPTIONS = [
+  { value: 'tasks', label: 'Most Tasks' },
+  { value: 'completion', label: 'Highest Progress' },
+  { value: 'overdue', label: 'Most Overdue' },
+  { value: 'name', label: 'Name (A–Z)' }
+];
 
 export default function ReportsBoardPerformance({
   boards = [],
@@ -157,25 +165,22 @@ export default function ReportsBoardPerformance({
             <p className="text-xs text-text-muted mt-0.5">Execution velocity, progress, and overdue indicators by board</p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
             {/* Sort Selector */}
-            <div className="flex items-center gap-1.5 bg-surface-elevated px-2.5 py-1.5 rounded-lg border border-border text-xs text-text-muted">
-              <ArrowUpDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
-              <select
+            <div className="w-full sm:w-44">
+              <Select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-transparent text-text-primary text-xs font-medium focus:outline-none cursor-pointer"
-              >
-                <option value="tasks">Most Tasks</option>
-                <option value="completion">Highest Progress</option>
-                <option value="overdue">Most Overdue</option>
-                <option value="name">Name (A–Z)</option>
-              </select>
+                onChange={(val) => setSortBy(val)}
+                options={BOARD_SORT_OPTIONS}
+                size="sm"
+                className="text-xs"
+                aria-label="Sort boards by"
+              />
             </div>
 
             {/* Search Box */}
             <div className="relative w-full sm:w-56">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search boards..."
@@ -249,22 +254,20 @@ export default function ReportsBoardPerformance({
                 <th className="py-2.5 px-4 text-center">Completed</th>
                 <th className="py-2.5 px-4 text-center">Archived</th>
                 <th className="py-2.5 px-4 text-center">Overdue</th>
-                <th className="py-2.5 px-4 min-w-[140px]">Progress</th>
-                <th className="py-2.5 px-4 text-right">Action</th>
+                <th className="py-2.5 px-3 w-32 min-w-[110px]">Progress</th>
+                <th className="py-2.5 px-3 w-20 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
               {paginatedBoards.map((b) => (
                 <tr key={b.id} className="hover:bg-surface-elevated/40 transition-colors group">
                   <td className="py-3 px-4 font-medium text-text-primary">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0 border border-black/10 dark:border-white/10"
-                        style={{ backgroundColor: b.background_color || 'var(--color-primary)' }}
-                      />
-                      <span className="font-semibold text-text-primary group-hover:text-primary transition-colors">{b.name}</span>
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <span className="font-semibold text-text-primary group-hover:text-primary transition-colors">
+                        {b.name}
+                      </span>
                       {b.workspace_name && (
-                        <Badge variant="secondary" className="text-[10px] ml-1 font-normal">
+                        <Badge variant="secondary" className="text-[10px] font-normal w-fit">
                           {b.workspace_name}
                         </Badge>
                       )}
@@ -303,7 +306,7 @@ export default function ReportsBoardPerformance({
                       <span className="text-text-muted">0</span>
                     )}
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-3 w-32 min-w-[110px]">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-semibold text-text-secondary">{formatPercent(b.completion_rate)}</span>
@@ -316,7 +319,7 @@ export default function ReportsBoardPerformance({
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-right whitespace-nowrap">
+                  <td className="py-3 px-3 w-20 text-right whitespace-nowrap">
                     {(() => {
                       const targetWsId = b.workspace_id;
                       const boardLink = targetWsId ? `/w/${targetWsId}/p/${b.id}/board` : (getBoardUrl ? getBoardUrl(b.id) : `/b/${b.id}`);

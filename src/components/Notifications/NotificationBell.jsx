@@ -107,31 +107,39 @@ export default function NotificationBell({ onSelectNotificationCard, onOpenAllNo
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-surface border border-border rounded-xl shadow-xl z-50 overflow-hidden flex flex-col animate-fade-in">
-          {/* Panel Header */}
-          <div className="p-3.5 border-b border-border flex items-center justify-between bg-surface-muted shrink-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-text-primary">Notifications</h3>
+        <>
+          {/* Mobile backdrop to dismiss cleanly and prevent backdrop interactions */}
+          <div
+            className="fixed inset-0 z-40 bg-text-primary/25 sm:hidden"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+
+          <div className="fixed left-3 right-3 top-[68px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-h-[calc(100vh-84px)] sm:max-h-none bg-surface border border-border rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
+            {/* Panel Header */}
+            <div className="p-3.5 border-b border-border flex items-center justify-between bg-surface-muted shrink-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-text-primary">Notifications</h3>
+                {unreadCount > 0 && (
+                  <span className="px-2 py-0.5 text-[10px] font-semibold bg-primary-tint text-primary border border-primary/20 rounded-full">
+                    {unreadCount} new
+                  </span>
+                )}
+              </div>
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 text-[10px] font-semibold bg-primary-tint text-primary border border-primary/20 rounded-full">
-                  {unreadCount} new
-                </span>
+                <button
+                  type="button"
+                  onClick={markAllAsRead}
+                  className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-hover transition-colors cursor-pointer"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  Mark all read
+                </button>
               )}
             </div>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={markAllAsRead}
-                className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-hover transition-colors cursor-pointer"
-              >
-                <CheckCheck className="w-3.5 h-3.5" />
-                Mark all read
-              </button>
-            )}
-          </div>
 
-          {/* Top 5 Notifications List */}
-          <div className="overflow-y-auto divide-y divide-border max-h-[380px]">
+            {/* Top 5 Notifications List */}
+            <div className="overflow-y-auto divide-y divide-border max-h-[360px] sm:max-h-[380px]">
             {topFiveNotifications.length === 0 ? (
               <div className="p-8 text-center space-y-2">
                 <Inbox className="w-8 h-8 text-text-muted mx-auto opacity-50" />
@@ -197,7 +205,8 @@ export default function NotificationBell({ onSelectNotificationCard, onOpenAllNo
             </button>
           </div>
         </div>
-      )}
+      </>
+    )}
     </div>
   );
 }

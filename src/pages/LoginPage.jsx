@@ -7,7 +7,7 @@ import { ThemeToggle } from '../components/ui/ThemeToggle';
 
 export default function LoginPage({ onSwitchToRegister }) {
   return (
-    <div className="w-full h-screen min-h-screen overflow-hidden flex flex-col lg:flex-row bg-surface text-text-primary selection:bg-primary-tint selection:text-primary">
+    <div className="w-full min-h-screen min-h-dvh overflow-x-hidden flex flex-col lg:flex-row bg-surface text-text-primary selection:bg-primary-tint selection:text-primary">
       {/* Div 1 (Left): Brand showcase & interactive kanban preview */}
       <div className="hidden lg:flex lg:w-1/2 h-full bg-surface-muted border-r border-border min-w-0 overflow-hidden relative">
         <AuthProductShowcase
@@ -18,7 +18,7 @@ export default function LoginPage({ onSwitchToRegister }) {
       </div>
 
       {/* Div 2 (Right): Authentication form panel */}
-      <div className="w-full lg:w-1/2 h-full flex flex-col justify-between items-center px-6 py-5 sm:px-10 sm:py-6 lg:px-12 lg:py-6 bg-surface min-w-0 overflow-y-auto lg:overflow-hidden relative">
+      <div className="w-full lg:w-1/2 h-full flex flex-col justify-between items-center px-4 py-5 sm:px-10 sm:py-6 lg:px-12 lg:py-6 bg-surface min-w-0 overflow-y-auto relative">
         <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
           <ThemeToggle />
         </div>

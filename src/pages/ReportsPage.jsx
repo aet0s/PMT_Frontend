@@ -362,7 +362,7 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
   const summary = reportsData?.summary || {};
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-4 sm:p-6 md:p-8 custom-scrollbar">
+    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-app select-none text-left p-3 sm:p-6 md:p-8 custom-scrollbar">
       <div className="max-w-7xl mx-auto w-full space-y-6 pb-20">
 
         {/* Section A: Header & Unified Controls */}
@@ -391,32 +391,32 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
           </div>
         ) : (
           <>
-            {/* View Mode Navigation Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs overflow-x-auto">
+            {/* View Mode Navigation Tabs: 2x2 grid on mobile, horizontal row on desktop */}
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs">
               <button
                 type="button"
                 onClick={() => handleTabChange('overview')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${activeTab === 'overview'
+                className={`flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-3.5 py-2 rounded-lg text-xs font-semibold transition-all min-w-0 ${activeTab === 'overview'
                     ? 'bg-primary text-white shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
                   }`}
               >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>Executive Overview</span>
+                <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Executive Overview</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleTabChange('boards')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${activeTab === 'boards'
+                className={`flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-3.5 py-2 rounded-lg text-xs font-semibold transition-all min-w-0 ${activeTab === 'boards'
                     ? 'bg-primary text-white shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
                   }`}
               >
-                <FolderKanban className="w-3.5 h-3.5" />
-                <span>Boards & Projects</span>
+                <FolderKanban className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Boards & Projects</span>
                 <span
-                  className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${activeTab === 'boards'
+                  className={`text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-md font-bold shrink-0 ${activeTab === 'boards'
                       ? 'bg-white/15 text-white'
                       : 'bg-surface-elevated text-text-secondary border border-border'
                     }`}
@@ -429,15 +429,15 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
                 <button
                   type="button"
                   onClick={() => handleTabChange('team')}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${activeTab === 'team'
+                  className={`flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-3.5 py-2 rounded-lg text-xs font-semibold transition-all min-w-0 ${activeTab === 'team'
                       ? 'bg-primary text-white shadow-xs'
                       : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
                     }`}
                 >
-                  <Users className="w-3.5 h-3.5" />
-                  <span>Team Workload</span>
+                  <Users className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Team Workload</span>
                   <span
-                    className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${activeTab === 'team'
+                    className={`text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-md font-bold shrink-0 ${activeTab === 'team'
                         ? 'bg-white/15 text-white'
                         : 'bg-surface-elevated text-text-secondary border border-border'
                       }`}
@@ -450,18 +450,18 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
               <button
                 type="button"
                 onClick={() => handleTabChange('risks')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${activeTab === 'risks'
+                className={`flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-3.5 py-2 rounded-lg text-xs font-semibold transition-all min-w-0 ${canViewTeam ? '' : 'col-span-2'} ${activeTab === 'risks'
                     ? 'bg-primary text-white shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-surface-elevated'
                   }`}
               >
-                <AlertTriangle className="w-3.5 h-3.5" />
-                <span>Risks & Attention</span>
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Risks & Attention</span>
                 <span
-                  className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${activeTab === 'risks'
+                  className={`text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-md font-bold shrink-0 ${activeTab === 'risks'
                       ? 'bg-white/15 text-white'
                       : overdueTasksList.length > 0
-                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                        ? 'bg-danger/10 text-danger border border-danger/20'
                         : 'bg-surface-elevated text-text-secondary border border-border'
                     }`}
                 >

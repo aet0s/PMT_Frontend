@@ -173,31 +173,25 @@ export default function Card({
         if (e.target.closest('button[aria-label="Card actions"]') || e.defaultPrevented) return;
         onClick?.();
       }}
-      className={`kanban-card group relative bg-surface border border-border/80 ${
-        isCompact ? 'rounded-xl p-2.5 sm:p-3 space-y-1.5' : 'rounded-2xl p-4 space-y-3'
-      } ${
-        isReducedMotion ? '' : 'transition-all duration-200'
-      } cursor-pointer select-none shadow-xs hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${
-        focusMode
+      className={`kanban-card group relative bg-surface border border-border/80 ${isCompact ? 'rounded-xl p-2.5 sm:p-3 space-y-1.5' : 'rounded-2xl p-4 space-y-3'
+        } ${isReducedMotion ? '' : 'transition-all duration-200'
+        } cursor-pointer select-none shadow-xs hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${focusMode
           ? isMyCard
-            ? `${
-                statusConfig?.key
-                  ? `card-fullborder-${statusConfig.key}`
-                  : 'card-fullborder-default'
-              } opacity-100 ${isReducedMotion ? '' : 'scale-[1.01] hover:-translate-y-0.5'} bg-surface z-10`
+            ? `${statusConfig?.key
+              ? `card-fullborder-${statusConfig.key}`
+              : 'card-fullborder-default'
+            } opacity-100 ${isReducedMotion ? '' : 'scale-[1.01] hover:-translate-y-0.5'} bg-surface z-10`
             : `border-border/60 opacity-35 hover:opacity-100 ${isReducedMotion ? '' : 'hover:scale-[1.005]'} saturate-50 hover:saturate-100`
           : statusConfig
-          ? `${statusConfig.cardClass} ${isReducedMotion ? '' : 'hover:border-t-primary/40 hover:border-x-primary/40 hover:-translate-y-0.5'}`
-          : `border-border/80 ${isReducedMotion ? '' : 'hover:border-primary/40 hover:-translate-y-0.5'}`
-      } ${
-        isOverlay
+            ? `${statusConfig.cardClass} ${isReducedMotion ? '' : 'hover:border-t-primary/40 hover:border-x-primary/40 hover:-translate-y-0.5'}`
+            : `border-border/80 ${isReducedMotion ? '' : 'hover:border-primary/40 hover:-translate-y-0.5'}`
+        } ${isOverlay
           ? isReducedMotion
             ? 'shadow-lg border-primary ring-2 ring-primary/20 z-50 bg-surface'
             : 'shadow-2xl border-primary ring-2 ring-primary/20 scale-105 rotate-1 z-50 bg-surface'
           : ''
-      } ${
-        isHighlighted && !isReducedMotion ? 'ring-2 ring-primary border-primary shadow-lg animate-pulse' : ''
-      }`}
+        } ${isHighlighted && !isReducedMotion ? 'ring-2 ring-primary border-primary shadow-lg animate-pulse' : ''
+        }`}
     >
       {isCompact ? (
         <div className="space-y-1.5">
@@ -209,11 +203,10 @@ export default function Card({
               </span>
             )}
             <h4
-              className={`text-xs sm:text-sm font-bold leading-snug break-words transition-colors ${
-                card.is_complete
+              className={`text-xs sm:text-sm font-bold leading-snug break-words transition-colors ${card.is_complete
                   ? 'line-through text-text-muted'
                   : 'text-text-primary group-hover:text-primary'
-              }`}
+                }`}
             >
               {card.title}
             </h4>
@@ -227,26 +220,25 @@ export default function Card({
                   startDateText && dueDateStatus
                     ? `Start: ${startDateText} · Due: ${dueDateStatus.fullText}`
                     : startDateText
-                    ? `Start: ${startDateText}`
-                    : `Due: ${dueDateStatus.fullText}`
+                      ? `Start: ${startDateText}`
+                      : `Due: ${dueDateStatus.fullText}`
                 }
-                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  dueDateStatus?.isComplete
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${dueDateStatus?.isComplete
                     ? 'bg-success-tint text-success-text'
                     : dueDateStatus?.isOverdue
-                    ? 'bg-danger-tint text-danger-text'
-                    : dueDateStatus?.isDueSoon
-                    ? 'bg-warning-tint text-warning-text'
-                    : 'bg-surface-muted text-text-secondary'
-                }`}
+                      ? 'bg-danger-tint text-danger-text'
+                      : dueDateStatus?.isDueSoon
+                        ? 'bg-warning-tint text-warning-text'
+                        : 'bg-surface-muted text-text-secondary'
+                  }`}
               >
                 <Calendar className="w-3 h-3" />
                 <span>
                   {startDateText && dueDateStatus
                     ? `${startDateText} - ${dueDateStatus.text}`
                     : startDateText
-                    ? startDateText
-                    : dueDateStatus.text}
+                      ? startDateText
+                      : dueDateStatus.text}
                 </span>
               </div>
             </div>
@@ -267,32 +259,30 @@ export default function Card({
                     isAssignee && isAssigner
                       ? 'You are both an assigner and assignee on this task'
                       : isAssignee
-                      ? 'You are assigned to this task'
-                      : 'You assigned / created this task'
+                        ? 'You are assigned to this task'
+                        : 'You assigned / created this task'
                   }
-                  className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 border select-none transition-all ${
-                    isAssignee && isAssigner
+                  className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 border select-none transition-all ${isAssignee && isAssigner
                       ? 'bg-label-amber text-label-amber-text border-label-amber-text/25'
                       : isAssignee
-                      ? 'bg-label-green text-label-green-text border-label-green-text/25'
-                      : 'bg-label-purple text-label-purple-text border-label-purple-text/25'
-                  }`}
+                        ? 'bg-label-green text-label-green-text border-label-green-text/25'
+                        : 'bg-label-purple text-label-purple-text border-label-purple-text/25'
+                    }`}
                 >
                   <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      isAssignee && isAssigner
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAssignee && isAssigner
                         ? 'bg-label-amber-text'
                         : isAssignee
-                        ? 'bg-label-green-text'
-                        : 'bg-label-purple-text'
-                    }`}
+                          ? 'bg-label-green-text'
+                          : 'bg-label-purple-text'
+                      }`}
                   />
                   <span className="truncate">
                     {isAssignee && isAssigner
                       ? 'Mine (Both)'
                       : isAssignee
-                      ? 'Assigned to you'
-                      : 'Assigned by you'}
+                        ? 'Assigned to you'
+                        : 'Assigned by you'}
                   </span>
                 </span>
               )}
@@ -372,11 +362,10 @@ export default function Card({
               </span>
             )}
             <h4
-              className={`text-[15px] sm:text-base font-bold leading-snug break-words transition-colors ${
-                card.is_complete
+              className={`text-[15px] sm:text-base font-bold leading-snug break-words transition-colors ${card.is_complete
                   ? 'line-through text-text-muted'
                   : 'text-text-primary group-hover:text-primary'
-              }`}
+                }`}
             >
               {card.title}
             </h4>
@@ -469,26 +458,25 @@ export default function Card({
                     startDateText && dueDateStatus
                       ? `Start: ${startDateText} · Due: ${dueDateStatus.fullText}`
                       : startDateText
-                      ? `Start: ${startDateText}`
-                      : `Due: ${dueDateStatus.fullText}`
+                        ? `Start: ${startDateText}`
+                        : `Due: ${dueDateStatus.fullText}`
                   }
-                  className={`kanban-card-date flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                    dueDateStatus?.isComplete
+                  className={`kanban-card-date flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${dueDateStatus?.isComplete
                       ? 'bg-success-tint text-success-text'
                       : dueDateStatus?.isOverdue
-                      ? 'bg-danger-tint text-danger-text'
-                      : dueDateStatus?.isDueSoon
-                      ? 'bg-warning-tint text-warning-text'
-                      : 'bg-surface-muted text-text-secondary'
-                  }`}
+                        ? 'bg-danger-tint text-danger-text'
+                        : dueDateStatus?.isDueSoon
+                          ? 'bg-warning-tint text-warning-text'
+                          : 'bg-surface-muted text-text-secondary'
+                    }`}
                 >
                   <Calendar className="w-3.5 h-3.5" />
                   <span>
                     {startDateText && dueDateStatus
                       ? `${startDateText} - ${dueDateStatus.text}`
                       : startDateText
-                      ? startDateText
-                      : dueDateStatus.text}
+                        ? startDateText
+                        : dueDateStatus.text}
                   </span>
                 </div>
               )}
@@ -497,11 +485,10 @@ export default function Card({
               {totalItems > 0 && (
                 <div
                   title="Checklist completion"
-                  className={`kanban-card-checklists flex items-center gap-1.5 px-1.5 py-0.5 rounded-md text-[11px] font-semibold ${
-                    checkedItems === totalItems
+                  className={`kanban-card-checklists flex items-center gap-1.5 px-1.5 py-0.5 rounded-md text-[11px] font-semibold ${checkedItems === totalItems
                       ? 'bg-success-tint text-success-text'
                       : 'bg-surface-muted text-text-secondary'
-                  }`}
+                    }`}
                 >
                   <CheckSquare className="w-3.5 h-3.5" />
                   <span>{checkedItems}/{totalItems}</span>

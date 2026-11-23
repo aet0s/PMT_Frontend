@@ -625,7 +625,7 @@ export default function ArchivePage({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-app text-text-primary select-none text-left">
       {/* Main Container */}
-      <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
+      <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar p-3 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
         {/* Mode Navigation Tabs */}
         <div className="flex items-center justify-between gap-2 border-b border-border/80 pb-3 flex-wrap">
           <div className="flex items-center gap-2">
