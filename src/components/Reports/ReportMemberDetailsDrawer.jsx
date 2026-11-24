@@ -36,6 +36,17 @@ export default function ReportMemberDetailsDrawer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  // Lock body scroll when drawer is open to prevent touch scroll bleed on mobile
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+    };
+  }, []);
+
   const activeTaskList = useMemo(() => {
     if (!member) return [];
     return scope === 'created' ? (member.created_cards || []) : (member.tasks || []);
@@ -94,10 +105,10 @@ export default function ReportMemberDetailsDrawer({
               <div className="flex items-center gap-2 shrink-0">
                 {canExport && (
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     onClick={handleExport}
-                    leftIcon={<Download className="w-4 h-4 text-text-muted" />}
-                    className="h-9 px-3.5 text-xs font-semibold whitespace-nowrap shrink-0 shadow-2xs border-border"
+                    leftIcon={<Download className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors" />}
+                    className="group h-9 px-3.5 sm:px-4 text-xs font-semibold whitespace-nowrap shrink-0 shadow-xs border-border/80 hover:border-primary/40 hover:text-primary hover:bg-primary-tint/30 transition-colors"
                     title="Export member tasks to CSV"
                   >
                     Export CSV
@@ -205,8 +216,8 @@ export default function ReportMemberDetailsDrawer({
             </div>
           </div>
 
-          {/* Tasks List: Fully scrollable with min-h-0 and overscroll-contain */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-2.5 custom-scrollbar overscroll-contain">
+          {/* Tasks List: Fully scrollable with min-h-0, touch-pan-y, and overscroll-contain */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-2.5 custom-scrollbar overscroll-contain touch-pan-y">
             {filteredTasks.length === 0 ? (
               <div className="py-12 text-center text-text-muted border border-dashed border-border rounded-xl">
                 <ListTodo className="w-8 h-8 mx-auto mb-2 opacity-40" />

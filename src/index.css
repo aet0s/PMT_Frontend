@@ -383,6 +383,37 @@
     color: var(--color-primary-text);
   }
 
+  /* UI Chrome: Non-selectable (App-like feel, prevents accidental highlight on buttons, tabs & controls) */
+  button,
+  nav,
+  header,
+  [role="button"],
+  [role="tab"],
+  [role="tablist"],
+  [role="menuitem"],
+  [role="option"],
+  [role="listbox"],
+  .select-none,
+  .drag-handle {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* User Content: Explicitly selectable for easy copying to clipboard */
+  input,
+  textarea,
+  [contenteditable="true"],
+  .select-text,
+  .user-content,
+  .prose,
+  .comment-body,
+  article,
+  pre,
+  code {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
   input::placeholder,
   textarea::placeholder {
     color: var(--color-text-muted);

@@ -150,10 +150,10 @@ export default function ReportsPage({ workspace, workspaces = [] }) {
   // Dynamic document title
   useEffect(() => {
     if (selectedWorkspaceId === 'all') {
-      document.title = 'Consolidated Reports & Analytics | TaskFlow';
+      document.title = 'Report | TaskFlow';
     } else {
       const wsName = workspaceOptions.find((w) => String(w.value) === String(selectedWorkspaceId))?.label || workspace?.name || 'Workspace';
-      document.title = `${wsName} - Reports & Analytics | TaskFlow`;
+      document.title = `${wsName} - Report | TaskFlow`;
     }
   }, [selectedWorkspaceId, workspaceOptions, workspace?.name]);
 

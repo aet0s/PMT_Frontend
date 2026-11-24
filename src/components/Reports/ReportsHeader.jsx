@@ -61,7 +61,7 @@ export default function ReportsHeader({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-text-primary tracking-tight">
-                {isAllWorkspaces ? 'Company Consolidated Reports' : 'Workspace Reports'}
+                {isAllWorkspaces ? 'Company Consolidated Report' : 'Workspace Report'}
               </h1>
               <Badge
                 variant={isAllWorkspaces ? 'primary' : 'secondary'}

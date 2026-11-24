@@ -246,16 +246,16 @@ export default function ReportsBoardPerformance({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-surface-elevated/80 border-b border-border text-text-muted font-semibold">
-                <th className="py-2.5 px-4">Board Name</th>
-                <th className="py-2.5 px-4">Health</th>
-                <th className="py-2.5 px-4 text-center">Total</th>
-                <th className="py-2.5 px-4 text-center">To Do</th>
-                <th className="py-2.5 px-4 text-center">In Progress</th>
-                <th className="py-2.5 px-4 text-center">Completed</th>
-                <th className="py-2.5 px-4 text-center">Archived</th>
-                <th className="py-2.5 px-4 text-center">Overdue</th>
-                <th className="py-2.5 px-3 w-32 min-w-[110px]">Progress</th>
-                <th className="py-2.5 px-3 w-20 text-right">Action</th>
+                <th className="py-2.5 px-4 w-full min-w-[160px]">Board Name</th>
+                <th className="py-2.5 px-3 whitespace-nowrap">Health</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">Total</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">To Do</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">In Progress</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">Completed</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">Archived</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">Overdue</th>
+                <th className="py-2.5 px-3 w-28 min-w-[100px] whitespace-nowrap">Progress</th>
+                <th className="py-2.5 px-3 w-16 text-right whitespace-nowrap pr-4">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
@@ -273,22 +273,22 @@ export default function ReportsBoardPerformance({
                       )}
                     </div>
                   </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
+                  <td className="py-3 px-3 whitespace-nowrap">
                     {getHealthBadge(b)}
                   </td>
-                  <td className="py-3 px-4 text-center font-bold text-text-primary">
+                  <td className="py-3 px-2 text-center font-bold text-text-primary">
                     {formatNumber(b.total_tasks)}
                   </td>
-                  <td className="py-3 px-4 text-center text-text-secondary">
+                  <td className="py-3 px-2 text-center text-text-secondary">
                     {formatNumber(b.todo_tasks)}
                   </td>
-                  <td className="py-3 px-4 text-center text-blue-600 dark:text-blue-400 font-medium">
+                  <td className="py-3 px-2 text-center text-blue-600 dark:text-blue-400 font-medium">
                     {formatNumber(b.in_progress_tasks)}
                   </td>
-                  <td className="py-3 px-4 text-center text-emerald-600 dark:text-emerald-400 font-medium">
+                  <td className="py-3 px-2 text-center text-emerald-600 dark:text-emerald-400 font-medium">
                     {formatNumber(b.completed_tasks)}
                   </td>
-                  <td className="py-3 px-4 text-center text-text-muted">
+                  <td className="py-3 px-2 text-center text-text-muted">
                     {b.archived_tasks > 0 ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-surface-muted px-1.5 py-0.5 rounded border border-border/60">
                         {formatNumber(b.archived_tasks)}
@@ -297,7 +297,7 @@ export default function ReportsBoardPerformance({
                       '0'
                     )}
                   </td>
-                  <td className="py-3 px-4 text-center">
+                  <td className="py-3 px-2 text-center">
                     {b.overdue_tasks > 0 ? (
                       <span className="font-bold text-rose-600 dark:text-rose-400">
                         {formatNumber(b.overdue_tasks)}
@@ -306,7 +306,7 @@ export default function ReportsBoardPerformance({
                       <span className="text-text-muted">0</span>
                     )}
                   </td>
-                  <td className="py-3 px-3 w-32 min-w-[110px]">
+                  <td className="py-3 px-3 w-28 min-w-[100px]">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-semibold text-text-secondary">{formatPercent(b.completion_rate)}</span>
@@ -319,7 +319,7 @@ export default function ReportsBoardPerformance({
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 px-3 w-20 text-right whitespace-nowrap">
+                  <td className="py-3 px-3 w-16 text-right whitespace-nowrap pr-4">
                     {(() => {
                       const targetWsId = b.workspace_id;
                       const boardLink = targetWsId ? `/w/${targetWsId}/p/${b.id}/board` : (getBoardUrl ? getBoardUrl(b.id) : `/b/${b.id}`);

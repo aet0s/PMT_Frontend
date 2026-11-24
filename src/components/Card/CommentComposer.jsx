@@ -60,12 +60,24 @@ export default function CommentComposer({
     adjustHeight();
   }, [text, adjustHeight]);
 
-  // Debounced mention candidates search
+  // Debounced mention candidates search with instant local filtering
   useEffect(() => {
     if (mentionQuery === null) {
       setCandidates([]);
       return;
     }
+
+    const q = (mentionQuery || '').toLowerCase().trim();
+
+    // 1. Instantly filter local boardMembers so dropdown updates with 0ms lag
+    const localFiltered = (boardMembers || []).filter((m) => {
+      if (!q) return true;
+      const name = (m.name || '').toLowerCase();
+      const email = (m.email || '').toLowerCase();
+      return name.includes(q) || email.includes(q);
+    });
+    setCandidates(localFiltered);
+    setSelectedIndex(0);
 
     let isCancelled = false;
     setIsLoadingCandidates(true);
@@ -75,25 +87,21 @@ export default function CommentComposer({
         const res = await getMentionCandidates(cardId, mentionQuery);
         if (!isCancelled) {
           const list = res?.candidates || [];
-          setCandidates(list);
-          setSelectedIndex(0);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          // Fallback to local boardMembers if API is offline or returns error
-          const filtered = (boardMembers || []).filter((m) => {
+          const filtered = list.filter((m) => {
+            if (!q) return true;
             const name = (m.name || '').toLowerCase();
             const email = (m.email || '').toLowerCase();
-            const q = mentionQuery.toLowerCase();
             return name.includes(q) || email.includes(q);
           });
           setCandidates(filtered);
           setSelectedIndex(0);
         }
+      } catch (err) {
+        // Fallback already populated by localFiltered
       } finally {
         if (!isCancelled) setIsLoadingCandidates(false);
       }
-    }, 150);
+    }, 120);
 
     return () => {
       isCancelled = true;
@@ -323,7 +331,7 @@ export default function CommentComposer({
 
           {candidates.length === 0 ? (
             <div className="p-3 text-xs text-text-muted text-center italic">
-              {isLoadingCandidates ? 'Searching members...' : 'No board members found'}
+              {isLoadingCandidates ? 'Searching members...' : (mentionQuery ? `No board members matching "${mentionQuery}"` : 'No board members found')}
             </div>
           ) : (
             candidates.map((c, idx) => {

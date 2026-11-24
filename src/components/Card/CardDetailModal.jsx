@@ -99,7 +99,14 @@ export default function CardDetailModal({
 
   const userRank = Number(userRole?.rank || 30);
   const roleName = String(userRole?.name || '').toLowerCase().trim();
-  const isTopLevel = userRank >= 50 || [
+  const isOwnerUser = Boolean(
+    user?.is_company_owner ||
+    user?.is_owner ||
+    String(user?.role || '').toLowerCase() === 'owner' ||
+    String(userRole?.name || '').toLowerCase() === 'owner' ||
+    userRank >= 100
+  );
+  const isTopLevel = isOwnerUser || userRank >= 50 || [
     'owner',
     'super admin',
     'admin',
@@ -157,7 +164,7 @@ export default function CardDetailModal({
       className="max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:rounded-none max-sm:border-none sm:h-[88vh] sm:max-h-[90vh]"
       bodyClassName="p-0 flex flex-col flex-1 overflow-hidden"
     >
-      <div className="flex flex-col h-full w-full overflow-hidden bg-surface">
+      <div className="flex flex-col h-full w-full overflow-hidden bg-surface select-text">
         {/* Card Header (List dropdown, overflow menu, single close X) */}
         <div className="px-4 sm:px-6 pt-3.5 shrink-0 bg-surface">
           <CardHeader

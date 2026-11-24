@@ -58,9 +58,7 @@ export default function ReportsLabels({ labelsBreakdown = {} }) {
         <div className="p-3.5 sm:p-5 pt-0 border-t border-border/60">
           <div className="flex flex-wrap gap-2 pt-3.5 sm:pt-4">
             {labels.map((lb) => {
-              const boardLabel = lb.board_count > 1
-                ? `${lb.board_count} boards`
-                : lb.board_name;
+              const multiBoard = Number(lb.board_count || 1) > 1;
 
               return (
                 <div
@@ -73,9 +71,9 @@ export default function ReportsLabels({ labelsBreakdown = {} }) {
                     style={{ backgroundColor: lb.color || 'var(--color-primary)' }}
                   />
                   <span className="font-semibold text-text-primary truncate">{lb.name}</span>
-                  {boardLabel && (
-                    <span className="text-text-muted text-[10px] sm:text-[11px] shrink-0 truncate max-w-[130px]">
-                      ({boardLabel})
+                  {multiBoard && (
+                    <span className="text-text-muted text-[10px] sm:text-[11px] shrink-0 font-medium">
+                      ({lb.board_count} boards)
                     </span>
                   )}
                   <Badge variant="secondary" className="text-[10px] font-bold ml-0.5 px-1.5 py-0.5 shrink-0">
