@@ -25,7 +25,7 @@ import {
 } from '../../api/workspaces';
 import Spinner from '../ui/Spinner';
 import Select from '../ui/Select';
-import toast from 'react-hot-toast';
+import { useToast } from '../ui/Toast';
 
 const STATUS_CHIPS = [
   {
@@ -61,6 +61,7 @@ export default function DailyUpdatePanel({
   onSuccess,
   compact = false
 }) {
+  const toast = useToast();
   const [selectedWsId, setSelectedWsId] = useState(initialWorkspaceId ? String(initialWorkspaceId) : '');
   useEffect(() => {
     if (initialWorkspaceId) setSelectedWsId(String(initialWorkspaceId));

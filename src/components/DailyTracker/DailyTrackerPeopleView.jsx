@@ -35,7 +35,7 @@ import Select from '../ui/Select';
 import { Modal } from '../ui/Modal';
 import { usePermissions } from '../../context/PermissionContext';
 import { useAuth } from '../../hooks/useAuth';
-import toast from 'react-hot-toast';
+import { useToast } from '../ui/Toast';
 
 const FIXED_STATES = [
   {
@@ -116,6 +116,7 @@ export default function DailyTrackerPeopleView({
 }) {
   const { hasPermission, userRole } = usePermissions();
   const { user } = useAuth();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const roleName = (typeof userRole === 'string' ? userRole : userRole?.name || user?.company_role || user?.role || '')?.toLowerCase();

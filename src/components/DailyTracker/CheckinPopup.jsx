@@ -10,9 +10,10 @@ import {
 import { useSocket } from '../../context/SocketProvider';
 import { Modal } from '../ui/Modal';
 import DailyUpdatePanel from './DailyUpdatePanel';
-import toast from 'react-hot-toast';
+import { useToast } from '../ui/Toast';
 
 export default function CheckinPopup({ workspaceId }) {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [pendingData, setPendingData] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
