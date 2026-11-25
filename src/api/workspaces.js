@@ -223,9 +223,77 @@ export async function getWorkspaceDailyTracker(workspaceId, {
   return apiFetch(`/api/workspaces/${workspaceId}/daily-tracker${query}`);
 }
 
-export async function getWorkspaceDailyTrackerPeople(workspaceId, { date } = {}) {
-  const query = date ? `?date=${encodeURIComponent(date)}` : '';
+export async function getWorkspaceDailyTrackerPeople(workspaceId, params = {}) {
+  const sp = new URLSearchParams();
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '' && v !== 'all') {
+      sp.set(k, String(v));
+    }
+  });
+  const query = sp.toString() ? `?${sp.toString()}` : '';
   return apiFetch(`/api/workspaces/${workspaceId}/daily-tracker/people${query}`);
+}
+
+export async function getDailyTrackerPersonTimeline(workspaceId, userId, { date } = {}) {
+  const query = date ? `?date=${encodeURIComponent(date)}` : '';
+  return apiFetch(`/api/workspaces/${workspaceId}/daily-tracker/people/${userId}/timeline${query}`);
+}
+
+export async function exportDailyTrackerPeopleCsv(workspaceId, params = {}) {
+  const sp = new URLSearchParams();
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '' && v !== 'all') {
+      sp.set(k, String(v));
+    }
+  });
+  const query = sp.toString() ? `?${sp.toString()}` : '';
+  return apiFetch(`/api/workspaces/${workspaceId}/daily-tracker/people/export${query}`);
+}
+
+export async function getTodayDailyUpdate(workspaceId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/daily-update/today`);
+}
+
+export async function submitDailyUpdate(workspaceId, payload) {
+  return apiFetch(`/api/workspaces/${workspaceId}/daily-update`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function editDailyUpdate(workspaceId, updateId, payload) {
+  return apiFetch(`/api/workspaces/${workspaceId}/daily-update/${updateId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function snoozeDailyTracker(workspaceId) {
+  return apiFetch(`/api/workspaces/${workspaceId}/daily-tracker/snooze`, {
+    method: 'POST',
+    body: JSON.stringify({})
+  });
+}
+
+export async function markOnLeaveToday(workspaceId, reason = 'On leave today') {
+  return apiFetch(`/api/workspaces/${workspaceId}/daily-tracker/leave-today`, {
+    method: 'POST',
+    body: JSON.stringify({ reason })
+  });
+}
+
+export async function reviewDailyUpdate(updateId, { action, note }) {
+  return apiFetch(`/api/daily-updates/${updateId}/review`, {
+    method: 'POST',
+    body: JSON.stringify({ action, note })
+  });
+}
+
+export async function answerDailyUpdateReview(reviewId, { answer_note, evidence_url }) {
+  return apiFetch(`/api/daily-update-reviews/${reviewId}/answer`, {
+    method: 'POST',
+    body: JSON.stringify({ answer_note, evidence_url })
+  });
 }
 
 export async function getWorkspaceLeaveDays(workspaceId, { date } = {}) {

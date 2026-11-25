@@ -498,9 +498,9 @@ export default function CardDetailModal({
           isOpen={isCheckinModalOpen}
           onClose={() => setIsCheckinModalOpen(false)}
           card={card}
+          workspaceId={currentWorkspaceId}
           onSuccess={() => {
             setIsCheckinModalOpen(false);
-            toast.success('Check-in submitted');
           }}
         />
       )}

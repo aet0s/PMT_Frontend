@@ -37,6 +37,7 @@ import { Modal } from '../components/ui/Modal';
 import { usePermissions } from '../context/PermissionContext';
 import { useAuth } from '../hooks/useAuth';
 import DailyTrackerPeopleView from '../components/DailyTracker/DailyTrackerPeopleView';
+import DailyUpdatePanel from '../components/DailyTracker/DailyUpdatePanel';
 import { getServerNow, parseSafeDate, formatDate } from '../lib/dateFormat';
 
 function getTodayString() {
@@ -104,6 +105,7 @@ export default function DailyTrackerPage({
 
   const canViewDailyTracker = isOwnerOrManager || hasPermission('daily_tracker.view');
   const canViewPeople = isOwnerOrManager || hasPermission('daily_tracker.view_people');
+  const canSubmitDailyUpdate = isOwnerOrManager || hasPermission('checkin.create');
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -640,11 +642,19 @@ export default function DailyTrackerPage({
       {mainTab === 'people' ? (
         <DailyTrackerPeopleView
           workspaceId={effectiveWorkspaceId}
+          workspaces={workspaces}
           selectedDate={selectedDate}
           onCardClick={handleCardClick}
         />
       ) : (
-        <div className={`flex-1 ${cards.length > 0 ? 'overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-3' : 'overflow-hidden flex flex-col items-center justify-center p-4'}`}>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4">
+        {canSubmitDailyUpdate && (
+          <DailyUpdatePanel
+            workspaceId={effectiveWorkspaceId}
+            workspaces={workspaces}
+            onSuccess={fetchTrackerData}
+          />
+        )}
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center p-16 space-y-3 text-center">
             <Spinner size="lg" />

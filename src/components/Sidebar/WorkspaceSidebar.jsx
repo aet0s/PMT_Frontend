@@ -7,6 +7,7 @@ import PromptDialog from '../shared/PromptDialog';
 import { getThemeDotClass } from '../../lib/palettes';
 import { getFileUrl } from '../../api/config';
 import WorkspaceIcon from '../Workspace/WorkspaceIcon';
+import { getWorkspacePendingCheckins } from '../../api/workspaces';
 import {
   Trello,
   Plus,
@@ -218,6 +219,31 @@ export default function WorkspaceSidebar({
   const isCompanyMembersActive =
     !location.pathname.includes('/settings') && location.pathname.endsWith('/company-members');
   const isDailyTrackerActive = location.pathname.endsWith('/daily-tracker');
+  const [showDailyBadge, setShowDailyBadge] = useState(false);
+
+  useEffect(() => {
+    const wsId = activeWorkspace?.id;
+    if (!wsId || !canViewDailyTracker) {
+      setShowDailyBadge(false);
+      return;
+    }
+    let cancelled = false;
+    const checkBadge = async () => {
+      try {
+        const res = await getWorkspacePendingCheckins(wsId);
+        if (!cancelled) setShowDailyBadge(Boolean(res?.show_sidebar_badge));
+      } catch {
+        if (!cancelled) setShowDailyBadge(false);
+      }
+    };
+    checkBadge();
+    const onUpdated = () => checkBadge();
+    window.addEventListener('daily-tracker-updated', onUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('daily-tracker-updated', onUpdated);
+    };
+  }, [activeWorkspace?.id, canViewDailyTracker]);
   const isAuditActive = location.pathname.endsWith('/audit');
   const isSettingsActive = location.pathname.includes('/settings');
   const isAccountSettingsActive = location.pathname.includes('/account');
@@ -796,6 +822,12 @@ export default function WorkspaceSidebar({
                     <CalendarCheck className="w-4.5 h-4.5 text-primary shrink-0" />
                     <span>Daily Tracker</span>
                   </span>
+                  {showDailyBadge && (
+                    <span
+                      title="Daily update due"
+                      className="w-2 h-2 rounded-full bg-amber-500 shrink-0"
+                    />
+                  )}
                 </NavLink>
               )}
 
