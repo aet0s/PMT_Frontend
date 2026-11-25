@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, AlertCircle, X, ChevronRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { getWorkspacePendingCheckins } from '../../api/workspaces';
 import { useAuth } from '../../hooks/useAuth';
+import { useSocket } from '../../context/SocketProvider';
 import QuickCheckinModal from './QuickCheckinModal';
 
 export default function CheckinPopup({ workspaceId }) {
@@ -41,6 +42,39 @@ export default function CheckinPopup({ workspaceId }) {
   useEffect(() => {
     loadPendingCards();
   }, [loadPendingCards]);
+
+  // Refresh pending check-ins when cards are completed, moved to Done, archived, or deleted
+  let socketContext = null;
+  try {
+    socketContext = useSocket();
+  } catch {
+    // Fallback when outside SocketProvider
+  }
+  const socket = socketContext?.socket;
+
+  useEffect(() => {
+    if (!socket || !workspaceId) return;
+    let timer = null;
+    const handleCardChange = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        loadPendingCards();
+      }, 400);
+    };
+
+    socket.on('card:updated', handleCardChange);
+    socket.on('card:moved', handleCardChange);
+    socket.on('card:archived', handleCardChange);
+    socket.on('card:deleted', handleCardChange);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      socket.off('card:updated', handleCardChange);
+      socket.off('card:moved', handleCardChange);
+      socket.off('card:archived', handleCardChange);
+      socket.off('card:deleted', handleCardChange);
+    };
+  }, [socket, workspaceId, loadPendingCards]);
 
   if (loading || !pendingData) return null;
 
