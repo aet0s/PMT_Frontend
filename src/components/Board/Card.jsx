@@ -196,14 +196,14 @@ export default function Card({
       {isCompact ? (
         <div className="space-y-1.5">
           {/* Card Title & Complete Status */}
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-2 min-w-0">
             {card.is_complete && (
               <span className="mt-0.5 w-4 h-4 rounded-full bg-success text-white flex items-center justify-center shrink-0 shadow-2xs">
                 <Check className="w-3 h-3 stroke-[3]" />
               </span>
             )}
             <h4
-              className={`text-xs sm:text-sm font-bold leading-snug break-words transition-colors ${card.is_complete
+              className={`min-w-0 flex-1 text-xs sm:text-sm font-bold leading-snug break-words [overflow-wrap:anywhere] transition-colors ${card.is_complete
                   ? 'line-through text-text-muted'
                   : 'text-text-primary group-hover:text-primary'
                 }`}
@@ -355,14 +355,14 @@ export default function Card({
           </div>
 
           {/* Card Title & Complete Status */}
-          <div className="kanban-card-title flex items-start gap-2">
+          <div className="kanban-card-title flex items-start gap-2 min-w-0">
             {card.is_complete && (
               <span className="mt-0.5 w-4.5 h-4.5 rounded-full bg-success text-white flex items-center justify-center shrink-0 shadow-2xs">
                 <Check className="w-3.5 h-3.5 stroke-[3]" />
               </span>
             )}
             <h4
-              className={`text-[15px] sm:text-base font-bold leading-snug break-words transition-colors ${card.is_complete
+              className={`min-w-0 flex-1 text-[15px] sm:text-base font-bold leading-snug break-words [overflow-wrap:anywhere] transition-colors ${card.is_complete
                   ? 'line-through text-text-muted'
                   : 'text-text-primary group-hover:text-primary'
                 }`}
