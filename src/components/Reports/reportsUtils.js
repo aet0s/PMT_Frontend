@@ -94,9 +94,9 @@ export function exportWorkspaceReportCsv({ reportsData, workspace, selectedBoard
   // Section 3: Team Workload (if permitted)
   if (canViewTeam && members.length > 0) {
     csv += `TEAM WORKLOAD & PERFORMANCE\n`;
-    csv += `Name,Email,Role,Assigned Tasks,To Do,In Progress,Review,Completed,Archived,Overdue,Completion Rate\n`;
+    csv += `Name,Email,Role,Assigned Tasks,To Do,In Progress,Review,Completed,Archived,Overdue,Completion Rate,Delegated (Assigned by Member),Delegated Resolved,Delegated Resolution Rate,All Involvement\n`;
     members.forEach((m) => {
-      csv += `${escapeCsvValue(m.name)},${escapeCsvValue(m.email)},${escapeCsvValue(m.role || 'Member')},${m.assigned_tasks || 0},${m.todo_tasks || 0},${m.in_progress_tasks || 0},${m.review_tasks || 0},${m.completed_tasks || 0},${m.archived_tasks || 0},${m.overdue_tasks || 0},${formatPercent(m.completion_rate)}\n`;
+      csv += `${escapeCsvValue(m.name)},${escapeCsvValue(m.email)},${escapeCsvValue(m.role || 'Member')},${m.assigned_tasks || 0},${m.todo_tasks || 0},${m.in_progress_tasks || 0},${m.review_tasks || 0},${m.completed_tasks || 0},${m.archived_tasks || 0},${m.overdue_tasks || 0},${formatPercent(m.completion_rate)},${m.created_tasks || 0},${m.created_completed_tasks || 0},${formatPercent(m.created_resolution_rate)},${m.combined_tasks || 0}\n`;
     });
     csv += `\n`;
   }

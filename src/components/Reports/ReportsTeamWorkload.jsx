@@ -4,27 +4,57 @@ import {
   Users,
   Search,
   AlertTriangle,
-  CheckCircle2,
   ChevronRight,
   ChevronLeft,
-  ArrowUpDown,
-  ArrowRight,
-  UserCheck,
-  Archive
+  ArrowRight
 } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Badge from '../ui/Badge';
-import Button from '../ui/Button';
 import Select from '../ui/Select';
 import { formatNumber, formatPercent } from './reportsUtils';
 
-const TEAM_SORT_OPTIONS = [
-  { value: 'assigned', label: 'Most Assigned' },
-  { value: 'completion', label: 'Highest Progress' },
-  { value: 'overdue', label: 'Most Overdue' },
-  { value: 'active', label: 'Most Active' },
-  { value: 'name', label: 'Name (A–Z)' }
+const VIEW_MODES = [
+  { id: 'assigned', label: 'Assigned to Member' },
+  { id: 'delegated', label: 'Assigned by Member (Delegated / QA)' },
+  { id: 'all', label: 'All Involvement' }
 ];
+
+function getMetricsForMode(m, viewMode) {
+  if (viewMode === 'delegated') {
+    return {
+      total: m.created_tasks || 0,
+      todo: m.created_todo_tasks || 0,
+      inProgress: m.created_in_progress_tasks || 0,
+      review: m.created_review_tasks || 0,
+      completed: m.created_completed_tasks || 0,
+      archived: m.created_archived_tasks || 0,
+      overdue: m.created_overdue_tasks || 0,
+      rate: m.created_resolution_rate || 0
+    };
+  }
+  if (viewMode === 'all') {
+    return {
+      total: m.combined_tasks || 0,
+      todo: m.combined_todo_tasks || 0,
+      inProgress: m.combined_in_progress_tasks || 0,
+      review: m.combined_review_tasks || 0,
+      completed: m.combined_completed_tasks || 0,
+      archived: m.combined_archived_tasks || 0,
+      overdue: m.combined_overdue_tasks || 0,
+      rate: m.combined_completion_rate || 0
+    };
+  }
+  return {
+    total: m.assigned_tasks || 0,
+    todo: m.todo_tasks || 0,
+    inProgress: m.in_progress_tasks || 0,
+    review: m.review_tasks || 0,
+    completed: m.completed_tasks || 0,
+    archived: m.archived_tasks || 0,
+    overdue: m.overdue_tasks || 0,
+    rate: m.completion_rate || 0
+  };
+}
 
 export default function ReportsTeamWorkload({
   members = [],
@@ -32,20 +62,30 @@ export default function ReportsTeamWorkload({
   canViewTeam = false,
   defaultPageSize = 6,
   onViewAll = null,
-  title = "Team Workload & Performance"
+  title = 'Team Workload & Performance'
 }) {
+  const [viewMode, setViewMode] = useState('assigned'); // 'assigned' | 'delegated' | 'all'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('assigned'); // 'assigned' | 'completion' | 'overdue' | 'active' | 'name'
   const [pageSize, setPageSize] = useState(defaultPageSize);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Sync pageSize if defaultPageSize changes
   useEffect(() => {
     setPageSize(defaultPageSize);
   }, [defaultPageSize]);
 
-  // Compute status counts for pill badges
+  const sortOptions = useMemo(() => [
+    {
+      value: 'assigned',
+      label: viewMode === 'delegated' ? 'Most Delegated' : viewMode === 'all' ? 'Most Involved' : 'Most Assigned'
+    },
+    { value: 'completion', label: viewMode === 'delegated' ? 'Highest Resolution' : 'Highest Progress' },
+    { value: 'overdue', label: 'Most Overdue' },
+    { value: 'active', label: 'Most Active' },
+    { value: 'name', label: 'Name (A–Z)' }
+  ], [viewMode]);
+
   const statusCounts = useMemo(() => {
     let active = 0;
     let overdue = 0;
@@ -53,10 +93,11 @@ export default function ReportsTeamWorkload({
     let archived = 0;
 
     members.forEach((m) => {
-      if ((m.in_progress_tasks || 0) > 0 || (m.review_tasks || 0) > 0) active++;
-      if ((m.overdue_tasks || 0) > 0) overdue++;
-      if (m.assigned_tasks > 0 && m.completion_rate === 100) completed++;
-      if ((m.archived_tasks || 0) > 0) archived++;
+      const vm = getMetricsForMode(m, viewMode);
+      if (vm.inProgress > 0 || vm.review > 0) active++;
+      if (vm.overdue > 0) overdue++;
+      if (vm.total > 0 && vm.rate === 100) completed++;
+      if (vm.archived > 0) archived++;
     });
 
     return {
@@ -66,13 +107,11 @@ export default function ReportsTeamWorkload({
       completed,
       archived
     };
-  }, [members]);
+  }, [members, viewMode]);
 
-  // Filter and sort members
   const processedMembers = useMemo(() => {
     let list = members;
 
-    // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter((member) => {
@@ -83,38 +122,37 @@ export default function ReportsTeamWorkload({
       });
     }
 
-    // Status filter
     if (statusFilter === 'active') {
-      list = list.filter(
-        (m) => (m.in_progress_tasks || 0) > 0 || (m.review_tasks || 0) > 0
-      );
+      list = list.filter((m) => {
+        const vm = getMetricsForMode(m, viewMode);
+        return vm.inProgress > 0 || vm.review > 0;
+      });
     } else if (statusFilter === 'overdue') {
-      list = list.filter((m) => (m.overdue_tasks || 0) > 0);
+      list = list.filter((m) => getMetricsForMode(m, viewMode).overdue > 0);
     } else if (statusFilter === 'completed') {
-      list = list.filter((m) => m.assigned_tasks > 0 && m.completion_rate === 100);
+      list = list.filter((m) => {
+        const vm = getMetricsForMode(m, viewMode);
+        return vm.total > 0 && vm.rate === 100;
+      });
     } else if (statusFilter === 'archived') {
-      list = list.filter((m) => (m.archived_tasks || 0) > 0);
+      list = list.filter((m) => getMetricsForMode(m, viewMode).archived > 0);
     }
 
-    // Sorting
     return [...list].sort((a, b) => {
-      if (sortBy === 'assigned') return (b.assigned_tasks || 0) - (a.assigned_tasks || 0);
-      if (sortBy === 'completion') return (b.completion_rate || 0) - (a.completion_rate || 0);
-      if (sortBy === 'overdue') return (b.overdue_tasks || 0) - (a.overdue_tasks || 0);
-      if (sortBy === 'active') {
-        const aActive = (a.in_progress_tasks || 0) + (a.review_tasks || 0);
-        const bActive = (b.in_progress_tasks || 0) + (b.review_tasks || 0);
-        return bActive - aActive;
-      }
+      const va = getMetricsForMode(a, viewMode);
+      const vb = getMetricsForMode(b, viewMode);
+      if (sortBy === 'assigned') return vb.total - va.total;
+      if (sortBy === 'completion') return vb.rate - va.rate;
+      if (sortBy === 'overdue') return vb.overdue - va.overdue;
+      if (sortBy === 'active') return (vb.inProgress + vb.review) - (va.inProgress + va.review);
       if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
       return 0;
     });
-  }, [members, searchQuery, statusFilter, sortBy]);
+  }, [members, searchQuery, statusFilter, sortBy, viewMode]);
 
-  // Reset pagination on filter or search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, sortBy, pageSize]);
+  }, [searchQuery, statusFilter, sortBy, pageSize, viewMode]);
 
   if (!canViewTeam) {
     return null;
@@ -134,6 +172,9 @@ export default function ReportsTeamWorkload({
 
   const startIndex = totalItems === 0 ? 0 : (safePage - 1) * actualPageSize + 1;
   const endIndex = isAll ? totalItems : Math.min(safePage * actualPageSize, totalItems);
+
+  const primaryColLabel = viewMode === 'delegated' ? 'Delegated' : viewMode === 'all' ? 'Involved' : 'Assigned';
+  const rateColLabel = viewMode === 'delegated' ? 'Resolution Rate' : 'Completion Rate';
 
   return (
     <div className="bg-surface border border-border rounded-xl shadow-xs overflow-hidden">
@@ -156,23 +197,27 @@ export default function ReportsTeamWorkload({
                 </button>
               )}
             </div>
-            <p className="text-xs text-text-muted mt-0.5">Individual task allocations, completion rates, and workload capacity</p>
+            <p className="text-xs text-text-muted mt-0.5">
+              {viewMode === 'delegated'
+                ? 'Tasks created or assigned to others by each member (QA / delegation tracking)'
+                : viewMode === 'all'
+                ? 'Combined unique tasks owned or delegated by each member (no double-counting)'
+                : 'Individual task allocations, completion rates, and workload capacity'}
+            </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
-            {/* Sort Selector */}
             <div className="w-full sm:w-44">
               <Select
                 value={sortBy}
                 onChange={(val) => setSortBy(val)}
-                options={TEAM_SORT_OPTIONS}
+                options={sortOptions}
                 size="sm"
                 className="text-xs"
                 aria-label="Sort team workload by"
               />
             </div>
 
-            {/* Search Box */}
             <div className="relative w-full sm:w-56">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
               <input
@@ -183,6 +228,32 @@ export default function ReportsTeamWorkload({
                 className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-border bg-surface-elevated text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
               />
             </div>
+          </div>
+        </div>
+
+        {/* 3-Way View Mode Toggle */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div
+            role="tablist"
+            aria-label="Team workload view mode"
+            className="inline-flex items-center bg-surface-elevated p-0.5 rounded-xl border border-border text-xs overflow-x-auto max-w-full"
+          >
+            {VIEW_MODES.map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                role="tab"
+                aria-selected={viewMode === mode.id}
+                onClick={() => setViewMode(mode.id)}
+                className={`px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+                  viewMode === mode.id
+                    ? 'bg-primary text-white shadow-xs font-semibold'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -199,7 +270,7 @@ export default function ReportsTeamWorkload({
               <button
                 key={tab.id}
                 onClick={() => setStatusFilter(tab.id)}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                   statusFilter === tab.id
                     ? 'bg-surface text-primary shadow-xs font-semibold'
                     : 'text-text-muted hover:text-text-secondary'
@@ -218,7 +289,7 @@ export default function ReportsTeamWorkload({
                 <button
                   key={size}
                   onClick={() => setPageSize(size)}
-                  className={`px-2 py-0.5 rounded capitalize font-medium transition-colors ${
+                  className={`px-2 py-0.5 rounded capitalize font-medium transition-colors cursor-pointer ${
                     pageSize === size
                       ? 'bg-surface text-primary shadow-xs font-bold'
                       : 'text-text-muted hover:text-text-secondary'
@@ -245,101 +316,115 @@ export default function ReportsTeamWorkload({
               <tr className="bg-surface-elevated/80 border-b border-border text-text-muted font-semibold">
                 <th className="py-2.5 px-4">Member</th>
                 <th className="py-2.5 px-4">Role</th>
-                <th className="py-2.5 px-4 text-center">Assigned</th>
+                <th className="py-2.5 px-4 text-center">{primaryColLabel}</th>
                 <th className="py-2.5 px-4 text-center">To Do</th>
                 <th className="py-2.5 px-4 text-center">In Progress</th>
                 <th className="py-2.5 px-4 text-center">In Review</th>
                 <th className="py-2.5 px-4 text-center">Completed</th>
                 <th className="py-2.5 px-4 text-center">Archived</th>
                 <th className="py-2.5 px-4 text-center">Overdue</th>
-                <th className="py-2.5 px-4 min-w-[130px]">Completion Rate</th>
+                <th className="py-2.5 px-4 min-w-[130px]">{rateColLabel}</th>
                 <th className="py-2.5 px-4 text-right">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {paginatedMembers.map((m) => (
-                <tr
-                  key={m.id}
-                  onClick={() => onSelectMember(m)}
-                  className="hover:bg-surface-elevated/40 cursor-pointer transition-colors group"
-                >
-                  <td className="py-3 px-4 font-medium text-text-primary whitespace-nowrap">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar
-                        src={m.avatar_url}
-                        alt={m.name}
-                        name={m.name}
-                        size="sm"
-                        className="w-7 h-7 text-xs shrink-0"
-                      />
-                      <div>
-                        <p className="font-semibold text-text-primary group-hover:text-primary transition-colors">
-                          {m.name}
-                        </p>
-                        <p className="text-[11px] text-text-muted truncate max-w-[160px]">{m.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <Badge variant="secondary" className="text-[10px] font-medium">
-                      {m.role || 'Member'}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4 text-center font-bold text-text-primary">
-                    {formatNumber(m.assigned_tasks)}
-                  </td>
-                  <td className="py-3 px-4 text-center text-text-secondary">
-                    {formatNumber(m.todo_tasks)}
-                  </td>
-                  <td className="py-3 px-4 text-center text-blue-600 dark:text-blue-400 font-medium">
-                    {formatNumber(m.in_progress_tasks)}
-                  </td>
-                  <td className="py-3 px-4 text-center text-amber-600 dark:text-amber-400 font-medium">
-                    {formatNumber(m.review_tasks)}
-                  </td>
-                  <td className="py-3 px-4 text-center text-emerald-600 dark:text-emerald-400 font-semibold">
-                    {formatNumber(m.completed_tasks)}
-                  </td>
-                  <td className="py-3 px-4 text-center text-text-muted">
-                    {m.archived_tasks > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-surface-muted px-1.5 py-0.5 rounded border border-border/60">
-                        {formatNumber(m.archived_tasks)}
-                      </span>
-                    ) : (
-                      '0'
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    {m.overdue_tasks > 0 ? (
-                      <span className="font-bold text-rose-600 dark:text-rose-400 inline-flex items-center gap-0.5">
-                        <AlertTriangle className="w-3 h-3" />
-                        {formatNumber(m.overdue_tasks)}
-                      </span>
-                    ) : (
-                      <span className="text-text-muted">0</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-text-primary">{formatPercent(m.completion_rate)}</span>
-                      </div>
-                      <div className="w-full bg-surface-elevated rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className="bg-primary h-full rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, m.completion_rate || 0)}%` }}
+              {paginatedMembers.map((m) => {
+                const vm = getMetricsForMode(m, viewMode);
+                const delegatedCount = m.created_tasks || 0;
+                return (
+                  <tr
+                    key={m.id}
+                    onClick={() => onSelectMember(m)}
+                    className="hover:bg-surface-elevated/40 cursor-pointer transition-colors group"
+                  >
+                    <td className="py-3 px-4 font-medium text-text-primary whitespace-nowrap">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar
+                          src={m.avatar_url}
+                          alt={m.name}
+                          name={m.name}
+                          size="sm"
+                          className="w-7 h-7 text-xs shrink-0"
                         />
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-text-primary group-hover:text-primary transition-colors">
+                              {m.name}
+                            </p>
+                            {viewMode === 'assigned' && delegatedCount > 0 && (
+                              <span
+                                title={`Assigned / created ${delegatedCount} task${delegatedCount === 1 ? '' : 's'} for others`}
+                                className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20"
+                              >
+                                Delegated: {formatNumber(delegatedCount)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-text-muted truncate max-w-[160px]">{m.email}</p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-right whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-muted group-hover:text-primary transition-colors">
-                      View
-                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <Badge variant="secondary" className="text-[10px] font-medium">
+                        {m.role || 'Member'}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4 text-center font-bold text-text-primary">
+                      {formatNumber(vm.total)}
+                    </td>
+                    <td className="py-3 px-4 text-center text-text-secondary">
+                      {formatNumber(vm.todo)}
+                    </td>
+                    <td className="py-3 px-4 text-center text-blue-600 dark:text-blue-400 font-medium">
+                      {formatNumber(vm.inProgress)}
+                    </td>
+                    <td className="py-3 px-4 text-center text-amber-600 dark:text-amber-400 font-medium">
+                      {formatNumber(vm.review)}
+                    </td>
+                    <td className="py-3 px-4 text-center text-emerald-600 dark:text-emerald-400 font-semibold">
+                      {formatNumber(vm.completed)}
+                    </td>
+                    <td className="py-3 px-4 text-center text-text-muted">
+                      {vm.archived > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-surface-muted px-1.5 py-0.5 rounded border border-border/60">
+                          {formatNumber(vm.archived)}
+                        </span>
+                      ) : (
+                        '0'
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      {vm.overdue > 0 ? (
+                        <span className="font-bold text-rose-600 dark:text-rose-400 inline-flex items-center gap-0.5">
+                          <AlertTriangle className="w-3 h-3" />
+                          {formatNumber(vm.overdue)}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted">0</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-text-primary">{formatPercent(vm.rate)}</span>
+                        </div>
+                        <div className="w-full bg-surface-elevated rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-primary h-full rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(100, vm.rate || 0)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-muted group-hover:text-primary transition-colors">
+                        View
+                        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

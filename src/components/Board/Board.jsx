@@ -1561,7 +1561,7 @@ export default function Board({
               onMouseMove={handleBoardMouseMove}
               onMouseUp={handleBoardMouseUpOrLeave}
               onMouseLeave={handleBoardMouseUpOrLeave}
-              className="flex-1 overflow-x-auto min-h-0 max-md:snap-x max-md:snap-mandatory custom-scrollbar pt-1 pb-3 cursor-default"
+              className="flex-1 overflow-x-auto overflow-y-hidden min-h-0 max-md:snap-x max-md:snap-mandatory custom-scrollbar pt-1 pb-3 cursor-default"
             >
               <DndContext
                 sensors={sensors}

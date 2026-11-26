@@ -499,7 +499,7 @@ export default function WorkspaceSidebar({
             }`}
         >
           {/* Header: Workspace switcher pill + distinct collapse button */}
-          <div className="h-14 px-3 flex items-center justify-between gap-1.5 shrink-0 border-b border-border/50">
+          <div className="h-16 px-3 flex items-center justify-between gap-1.5 shrink-0 border-b border-border/50">
             <div className="relative flex-1 min-w-0" ref={menuRef}>
               <button
                 type="button"
@@ -798,18 +798,18 @@ export default function WorkspaceSidebar({
 
           {/* Boards List Section */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-2">
-            <div className="relative h-8 flex items-center justify-between px-2 overflow-hidden">
+            <div className="relative h-10 flex items-center justify-between px-2 overflow-hidden">
               <span
-                className={`text-xs font-bold uppercase tracking-wider text-text-muted truncate transition-opacity duration-200 ${
-                  isBoardSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                className={`text-xs font-bold uppercase tracking-wider text-text-muted truncate transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  isBoardSearchOpen ? 'opacity-0 -translate-x-2 pointer-events-none' : 'opacity-100 translate-x-0'
                 }`}
               >
                 Boards &amp; Projects
               </span>
 
               <div
-                className={`flex items-center gap-1 shrink-0 transition-opacity duration-200 ${
-                  isBoardSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                className={`flex items-center gap-1 shrink-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  isBoardSearchOpen ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
                 }`}
               >
                 {boards.length > 0 && (
@@ -817,7 +817,7 @@ export default function WorkspaceSidebar({
                     type="button"
                     onClick={() => {
                       setIsBoardSearchOpen(true);
-                      setTimeout(() => boardSearchInputRef.current?.focus(), 60);
+                      setTimeout(() => boardSearchInputRef.current?.focus(), 80);
                     }}
                     title="Search boards"
                     aria-label="Search boards"
@@ -844,10 +844,10 @@ export default function WorkspaceSidebar({
 
               {/* Slide-open search bar from right to far left */}
               <div
-                className={`absolute inset-0 flex items-center transition-all duration-200 ease-out origin-right ${
+                className={`absolute inset-0 px-0.5 flex items-center transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-right ${
                   isBoardSearchOpen
-                    ? 'translate-x-0 opacity-100 pointer-events-auto'
-                    : 'translate-x-full opacity-0 pointer-events-none'
+                    ? 'translate-x-0 scale-x-100 opacity-100 pointer-events-auto'
+                    : 'translate-x-full scale-x-95 opacity-0 pointer-events-none'
                 }`}
               >
                 <div className="relative flex items-center w-full">
@@ -865,7 +865,7 @@ export default function WorkspaceSidebar({
                     }}
                     placeholder="Search boards..."
                     aria-label="Search boards"
-                    className="w-full pl-8 pr-7 py-1 text-xs bg-surface border border-border/80 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                    className="w-full pl-8 pr-7 py-1.5 text-xs bg-surface border border-border/80 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary shadow-2xs transition-colors"
                   />
                   <button
                     type="button"
