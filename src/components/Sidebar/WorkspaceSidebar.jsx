@@ -14,9 +14,11 @@ import {
   Briefcase,
   LayoutGrid,
   ChevronDown,
+  ChevronsUpDown,
   FolderPlus,
   ChevronLeft,
   ChevronRight,
+  PanelLeftClose,
   MoreHorizontal,
   Archive,
   Trash2,
@@ -70,6 +72,17 @@ export default function WorkspaceSidebar({
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [workspaceRenameValue, setWorkspaceRenameValue] = useState('');
   const [wsSearchQuery, setWsSearchQuery] = useState('');
+  const [boardSearchQuery, setBoardSearchQuery] = useState('');
+
+  useEffect(() => {
+    setBoardSearchQuery('');
+  }, [activeWorkspace?.id]);
+
+  const filteredBoards = useMemo(() => {
+    const q = boardSearchQuery.trim().toLowerCase();
+    if (!q) return boards;
+    return boards.filter((b) => (b.name || '').toLowerCase().includes(q));
+  }, [boards, boardSearchQuery]);
   const menuRef = useRef(null);
   const wsDropdownRef = useRef(null);
   const [wsDropdownPos, setWsDropdownPos] = useState({ top: 0, left: 0, minWidth: 260 });
@@ -430,8 +443,8 @@ export default function WorkspaceSidebar({
             : 'w-60 lg:w-64 opacity-100'
             }`}
         >
-          {/* Header: #WorkspaceName with actions dropdown */}
-          <div className="h-16 px-4 flex items-center justify-between shrink-0">
+          {/* Header: Workspace switcher pill + distinct collapse button */}
+          <div className="h-14 px-3 flex items-center justify-between gap-1.5 shrink-0 border-b border-border/50">
             <div className="relative flex-1 min-w-0" ref={menuRef}>
               <button
                 type="button"
@@ -448,7 +461,8 @@ export default function WorkspaceSidebar({
                   setIsWsDropdownOpen(!isWsDropdownOpen);
                   setWsSearchQuery('');
                 }}
-                className="w-full flex items-center justify-between gap-2 text-left group cursor-pointer focus:outline-none"
+                title="Switch workspace"
+                className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-surface/80 hover:bg-surface border border-border/70 text-left group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
               >
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-2 min-w-0">
@@ -458,8 +472,8 @@ export default function WorkspaceSidebar({
                       className="w-5 h-5 rounded-md"
                       imgClassName="w-5 h-5 rounded-md object-cover shrink-0 ring-1 ring-border/50 bg-white"
                     />
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[15px] sm:text-base font-extrabold text-text-primary truncate tracking-tight group-hover:text-primary transition-colors">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[13.5px] font-bold text-text-primary truncate tracking-tight group-hover:text-primary transition-colors">
                         {activeWorkspace?.name || 'Workspace'}
                       </span>
                       {activeWorkspace?.assigned_tasks_count > 0 && (
@@ -472,13 +486,8 @@ export default function WorkspaceSidebar({
                       )}
                     </div>
                   </div>
-                  {activeWorkspace?.description && (
-                    <span className="text-[11px] text-text-muted truncate pl-5">
-                      {activeWorkspace.description}
-                    </span>
-                  )}
                 </div>
-                <ChevronDown className={`w-4 h-4 text-text-muted transition-transform duration-200 shrink-0 ${isWsDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronsUpDown className="w-3.5 h-3.5 text-text-muted group-hover:text-text-primary shrink-0 transition-colors" />
               </button>
 
               {/* Workspace Switcher & Actions Dropdown with Sassy Animation (Portaled to prevent sidebar overflow clipping) */}
@@ -597,11 +606,11 @@ export default function WorkspaceSidebar({
             {/* Collapse toggle button on Desktop */}
             <button
               onClick={onToggleCollapse}
-              title="Collapse Sidebar"
-              aria-label="Collapse Sidebar"
-              className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-xl transition-colors cursor-pointer hidden lg:flex items-center justify-center min-h-[34px] min-w-[34px]"
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+              className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-xl transition-colors cursor-pointer hidden lg:flex items-center justify-center min-h-[32px] min-w-[32px] shrink-0"
             >
-              <ChevronLeft className="w-4.5 h-4.5" />
+              <PanelLeftClose className="w-4 h-4" />
             </button>
 
             {/* Close button on Mobile */}
@@ -733,7 +742,7 @@ export default function WorkspaceSidebar({
           </nav>
 
           {/* Boards List Section */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-2">
             <div className="flex items-center justify-between px-2">
               <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
                 Boards & Projects
@@ -754,11 +763,46 @@ export default function WorkspaceSidebar({
               )}
             </div>
 
+            {boards.length > 0 && (
+              <div className="relative flex items-center px-1">
+                <Search className="w-3.5 h-3.5 text-text-muted absolute left-3.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={boardSearchQuery}
+                  onChange={(e) => setBoardSearchQuery(e.target.value)}
+                  placeholder="Search boards..."
+                  aria-label="Search boards"
+                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-surface/80 border border-border/70 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                />
+                {boardSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setBoardSearchQuery('')}
+                    aria-label="Clear board search"
+                    className="absolute right-3 p-0.5 text-text-muted hover:text-text-primary rounded-full hover:bg-surface-muted transition-colors cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="space-y-1">
               {boards.length === 0 ? (
                 <p className="text-xs text-text-muted italic px-2 py-2">No boards yet.</p>
+              ) : filteredBoards.length === 0 ? (
+                <div className="px-2 py-3 text-center space-y-1">
+                  <p className="text-xs text-text-muted">No boards match &ldquo;{boardSearchQuery}&rdquo;</p>
+                  <button
+                    type="button"
+                    onClick={() => setBoardSearchQuery('')}
+                    className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+                  >
+                    Clear search
+                  </button>
+                </div>
               ) : (
-                boards.map((b) => {
+                filteredBoards.map((b) => {
                   const dotColor = getThemeDotClass(b.background_color);
                   const bUnread = byBoardUnread?.[b.id] || byBoardUnread?.[String(b.id)] || 0;
                   return (
