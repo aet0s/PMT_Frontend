@@ -39,7 +39,8 @@ import {
   Sparkles,
   CalendarCheck,
   Search,
-  ShieldCheck
+  ShieldCheck,
+  Pin
 } from 'lucide-react';
 
 export default function WorkspaceSidebar({
@@ -73,16 +74,70 @@ export default function WorkspaceSidebar({
   const [workspaceRenameValue, setWorkspaceRenameValue] = useState('');
   const [wsSearchQuery, setWsSearchQuery] = useState('');
   const [boardSearchQuery, setBoardSearchQuery] = useState('');
+  const [isBoardSearchOpen, setIsBoardSearchOpen] = useState(false);
+  const boardSearchInputRef = useRef(null);
+  const [pinnedBoardIds, setPinnedBoardIds] = useState([]);
 
   useEffect(() => {
     setBoardSearchQuery('');
+    setIsBoardSearchOpen(false);
+    try {
+      const wsId = activeWorkspace?.id;
+      if (!wsId) {
+        setPinnedBoardIds([]);
+        return;
+      }
+      const rawList = localStorage.getItem(`taskflow_pinned_boards_${wsId}`);
+      if (rawList) {
+        const parsed = JSON.parse(rawList);
+        if (Array.isArray(parsed)) {
+          setPinnedBoardIds(parsed.map(Number));
+          return;
+        }
+      }
+      const legacySingle = localStorage.getItem(`taskflow_pinned_board_${wsId}`);
+      setPinnedBoardIds(legacySingle ? [Number(legacySingle)] : []);
+    } catch {
+      setPinnedBoardIds([]);
+    }
   }, [activeWorkspace?.id]);
+
+  const togglePinBoard = (boardId, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const numId = Number(boardId);
+    setPinnedBoardIds((prev) => {
+      const exists = prev.includes(numId);
+      const next = exists ? prev.filter((id) => id !== numId) : [numId, ...prev];
+      try {
+        const wsId = activeWorkspace?.id;
+        if (wsId) {
+          localStorage.setItem(`taskflow_pinned_boards_${wsId}`, JSON.stringify(next));
+          if (next.length > 0) {
+            localStorage.setItem(`taskflow_pinned_board_${wsId}`, String(next[0]));
+          } else {
+            localStorage.removeItem(`taskflow_pinned_board_${wsId}`);
+          }
+        }
+      } catch {
+        // Ignore storage errors
+      }
+      return next;
+    });
+  };
 
   const filteredBoards = useMemo(() => {
     const q = boardSearchQuery.trim().toLowerCase();
-    if (!q) return boards;
-    return boards.filter((b) => (b.name || '').toLowerCase().includes(q));
-  }, [boards, boardSearchQuery]);
+    const list = q
+      ? boards.filter((b) => (b.name || '').toLowerCase().includes(q))
+      : boards.slice();
+    const pinnedSet = new Set(pinnedBoardIds);
+    return list.sort((a, b) => {
+      const aPinned = pinnedSet.has(Number(a.id)) ? 0 : 1;
+      const bPinned = pinnedSet.has(Number(b.id)) ? 0 : 1;
+      return aPinned - bPinned;
+    });
+  }, [boards, boardSearchQuery, pinnedBoardIds]);
   const menuRef = useRef(null);
   const wsDropdownRef = useRef(null);
   const [wsDropdownPos, setWsDropdownPos] = useState({ top: 0, left: 0, minWidth: 260 });
@@ -743,49 +798,90 @@ export default function WorkspaceSidebar({
 
           {/* Boards List Section */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-2">
-            <div className="flex items-center justify-between px-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
-                Boards & Projects
+            <div className="relative h-8 flex items-center justify-between px-2 overflow-hidden">
+              <span
+                className={`text-xs font-bold uppercase tracking-wider text-text-muted truncate transition-opacity duration-200 ${
+                  isBoardSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                }`}
+              >
+                Boards &amp; Projects
               </span>
-              {canCreateBoard && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onCreateBoardClick();
-                    if (onCloseMobile) onCloseMobile();
-                  }}
-                  title="Create new board"
-                  aria-label="Create new board"
-                  className="p-1.5 text-text-secondary hover:text-primary bg-surface-muted hover:bg-primary-tint rounded-lg transition-colors cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              )}
-            </div>
 
-            {boards.length > 0 && (
-              <div className="relative flex items-center px-1">
-                <Search className="w-3.5 h-3.5 text-text-muted absolute left-3.5 pointer-events-none" />
-                <input
-                  type="text"
-                  value={boardSearchQuery}
-                  onChange={(e) => setBoardSearchQuery(e.target.value)}
-                  placeholder="Search boards..."
-                  aria-label="Search boards"
-                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-surface/80 border border-border/70 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
-                />
-                {boardSearchQuery && (
+              <div
+                className={`flex items-center gap-1 shrink-0 transition-opacity duration-200 ${
+                  isBoardSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                }`}
+              >
+                {boards.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setBoardSearchQuery('')}
-                    aria-label="Clear board search"
-                    className="absolute right-3 p-0.5 text-text-muted hover:text-text-primary rounded-full hover:bg-surface-muted transition-colors cursor-pointer"
+                    onClick={() => {
+                      setIsBoardSearchOpen(true);
+                      setTimeout(() => boardSearchInputRef.current?.focus(), 60);
+                    }}
+                    title="Search boards"
+                    aria-label="Search boards"
+                    className="p-1.5 text-text-secondary hover:text-primary hover:bg-surface-muted rounded-lg transition-colors cursor-pointer"
                   >
-                    <X className="w-3 h-3" />
+                    <Search className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {canCreateBoard && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCreateBoardClick();
+                      if (onCloseMobile) onCloseMobile();
+                    }}
+                    title="Create new board"
+                    aria-label="Create new board"
+                    className="p-1.5 text-text-secondary hover:text-primary bg-surface-muted hover:bg-primary-tint rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
                   </button>
                 )}
               </div>
-            )}
+
+              {/* Slide-open search bar from right to far left */}
+              <div
+                className={`absolute inset-0 flex items-center transition-all duration-200 ease-out origin-right ${
+                  isBoardSearchOpen
+                    ? 'translate-x-0 opacity-100 pointer-events-auto'
+                    : 'translate-x-full opacity-0 pointer-events-none'
+                }`}
+              >
+                <div className="relative flex items-center w-full">
+                  <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 pointer-events-none" />
+                  <input
+                    ref={boardSearchInputRef}
+                    type="text"
+                    value={boardSearchQuery}
+                    onChange={(e) => setBoardSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setBoardSearchQuery('');
+                        setIsBoardSearchOpen(false);
+                      }
+                    }}
+                    placeholder="Search boards..."
+                    aria-label="Search boards"
+                    className="w-full pl-8 pr-7 py-1 text-xs bg-surface border border-border/80 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBoardSearchQuery('');
+                      setIsBoardSearchOpen(false);
+                    }}
+                    aria-label="Close board search"
+                    title="Close search"
+                    className="absolute right-2 p-0.5 text-text-muted hover:text-text-primary rounded-full hover:bg-surface-muted transition-colors cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-1">
               {boards.length === 0 ? (
@@ -805,13 +901,14 @@ export default function WorkspaceSidebar({
                 filteredBoards.map((b) => {
                   const dotColor = getThemeDotClass(b.background_color);
                   const bUnread = byBoardUnread?.[b.id] || byBoardUnread?.[String(b.id)] || 0;
+                  const isPinned = pinnedBoardIds.includes(Number(b.id));
                   return (
                     <NavLink
                       key={b.id}
                       to={`/w/${activeWorkspace?.id}/p/${b.id}/board`}
                       onClick={() => { if (onCloseMobile) onCloseMobile(); }}
                       className={({ isActive }) =>
-                        `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] font-medium text-left transition-all cursor-pointer ${isActive
+                        `group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] font-medium text-left transition-all cursor-pointer ${isActive
                           ? 'bg-primary-tint text-primary font-bold shadow-2xs'
                           : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                         }`
@@ -824,6 +921,19 @@ export default function WorkspaceSidebar({
                           {bUnread}
                         </span>
                       )}
+                      <button
+                        type="button"
+                        onClick={(e) => togglePinBoard(b.id, e)}
+                        title={isPinned ? 'Unpin board' : 'Pin board'}
+                        aria-label={isPinned ? `Unpin ${b.name}` : `Pin ${b.name}`}
+                        className={`p-1 rounded-md transition-all shrink-0 cursor-pointer ${
+                          isPinned
+                            ? 'text-primary opacity-100 hover:bg-primary/10'
+                            : 'text-text-muted opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-surface'
+                        }`}
+                      >
+                        <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-current' : ''}`} />
+                      </button>
                     </NavLink>
                   );
                 })
