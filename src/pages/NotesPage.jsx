@@ -44,9 +44,12 @@ export default function NotesPage() {
     trashedNotes,
     loading,
     error,
+    permissionRevoked,
     saveStatus,
     newNoteId,
     setNewNoteId,
+    retryAllPending,
+    refetch,
     createNote,
     updateNote,
     bringToFront,
@@ -110,7 +113,7 @@ export default function NotesPage() {
     }
   }, [newNoteId, setNewNoteId, notes, deleteNote]);
 
-  if (!permLoading && !canView) {
+  if (!permLoading && (!canView || permissionRevoked)) {
     return <AccessDeniedPage />;
   }
 
@@ -136,6 +139,7 @@ export default function NotesPage() {
         onCreateNote={() => handleCreateCenter()}
         canManage={canManage}
         saveStatus={saveStatus}
+        onRetrySave={retryAllPending}
       />
 
       {error && (
@@ -143,7 +147,7 @@ export default function NotesPage() {
           <Alert variant="danger" title="Could not load notes">
             <div className="flex items-center justify-between gap-3">
               <span>{error}</span>
-              <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
+              <Button variant="secondary" size="sm" onClick={() => refetch()}>
                 Retry
               </Button>
             </div>
@@ -175,8 +179,8 @@ export default function NotesPage() {
           newNoteId={newNoteId}
           onCreateNote={() => handleCreateCenter()}
           onChangeContent={(id, content) => updateNote(id, { content })}
-          onChangeColor={(id, color) => updateNote(id, { color })}
-          onTogglePin={(id, is_pinned) => updateNote(id, { is_pinned })}
+          onChangeColor={(id, color) => updateNote(id, { color }, { immediate: true })}
+          onTogglePin={(id, is_pinned) => updateNote(id, { is_pinned }, { immediate: true })}
           onDuplicate={duplicateNote}
           onDelete={handleDeleteWithUndo}
           onBlurEmpty={handleBlurEmpty}
@@ -201,10 +205,10 @@ export default function NotesPage() {
           onCreateAt={handleCreateCenter}
           onBringToFront={bringToFront}
           onChangeContent={(id, content) => updateNote(id, { content })}
-          onCommitPosition={(id, x, y) => updateNote(id, { x, y })}
-          onCommitSize={(id, width, height) => updateNote(id, { width, height })}
-          onChangeColor={(id, color) => updateNote(id, { color })}
-          onTogglePin={(id, is_pinned) => updateNote(id, { is_pinned })}
+          onCommitPosition={(id, x, y) => updateNote(id, { x, y }, { immediate: true })}
+          onCommitSize={(id, width, height) => updateNote(id, { width, height }, { immediate: true })}
+          onChangeColor={(id, color) => updateNote(id, { color }, { immediate: true })}
+          onTogglePin={(id, is_pinned) => updateNote(id, { is_pinned }, { immediate: true })}
           onDuplicate={duplicateNote}
           onDelete={handleDeleteWithUndo}
           onBlurEmpty={handleBlurEmpty}

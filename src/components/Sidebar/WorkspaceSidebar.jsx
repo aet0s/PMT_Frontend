@@ -34,6 +34,7 @@ import {
   Layers,
   Calendar,
   CheckSquare,
+  StickyNote,
   Rocket,
   MapPin,
   Sparkles,
@@ -254,6 +255,7 @@ export default function WorkspaceSidebar({
   const canViewActivity = isOwner || hasPermission('activity.view');
   const canViewMembers = !isMemberOrBelow && roleName !== 'project manager' && (isOwner || hasPermission('member.invite') || hasPermission('member.remove') || hasPermission('member.assign_role') || hasPermission('role.view'));
   const canViewReports = hasPermission('report.view_project');
+  const canViewNotes = hasPermission('notes.view_own');
   const canViewDailyTracker = isOwner || hasPermission('daily_tracker.view');
   const canViewAudit = !isMemberOrBelow && (isOwner || hasPermission('audit.view'));
   const canViewSettings = !isMemberOrBelow && (isOwner || hasPermission('workspace.edit'));
@@ -278,6 +280,7 @@ export default function WorkspaceSidebar({
     location.pathname === `/w/${activeWorkspace?.id}` ||
     location.pathname === `/w/${activeWorkspace?.id}/`;
   const isMyTasksActive = location.pathname.endsWith('/my-tasks');
+  const isNotesActive = location.pathname.endsWith('/notes');
   const isSprintActive = location.pathname.endsWith('/board') || location.pathname.endsWith('/sprint');
   const isIssuesActive = location.pathname.endsWith('/list') || location.pathname.endsWith('/issues');
   const isReportActive = location.pathname.endsWith('/reports');
@@ -720,6 +723,23 @@ export default function WorkspaceSidebar({
                 </span>
               )}
             </NavLink>
+
+            {/* Notes */}
+            {canViewNotes && (
+              <NavLink
+                to={`/w/${activeWorkspace?.id}/notes`}
+                onClick={() => { if (onCloseMobile) onCloseMobile(); }}
+                className={() =>
+                  `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-semibold transition-all cursor-pointer ${isNotesActive
+                    ? 'bg-primary-tint text-primary font-bold shadow-2xs'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  }`
+                }
+              >
+                <StickyNote className="w-4.5 h-4.5 shrink-0" />
+                <span className="truncate">Notes</span>
+              </NavLink>
+            )}
 
 
             {/* Report */}

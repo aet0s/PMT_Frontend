@@ -31,6 +31,7 @@ const NotFoundPage = safeLazy(() => import('../pages/NotFoundPage'), 'NotFoundPa
 const DailyTrackerPage = safeLazy(() => import('../pages/DailyTrackerPage'), 'DailyTrackerPage');
 const AuditLogPage = safeLazy(() => import('../pages/AuditLogPage'), 'AuditLogPage');
 const MyTasksPage = safeLazy(() => import('../pages/MyTasksPage'), 'MyTasksPage');
+const NotesPage = safeLazy(() => import('../pages/NotesPage'), 'NotesPage');
 import GlobalHeader from '../components/Navigation/GlobalHeader';
 import CheckinPopup from '../components/DailyTracker/CheckinPopup';
 import WorkspaceIcon from '../components/Workspace/WorkspaceIcon';
@@ -2349,6 +2350,10 @@ export default function BoardPage() {
                 workspaces={workspaces}
                 onCardClick={handleSelectNotificationCard}
               />
+            </Suspense>
+          ) : subPath === 'notes' ? (
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>
+              <NotesPage workspace={activeWorkspace} />
             </Suspense>
           ) : subPath === 'daily-tracker' ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner size="lg" /></div>}>

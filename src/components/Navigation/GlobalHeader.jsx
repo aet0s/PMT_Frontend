@@ -21,7 +21,8 @@ import {
   Inbox,
   CalendarCheck,
   ShieldCheck,
-  CheckSquare
+  CheckSquare,
+  StickyNote
 } from 'lucide-react';
 import NotificationBell from '../Notifications/NotificationBell';
 import UserDropdown from '../ui/UserDropdown';
@@ -151,7 +152,7 @@ export default function GlobalHeader({
   // Determine active view context
   const pathParts = subPath ? subPath.split('/') : [];
   const isProjectRoute = pathParts[0] === 'p' && pathParts[1];
-  const isWorkspaceToolRoute = ['audit', 'home', 'members', 'company-members', 'reports', 'settings', 'archive', 'notifications', 'daily-tracker', 'my-tasks'].includes(subPath);
+  const isWorkspaceToolRoute = ['audit', 'home', 'members', 'company-members', 'reports', 'settings', 'archive', 'notifications', 'daily-tracker', 'my-tasks', 'notes'].includes(subPath);
   const isOnBoard = Boolean(board && (isProjectRoute || !isWorkspaceToolRoute));
   const cleanSub = subPath ? subPath.split('/')[0] : 'home';
 
@@ -163,6 +164,8 @@ export default function GlobalHeader({
         return { title: workspace?.name || 'Workspace', badge: 'Overview', icon: FolderKanban };
       case 'my-tasks':
         return { title: 'My Tasks', badge: null, icon: CheckSquare };
+      case 'notes':
+        return { title: 'Notes', badge: 'Private', icon: StickyNote };
       case 'members':
         return { title: 'Workspace Members', badge: 'Access', icon: Users };
       case 'company-members':
