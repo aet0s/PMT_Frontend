@@ -612,8 +612,20 @@ export default function Board({
   if (!board) return null;
 
   // Filter cards logic using shared filter helper
-  const filterCard = (card) =>
-    matchesCardFilter(card, {
+  const isUserCard = (card, uid) => {
+    if (!uid) return false;
+    const numUid = Number(uid);
+    const isAssignee = (card?.members || []).some((m) => Number(m.id || m.user_id) === numUid);
+    const isAssigner =
+      (card?.assigners || []).some((a) => Number(a.id || a.user_id) === numUid) ||
+      (card?.created_by && Number(card.created_by) === numUid) ||
+      (card?.creator_id && Number(card.creator_id) === numUid);
+    return isAssignee || isAssigner;
+  };
+
+  const filterCard = (card) => {
+    if (isFocusMyCards && !isUserCard(card, user?.id)) return false;
+    return matchesCardFilter(card, {
       searchQuery,
       filterMemberId: filterMemberId === 'all' ? null : filterMemberId,
       filterLabelId: filterLabelId === 'all' ? null : filterLabelId,
@@ -623,6 +635,7 @@ export default function Board({
       filterStatus,
       currentUserId: user?.id
     });
+  };
 
   const effectiveDefaults =
     projectDefaults ||
