@@ -159,7 +159,7 @@ export default function DescriptionEditor({ cardId, cardTitle = '', initialValue
         }
         size="fullscreen"
         zIndex="z-[60]"
-        bodyClassName="p-4 sm:p-8 bg-surface-muted/40"
+        bodyClassName="p-0 bg-surface"
         footer={
           <div className="flex items-center justify-between w-full">
             <span className="text-xs text-text-muted">
@@ -189,10 +189,10 @@ export default function DescriptionEditor({ cardId, cardTitle = '', initialValue
           </div>
         }
       >
-        <div className="max-w-5xl mx-auto w-full min-h-full p-6 sm:p-10 bg-surface border border-border rounded-2xl shadow-sm">
+        <div className="w-full min-h-full px-6 py-6 sm:px-12 sm:py-8 bg-surface">
           {hasContent ? (
             <div
-              className="prose prose-sm sm:prose-base max-w-none text-text-primary"
+              className="prose prose-sm sm:prose-base max-w-none w-full text-text-primary"
               dangerouslySetInnerHTML={{ __html: currentValue }}
             />
           ) : (
