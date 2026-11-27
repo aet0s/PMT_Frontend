@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-28T10:39:11.155Z",
-  "totalPermissions": 152,
+  "generatedAt": "2026-11-27T10:27:45.566Z",
+  "totalPermissions": 154,
   "permissions": [
     {
       "key": "company.view",
@@ -671,7 +671,7 @@
       "key": "checkin.create",
       "module": "checkin",
       "label": "Submit Daily Check-in",
-      "description": "Submit daily progress check-in on focused tasks",
+      "description": "Submit daily progress update on assigned tasks",
       "scope": "project",
       "dangerous": false
     },
@@ -1116,6 +1116,22 @@
       "dangerous": false
     },
     {
+      "key": "notes.view_own",
+      "module": "personal",
+      "label": "View Personal Notes",
+      "description": "Open the Notes page and read own sticky notes",
+      "scope": "company",
+      "dangerous": false
+    },
+    {
+      "key": "notes.manage_own",
+      "module": "personal",
+      "label": "Manage Personal Notes",
+      "description": "Create, edit, move, resize, pin, and delete own sticky notes",
+      "scope": "company",
+      "dangerous": false
+    },
+    {
       "key": "audit.view",
       "module": "audit",
       "label": "View Audit Log",
@@ -1556,6 +1572,9 @@
       "archive.view",
       "workspace.view",
       "project.view"
+    ],
+    "notes.manage_own": [
+      "notes.view_own"
     ]
   },
   "systemRoles": {
@@ -1701,6 +1720,8 @@
         "dashboard.view_executive",
         "notification.view_own",
         "notification.manage_own",
+        "notes.view_own",
+        "notes.manage_own",
         "audit.view",
         "audit.export",
         "activity.view",
@@ -1860,6 +1881,8 @@
         "dashboard.view_executive",
         "notification.view_own",
         "notification.manage_own",
+        "notes.view_own",
+        "notes.manage_own",
         "audit.view",
         "audit.export",
         "activity.view",
@@ -1993,6 +2016,8 @@
         "daily_tracker.view_people",
         "notification.view_own",
         "notification.manage_own",
+        "notes.view_own",
+        "notes.manage_own",
         "session.view_own",
         "session.revoke_own",
         "search.use"
@@ -2077,7 +2102,6 @@
         "time.view_all",
         "report.view_project",
         "report.view_team",
-        "report.export",
         "dashboard.view_project",
         "view.view",
         "view.create",
@@ -2089,6 +2113,8 @@
         "activity.view",
         "notification.view_own",
         "notification.manage_own",
+        "notes.view_own",
+        "notes.manage_own",
         "session.view_own",
         "session.revoke_own",
         "search.use"
@@ -2113,6 +2139,7 @@
         "task.create",
         "task.edit",
         "task.move",
+        "task.assign",
         "task.assign_self",
         "task.complete",
         "task.delete_own",
@@ -2158,6 +2185,8 @@
         "activity.view",
         "notification.view_own",
         "notification.manage_own",
+        "notes.view_own",
+        "notes.manage_own",
         "session.view_own",
         "session.revoke_own",
         "search.use"
@@ -2192,6 +2221,8 @@
         "activity.view",
         "notification.view_own",
         "notification.manage_own",
+        "notes.view_own",
+        "notes.manage_own",
         "session.view_own",
         "session.revoke_own",
         "search.use"
@@ -2235,6 +2266,8 @@
         "time.view_all",
         "notification.view_own",
         "notification.manage_own",
+        "notes.view_own",
+        "notes.manage_own",
         "session.view_own",
         "session.revoke_own",
         "search.use"
@@ -2262,6 +2295,8 @@
         "member.view",
         "notification.view_own",
         "notification.manage_own",
+        "notes.view_own",
+        "notes.manage_own",
         "session.view_own",
         "session.revoke_own",
         "search.use"
