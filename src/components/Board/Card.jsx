@@ -172,15 +172,15 @@ export default function Card({
         if (e.target.closest('button[aria-label="Card actions"]') || e.defaultPrevented) return;
         onClick?.();
       }}
-      className={`kanban-card group relative bg-surface border border-border/80 ${isCompact ? 'rounded-xl p-2.5 sm:p-3 space-y-1.5' : 'rounded-2xl p-4 space-y-3'
+      className={`kanban-card group relative w-full min-w-0 bg-surface border border-border/80 ${isCompact ? 'rounded-xl p-2.5 sm:p-3 space-y-1.5' : 'rounded-2xl p-4 space-y-3'
         } ${isReducedMotion ? '' : 'transition-all duration-200'
         } cursor-pointer select-none shadow-xs hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary ${focusMode
           ? isMyCard
             ? `${statusConfig?.key
               ? `card-fullborder-${statusConfig.key}`
               : 'card-fullborder-default'
-            } opacity-100 ${isReducedMotion ? '' : 'scale-[1.01] hover:-translate-y-0.5'} bg-surface z-10`
-            : `border-border/60 opacity-35 hover:opacity-100 ${isReducedMotion ? '' : 'hover:scale-[1.005]'} saturate-50 hover:saturate-100`
+            } opacity-100 ${isReducedMotion ? '' : 'hover:-translate-y-0.5'} bg-surface z-10`
+            : `border-border/60 opacity-35 hover:opacity-100 saturate-50 hover:saturate-100`
           : statusConfig
             ? `${statusConfig.cardClass} ${isReducedMotion ? '' : 'hover:border-t-primary/40 hover:border-x-primary/40 hover:-translate-y-0.5'}`
             : `border-border/80 ${isReducedMotion ? '' : 'hover:border-primary/40 hover:-translate-y-0.5'}`

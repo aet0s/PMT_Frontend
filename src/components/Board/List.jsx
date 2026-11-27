@@ -348,7 +348,7 @@ export default function List({
 
       {/* Cards List Container */}
       <div
-        className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-1 pt-1 pb-4 space-y-3 no-scrollbar"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2 pt-1.5 pb-8 space-y-3 no-scrollbar"
         style={{ overscrollBehavior: 'contain' }}
       >
         <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
