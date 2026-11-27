@@ -20,6 +20,7 @@ import {
   Modal,
   Tooltip
 } from '../components/ui';
+import { NOTE_COLOR_LIST } from '../components/Notes/noteConstants';
 import {
   User,
   Mail,
@@ -245,6 +246,31 @@ export default function DevComponentsPage() {
           <Tooltip content="Helpful tooltip text">
             <Button variant="ghost" size="sm">Hover for Tooltip</Button>
           </Tooltip>
+        </div>
+      </section>
+
+      {/* 5. StickyNote Variants */}
+      <section className="bg-surface border border-border rounded-xl p-6 space-y-4">
+        <h2 className="text-base font-bold text-text-primary">5. StickyNote Pastel Variants</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {NOTE_COLOR_LIST.map((c, idx) => (
+            <div
+              key={c.key}
+              style={{ backgroundColor: c.bgVar, borderColor: c.borderVar }}
+              className="rounded-xl border shadow-2xs p-3 h-36 flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between">
+                <span style={{ backgroundColor: c.dotVar }} className="w-2.5 h-2.5 rounded-full" />
+                {idx === 1 && (
+                  <span className="text-[10px] font-semibold text-text-secondary uppercase">Pinned</span>
+                )}
+              </div>
+              <p className="text-sm text-text-primary font-medium leading-snug">
+                {c.label} sticky note
+              </p>
+              <span className="text-[11px] text-text-muted">{c.key}</span>
+            </div>
+          ))}
         </div>
       </section>
     </div>
