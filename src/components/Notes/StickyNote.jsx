@@ -1,10 +1,8 @@
 // client/src/components/Notes/StickyNote.jsx
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Pin, Copy, Trash2, Palette, GripHorizontal } from 'lucide-react';
+import { Pin, Copy, Trash2, GripHorizontal } from 'lucide-react';
 import Tooltip from '../ui/Tooltip';
-import Popover from '../ui/Popover';
-import NoteColorPicker from './NoteColorPicker';
 import {
   getNoteColorMeta,
   getDeterministicTilt,
@@ -19,6 +17,7 @@ import {
 function StickyNoteInner({
   note,
   zoom = 1,
+  bounds = null,
   canManage = true,
   tiltEnabled = true,
   snapEnabled = true,
@@ -36,18 +35,18 @@ function StickyNoteInner({
   onBlurEmpty
 }) {
   const shouldReduceMotion = useReducedMotion();
-  const colorMeta = getNoteColorMeta(note.color);
+  const colorMeta = getNoteColorMeta('sky');
   const [isEditing, setIsEditing] = useState(Boolean(autoFocus));
   const [draftText, setDraftText] = useState(note.content || '');
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [livePos, setLivePos] = useState(null);
   const [liveSize, setLiveSize] = useState(null);
-  const [isColorOpen, setIsColorOpen] = useState(false);
 
   const noteRef = useRef(null);
   const textareaRef = useRef(null);
   const pointerStateRef = useRef(null);
+  const didDragRef = useRef(false);
 
   useEffect(() => {
     if (!isEditing) {
@@ -76,10 +75,24 @@ function StickyNoteInner({
   const y = livePos ? livePos.y : note.y;
   const tiltDeg = isDragging || isEditing ? 0 : getDeterministicTilt(note.rotation_seed, tiltEnabled);
 
+  const clampToBounds = (rawX, rawY, w, h) => {
+    if (bounds && bounds.width > 0 && bounds.height > 0) {
+      const pad = 8;
+      const maxX = Math.max(pad, bounds.width - w - pad);
+      const maxY = Math.max(pad, bounds.height - h - pad);
+      return {
+        x: Math.round(Math.min(maxX, Math.max(pad, rawX))),
+        y: Math.round(Math.min(maxY, Math.max(pad, rawY)))
+      };
+    }
+    return clampNotePosition(rawX, rawY, w, h);
+  };
+
   const startDrag = (e) => {
     if (!canManage || note.is_pinned || isEditing) return;
     if (e.button !== undefined && e.button !== 0) return;
     e.stopPropagation();
+    didDragRef.current = false;
     onBringToFront?.(note.id);
     setIsDragging(true);
     pointerStateRef.current = {
@@ -96,6 +109,7 @@ function StickyNoteInner({
     if (!canManage || note.is_pinned) return;
     if (e.button !== undefined && e.button !== 0) return;
     e.stopPropagation();
+    didDragRef.current = false;
     onBringToFront?.(note.id);
     setIsResizing(true);
     pointerStateRef.current = {
@@ -112,15 +126,23 @@ function StickyNoteInner({
     const st = pointerStateRef.current;
     if (!st) return;
     e.stopPropagation();
+    if (Math.abs(e.clientX - st.startX) > 3 || Math.abs(e.clientY - st.startY) > 3) {
+      didDragRef.current = true;
+    }
     const delta = screenToCanvasPoint(e.clientX - st.startX, e.clientY - st.startY, zoom);
     if (st.mode === 'drag') {
       const rawX = snapToGrid(st.origX + delta.x, GRID_SNAP_PX, snapEnabled);
       const rawY = snapToGrid(st.origY + delta.y, GRID_SNAP_PX, snapEnabled);
-      setLivePos(clampNotePosition(rawX, rawY, width, height));
+      setLivePos(clampToBounds(rawX, rawY, width, height));
     } else if (st.mode === 'resize') {
       const rawW = snapToGrid(st.origW + delta.x, GRID_SNAP_PX, snapEnabled);
       const rawH = snapToGrid(st.origH + delta.y, GRID_SNAP_PX, snapEnabled);
-      setLiveSize(clampNoteSize(rawW, rawH));
+      const clamped = clampNoteSize(rawW, rawH);
+      if (bounds && bounds.width > 0 && bounds.height > 0) {
+        clamped.width = Math.min(clamped.width, Math.max(160, bounds.width - x - 8));
+        clamped.height = Math.min(clamped.height, Math.max(120, bounds.height - y - 8));
+      }
+      setLiveSize(clamped);
     }
   };
 
@@ -220,7 +242,7 @@ function StickyNoteInner({
         y,
         rotate: tiltDeg
       }}
-      transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 32, mass: 0.7 }}
+      transition={shouldReduceMotion || isDragging || isResizing ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 32, mass: 0.7 }}
       style={{
         width,
         height,
@@ -282,39 +304,6 @@ function StickyNoteInner({
             </button>
           </Tooltip>
 
-          <Popover
-            isOpen={isColorOpen}
-            onOpenChange={(open) => canManage && setIsColorOpen(open)}
-            placement="bottom-end"
-            trigger={
-              <Tooltip content={canManage ? 'Change colour' : 'View-only permission'}>
-                <button
-                  type="button"
-                  disabled={!canManage}
-                  aria-label="Change note colour"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (canManage) setIsColorOpen((v) => !v);
-                  }}
-                  className={`p-1 rounded-md text-text-secondary hover:bg-surface/60 transition-colors cursor-pointer ${
-                    !canManage ? 'opacity-40 cursor-not-allowed' : ''
-                  }`}
-                >
-                  <Palette className="w-3 h-3" />
-                </button>
-              </Tooltip>
-            }
-          >
-            <NoteColorPicker
-              value={note.color}
-              disabled={!canManage}
-              onChange={(newColor) => {
-                onChangeColor?.(note.id, newColor);
-                setIsColorOpen(false);
-              }}
-            />
-          </Popover>
-
           <Tooltip content={canManage ? 'Duplicate note' : 'View-only permission'}>
             <button
               type="button"
@@ -332,7 +321,7 @@ function StickyNoteInner({
             </button>
           </Tooltip>
 
-          <Tooltip content={canManage ? 'Move to trash' : 'View-only permission'}>
+          <Tooltip content={canManage ? 'Delete note' : 'View-only permission'}>
             <button
               type="button"
               disabled={!canManage}
@@ -363,6 +352,10 @@ function StickyNoteInner({
         onPointerCancel={handlePointerUp}
         onClick={(e) => {
           e.stopPropagation();
+          if (didDragRef.current) {
+            didDragRef.current = false;
+            return;
+          }
           if (canManage && !isDragging) {
             setIsEditing(true);
           }

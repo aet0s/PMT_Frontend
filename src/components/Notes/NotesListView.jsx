@@ -1,9 +1,7 @@
 // client/src/components/Notes/NotesListView.jsx
-import React, { useState } from 'react';
-import { Pin, Copy, Trash2, Palette } from 'lucide-react';
-import Popover from '../ui/Popover';
+import React from 'react';
+import { Pin, Copy, Trash2 } from 'lucide-react';
 import Tooltip from '../ui/Tooltip';
-import NoteColorPicker from './NoteColorPicker';
 import NotesEmptyState from './NotesEmptyState';
 import { getNoteColorMeta, MAX_NOTE_CONTENT_LENGTH } from './noteConstants';
 
@@ -12,14 +10,12 @@ function ListNoteCard({
   canManage,
   autoFocus,
   onChangeContent,
-  onChangeColor,
   onTogglePin,
   onDuplicate,
   onDelete,
   onBlurEmpty
 }) {
-  const colorMeta = getNoteColorMeta(note.color);
-  const [isColorOpen, setIsColorOpen] = useState(false);
+  const colorMeta = getNoteColorMeta('sky');
 
   return (
     <div
@@ -50,36 +46,6 @@ function ListNoteCard({
             </button>
           </Tooltip>
 
-          <Popover
-            isOpen={isColorOpen}
-            onOpenChange={(open) => canManage && setIsColorOpen(open)}
-            placement="bottom-end"
-            trigger={
-              <Tooltip content={canManage ? 'Change colour' : 'View-only permission'}>
-                <button
-                  type="button"
-                  disabled={!canManage}
-                  aria-label="Change note colour"
-                  onClick={() => canManage && setIsColorOpen((v) => !v)}
-                  className={`p-1 rounded-md text-text-secondary hover:bg-surface/60 cursor-pointer ${
-                    !canManage ? 'opacity-40 cursor-not-allowed' : ''
-                  }`}
-                >
-                  <Palette className="w-3.5 h-3.5" />
-                </button>
-              </Tooltip>
-            }
-          >
-            <NoteColorPicker
-              value={note.color}
-              disabled={!canManage}
-              onChange={(newColor) => {
-                onChangeColor?.(note.id, newColor);
-                setIsColorOpen(false);
-              }}
-            />
-          </Popover>
-
           <Tooltip content={canManage ? 'Duplicate note' : 'View-only permission'}>
             <button
               type="button"
@@ -94,7 +60,7 @@ function ListNoteCard({
             </button>
           </Tooltip>
 
-          <Tooltip content={canManage ? 'Move to trash' : 'View-only permission'}>
+          <Tooltip content={canManage ? 'Delete note' : 'View-only permission'}>
             <button
               type="button"
               disabled={!canManage}

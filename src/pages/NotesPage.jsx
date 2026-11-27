@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getUserPref, setUserPref } from '../lib/storage';
 import { usePermissions } from '../context/PermissionContext';
-import { useToast } from '../components/ui/Toast';
 import Skeleton from '../components/ui/Skeleton';
 import Alert from '../components/ui/Alert';
 import Button from '../components/ui/Button';
@@ -10,13 +9,9 @@ import AccessDeniedPage from './AccessDeniedPage';
 import NotesToolbar from '../components/Notes/NotesToolbar';
 import NotesBoard from '../components/Notes/NotesBoard';
 import NotesListView from '../components/Notes/NotesListView';
-import NotesTrash from '../components/Notes/NotesTrash';
 import {
   DEFAULT_NOTE_WIDTH,
-  DEFAULT_NOTE_HEIGHT,
-  ZOOM_STEP,
-  clampZoom,
-  clampNotePosition
+  DEFAULT_NOTE_HEIGHT
 } from '../components/Notes/noteConstants';
 import { useNotes } from '../hooks/useNotes';
 
@@ -24,24 +19,17 @@ export default function NotesPage() {
   const { hasPermission, loading: permLoading } = usePermissions();
   const canView = hasPermission('notes.view_own');
   const canManage = hasPermission('notes.manage_own');
-  const toast = useToast();
 
   const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
   const [viewMode, setViewMode] = useState(() =>
     getUserPref('notes_view_mode', isMobileViewport ? 'list' : 'board')
   );
-  const [zoom, setZoom] = useState(() => clampZoom(getUserPref('notes_zoom', 1)));
-  const [pan, setPan] = useState(() => getUserPref('notes_pan', { x: 0, y: 0 }));
-  const [searchQuery, setSearchQuery] = useState(() => getUserPref('notes_search', ''));
-  const [colorFilter, setColorFilter] = useState(() => getUserPref('notes_color_filter', null));
-  const [showTrash, setShowTrash] = useState(false);
 
   const viewportRef = useRef(null);
   const cascadeCountRef = useRef(0);
 
   const {
     notes,
-    trashedNotes,
     loading,
     error,
     permissionRevoked,
@@ -54,9 +42,7 @@ export default function NotesPage() {
     updateNote,
     bringToFront,
     duplicateNote,
-    deleteNote,
-    restoreNote,
-    purgeNote
+    deleteNote
   } = useNotes({ canView, canManage });
 
   useEffect(() => {
@@ -64,10 +50,6 @@ export default function NotesPage() {
   }, []);
 
   useEffect(() => { setUserPref('notes_view_mode', viewMode); }, [viewMode]);
-  useEffect(() => { setUserPref('notes_zoom', zoom); }, [zoom]);
-  useEffect(() => { setUserPref('notes_pan', pan); }, [pan]);
-  useEffect(() => { setUserPref('notes_search', searchQuery); }, [searchQuery]);
-  useEffect(() => { setUserPref('notes_color_filter', colorFilter); }, [colorFilter]);
 
   const handleCreateCenter = useCallback((explicitX, explicitY) => {
     if (!canManage) return;
@@ -78,30 +60,18 @@ export default function NotesPage() {
       const offset = (cascadeCountRef.current % 6) * 24;
       cascadeCountRef.current += 1;
       if (rect) {
-        const centerX = (rect.width / 2 - pan.x) / zoom - DEFAULT_NOTE_WIDTH / 2 + offset;
-        const centerY = (rect.height / 2 - pan.y) / zoom - DEFAULT_NOTE_HEIGHT / 2 + offset;
-        const clamped = clampNotePosition(centerX, centerY, DEFAULT_NOTE_WIDTH, DEFAULT_NOTE_HEIGHT);
-        x = clamped.x;
-        y = clamped.y;
+        const pad = 8;
+        const maxX = Math.max(pad, rect.width - DEFAULT_NOTE_WIDTH - pad);
+        const maxY = Math.max(pad, rect.height - DEFAULT_NOTE_HEIGHT - pad);
+        x = Math.round(Math.min(maxX, Math.max(pad, rect.width / 2 - DEFAULT_NOTE_WIDTH / 2 + offset)));
+        y = Math.round(Math.min(maxY, Math.max(pad, rect.height / 2 - DEFAULT_NOTE_HEIGHT / 2 + offset)));
       } else {
         x = 160 + offset;
         y = 120 + offset;
       }
     }
-    createNote({ x, y, color: colorFilter || 'yellow', content: '' });
-  }, [canManage, pan.x, pan.y, zoom, colorFilter, createNote]);
-
-  const handleDeleteWithUndo = useCallback((id) => {
-    if (!canManage) return;
-    deleteNote(id);
-    toast?.info?.('Note moved to Trash', {
-      duration: 5000,
-      action: {
-        label: 'Undo',
-        onClick: () => restoreNote(id)
-      }
-    });
-  }, [canManage, deleteNote, restoreNote, toast]);
+    createNote({ x, y, color: 'sky', content: '' });
+  }, [canManage, createNote]);
 
   const handleBlurEmpty = useCallback((id) => {
     if (newNoteId === id) {
@@ -109,7 +79,7 @@ export default function NotesPage() {
     }
     const target = notes.find((n) => n.id === id);
     if (target && !(target.content || '').trim()) {
-      deleteNote(id, { silent: true });
+      deleteNote(id);
     }
   }, [newNoteId, setNewNoteId, notes, deleteNote]);
 
@@ -120,22 +90,8 @@ export default function NotesPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-surface-muted overflow-hidden">
       <NotesToolbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        colorFilter={colorFilter}
-        onColorFilterChange={setColorFilter}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        showTrash={showTrash}
-        onToggleTrash={() => setShowTrash((v) => !v)}
-        trashCount={trashedNotes.length}
-        zoom={zoom}
-        onZoomIn={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
-        onZoomOut={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
-        onZoomReset={() => {
-          setZoom(1);
-          setPan({ x: 0, y: 0 });
-        }}
         onCreateNote={() => handleCreateCenter()}
         canManage={canManage}
         saveStatus={saveStatus}
@@ -161,61 +117,35 @@ export default function NotesPage() {
             <Skeleton key={i} className="h-48 rounded-xl" />
           ))}
         </div>
-      ) : showTrash ? (
-        <NotesTrash
-          trashedNotes={trashedNotes}
-          canManage={canManage}
-          onRestore={restoreNote}
-          onPurge={purgeNote}
-          onBack={() => setShowTrash(false)}
-        />
       ) : viewMode === 'list' ? (
         <NotesListView
           notes={notes}
           allNotesCount={notes.length}
           canManage={canManage}
-          searchQuery={searchQuery}
-          colorFilter={colorFilter}
           newNoteId={newNoteId}
           onCreateNote={() => handleCreateCenter()}
           onChangeContent={(id, content) => updateNote(id, { content })}
-          onChangeColor={(id, color) => updateNote(id, { color }, { immediate: true })}
           onTogglePin={(id, is_pinned) => updateNote(id, { is_pinned }, { immediate: true })}
           onDuplicate={duplicateNote}
-          onDelete={handleDeleteWithUndo}
+          onDelete={deleteNote}
           onBlurEmpty={handleBlurEmpty}
-          onClearFilters={() => {
-            setSearchQuery('');
-            setColorFilter(null);
-          }}
         />
       ) : (
         <NotesBoard
           viewportRef={viewportRef}
           notes={notes}
           allNotesCount={notes.length}
-          zoom={zoom}
-          pan={pan}
-          onZoomChange={setZoom}
-          onPanChange={setPan}
           canManage={canManage}
-          searchQuery={searchQuery}
-          colorFilter={colorFilter}
           newNoteId={newNoteId}
           onCreateAt={handleCreateCenter}
           onBringToFront={bringToFront}
           onChangeContent={(id, content) => updateNote(id, { content })}
           onCommitPosition={(id, x, y) => updateNote(id, { x, y }, { immediate: true })}
           onCommitSize={(id, width, height) => updateNote(id, { width, height }, { immediate: true })}
-          onChangeColor={(id, color) => updateNote(id, { color }, { immediate: true })}
           onTogglePin={(id, is_pinned) => updateNote(id, { is_pinned }, { immediate: true })}
           onDuplicate={duplicateNote}
-          onDelete={handleDeleteWithUndo}
+          onDelete={deleteNote}
           onBlurEmpty={handleBlurEmpty}
-          onClearFilters={() => {
-            setSearchQuery('');
-            setColorFilter(null);
-          }}
         />
       )}
     </div>

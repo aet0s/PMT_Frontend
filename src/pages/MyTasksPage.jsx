@@ -30,6 +30,7 @@ import Select from '../components/ui/Select';
 import LabelPill from '../components/shared/LabelPill';
 import { getListStatusConfig, getCardDefaultStatus } from '../lib/listStatusColors';
 import { getUserPref, setUserPref } from '../lib/storage';
+import { htmlToPlainText } from '../lib/htmlText';
 import { format, isPast, isToday, isTomorrow } from 'date-fns';
 
 function formatCardDueDate(dueDateStr, isComplete) {
@@ -849,9 +850,7 @@ function BoardCardItem({ card, onCardClick, workspaceId, isListView = false }) {
   const hasChecklist = checklist.total > 0;
 
   // Extract clean plain text snippet from description HTML
-  const descriptionSnippet = card.description && card.description !== '<p></p>'
-    ? card.description.replace(/<[^>]*>/g, '').trim()
-    : '';
+  const descriptionSnippet = htmlToPlainText(card.description);
 
   // Compact List View Row
   if (isListView) {

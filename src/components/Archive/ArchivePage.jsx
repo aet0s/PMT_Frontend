@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { htmlToPlainText } from '../../lib/htmlText';
 import {
   Archive,
   Briefcase,
@@ -931,9 +932,9 @@ export default function ArchivePage({
                           </h4>
 
                           {/* Description snippet if any */}
-                          {card.description ? (
+                          {htmlToPlainText(card.description) ? (
                             <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">
-                              {card.description.replace(/<[^>]*>?/gm, '')}
+                              {htmlToPlainText(card.description)}
                             </p>
                           ) : (
                             <p className="text-[11px] text-text-muted italic">No description provided</p>

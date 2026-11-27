@@ -240,7 +240,7 @@ export function useNotes({ canView = true, canManage = true } = {}) {
     }
   }, [flushPatch]);
 
-  const createNote = useCallback(async ({ x = 160, y = 120, color = 'yellow', content = '' } = {}) => {
+  const createNote = useCallback(async ({ x = 160, y = 120, color = 'sky', content = '' } = {}) => {
     if (!canManage || !canView) return null;
     const pos = clampNotePosition(x, y, DEFAULT_NOTE_WIDTH, DEFAULT_NOTE_HEIGHT);
     const tempId = `temp-${Date.now()}`;
@@ -370,13 +370,8 @@ export function useNotes({ canView = true, canManage = true } = {}) {
     if (String(id).startsWith('temp-')) return;
 
     try {
-      const res = await apiDeleteNote(id);
-      if (!mountedRef.current) return;
-      if (res?.note) {
-        setTrashedNotes((prev) => (prev.some((t) => t.id === id) ? prev : [res.note, ...prev]));
-      } else if (target) {
-        setTrashedNotes((prev) => [{ ...target, deleted_at: new Date().toISOString() }, ...prev]);
-      }
+      await apiDeleteNote(id);
+      await apiPurgeNote(id).catch(() => {});
     } catch (err) {
       if (target) setNotes((prev) => [...prev, target]);
       handleApiError(err);

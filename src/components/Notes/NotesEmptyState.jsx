@@ -32,20 +32,20 @@ export default function NotesEmptyState({
     <div className="flex flex-col items-center justify-center py-14 px-6 text-center select-none">
       {/* Ghost sticky preview */}
       <div
-        style={{ backgroundColor: 'var(--color-warning-tint)' }}
-        className="w-[220px] h-[160px] rounded-xl border border-dashed border-border-strong shadow-2xs p-4 mb-6 flex flex-col justify-between text-left opacity-80"
+        style={{ backgroundColor: 'var(--color-board-sky)' }}
+        className="w-[220px] h-[160px] rounded-xl border border-dashed border-border-strong shadow-2xs p-4 mb-6 flex flex-col justify-between text-left opacity-85"
         aria-hidden="true"
       >
         <div className="flex items-center justify-between">
           <span className="w-10 h-1.5 rounded-full bg-border-strong/60" />
-          <StickyNote className="w-4 h-4 text-warning-text/70" />
+          <StickyNote className="w-4 h-4 text-primary-text/70" />
         </div>
         <div className="space-y-2">
           <div className="w-4/5 h-2 rounded bg-border-strong/50" />
           <div className="w-3/5 h-2 rounded bg-border-strong/40" />
           <div className="w-2/3 h-2 rounded bg-border-strong/30" />
         </div>
-        <span className="text-[11px] font-medium text-warning-text/80">
+        <span className="text-[11px] font-medium text-primary-text/80">
           Private to you
         </span>
       </div>
@@ -58,8 +58,10 @@ export default function NotesEmptyState({
       </p>
       {canManage && onCreateNote && (
         <Button variant="primary" size="md" onClick={onCreateNote}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          New note
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <Plus className="w-4 h-4 shrink-0" />
+            <span>New note</span>
+          </span>
         </Button>
       )}
     </div>

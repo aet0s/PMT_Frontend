@@ -21,6 +21,7 @@ import { usePermissions } from '../../context/PermissionContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useDisplayPreferences } from '../../hooks/useDisplayPreferences';
 import { getListStatusConfig, getCardDefaultStatus } from '../../lib/listStatusColors';
+import { htmlToPlainText } from '../../lib/htmlText';
 
 export default function Card({
   card,
@@ -148,9 +149,7 @@ export default function Card({
   });
 
   // Extract clean plain text snippet from description HTML
-  const descriptionSnippet = card.description && card.description !== '<p></p>'
-    ? card.description.replace(/<[^>]*>/g, '').trim()
-    : '';
+  const descriptionSnippet = htmlToPlainText(card.description);
 
   return (
     <div

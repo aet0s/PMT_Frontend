@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { htmlToPlainText } from '../../lib/htmlText';
 import {
   format,
   startOfMonth,
@@ -640,9 +641,9 @@ export default function RightContextPanel({
                   <h4 className="text-xs font-bold text-text-primary line-clamp-1 leading-tight">
                     {t.title}
                   </h4>
-                  {t.description && t.description !== '<p></p>' && (
+                  {htmlToPlainText(t.description) && (
                     <p className="text-[11px] text-text-secondary line-clamp-2 mt-1 leading-relaxed">
-                      {t.description.replace(/<[^>]*>/g, '')}
+                      {htmlToPlainText(t.description)}
                     </p>
                   )}
                 </div>
@@ -871,9 +872,9 @@ export default function RightContextPanel({
                             >
                               {card.title}
                             </h4>
-                            {card.description && card.description !== '<p></p>' && (
+                            {htmlToPlainText(card.description) && (
                               <p className="text-[11px] text-text-secondary line-clamp-1 mt-0.5">
-                                {card.description.replace(/<[^>]*>/g, '')}
+                                {htmlToPlainText(card.description)}
                               </p>
                             )}
                           </div>

@@ -73,7 +73,7 @@ export const NOTE_COLORS = {
 export const NOTE_COLOR_LIST = Object.values(NOTE_COLORS);
 
 export function getNoteColorMeta(colorKey) {
-  return NOTE_COLORS[colorKey] || NOTE_COLORS.yellow;
+  return NOTE_COLORS[colorKey] || NOTE_COLORS.sky;
 }
 
 export function clampNoteSize(width, height) {
