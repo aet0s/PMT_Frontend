@@ -23,6 +23,7 @@ import { useToast } from '../ui/Toast';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../context/PermissionContext';
 import { useSocket } from '../../context/SocketProvider';
+import { getBoardWorkspaceMembers } from '../../api/boards';
 
 export default function CardDetailModal({
   isOpen,
@@ -67,6 +68,25 @@ export default function CardDetailModal({
   const [activeAnchorRef, setActiveAnchorRef] = useState(null);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
+  const [assignerCandidates, setAssignerCandidates] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen || !currentBoardId) return;
+    let cancelled = false;
+    getBoardWorkspaceMembers(currentBoardId)
+      .then((res) => {
+        if (cancelled) return;
+        const list = (res?.members || []).filter((m) => {
+          const roleLower = String(m.workspace_role || '').toLowerCase();
+          return m.has_access && !['viewer', 'guest'].includes(roleLower);
+        });
+        setAssignerCandidates(list);
+      })
+      .catch(() => {
+        if (!cancelled) setAssignerCandidates(null);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen, currentBoardId]);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState(highlightCommentId ? 'comments' : 'details');
 
@@ -445,9 +465,9 @@ export default function CardDetailModal({
         onClose={() => setActivePopover(null)}
         anchorRef={activeAnchorRef}
         title="Assigners"
-        searchPlaceholder="Search assigners..."
+        searchPlaceholder="Search assigners (Owner, Admin, PM, TL, Member)..."
         cardMembers={card.assigners || []}
-        boardMembers={boardMembers}
+        boardMembers={assignerCandidates || boardMembers}
         onToggleMember={(userId) => onToggleAssigner && onToggleAssigner(card.id, userId)}
         canManageAll={canManageAssigners}
         currentUserId={user?.id}

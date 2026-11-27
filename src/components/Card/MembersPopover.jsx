@@ -99,7 +99,7 @@ export default function MembersPopover({
         {/* Board Members List */}
         <div>
           <span className="block text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">
-            Board Members
+            {title === 'Assigners' ? 'Workspace Members' : 'Board Members'}
           </span>
           <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
             {filteredMembers.length === 0 ? (
@@ -127,7 +127,14 @@ export default function MembersPopover({
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar name={member.name} email={member.email} src={member.avatar_url || member.avatar} user={member} size="sm" />
                       <div className="min-w-0">
-                        <span className="block font-medium text-xs text-text-primary truncate">{member.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-xs text-text-primary truncate">{member.name}</span>
+                          {title === 'Assigners' && member.workspace_role && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-surface-muted text-text-secondary border border-border/60 shrink-0">
+                              {member.workspace_role}
+                            </span>
+                          )}
+                        </div>
                         <span className="block text-[10px] text-text-muted truncate">{member.email}</span>
                       </div>
                     </div>
