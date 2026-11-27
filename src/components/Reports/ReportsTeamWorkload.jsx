@@ -14,9 +14,9 @@ import Select from '../ui/Select';
 import { formatNumber, formatPercent } from './reportsUtils';
 
 const VIEW_MODES = [
+  { id: 'all', label: 'All Involvement' },
   { id: 'assigned', label: 'Assigned to Member' },
-  { id: 'delegated', label: 'Assigned by Member (Delegated / QA)' },
-  { id: 'all', label: 'All Involvement' }
+  { id: 'delegated', label: 'Assigned by Member (Delegated / QA)' }
 ];
 
 function getMetricsForMode(m, viewMode) {
@@ -64,7 +64,7 @@ export default function ReportsTeamWorkload({
   onViewAll = null,
   title = 'Team Workload & Performance'
 }) {
-  const [viewMode, setViewMode] = useState('assigned'); // 'assigned' | 'delegated' | 'all'
+  const [viewMode, setViewMode] = useState('all'); // 'all' | 'assigned' | 'delegated'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('assigned'); // 'assigned' | 'completion' | 'overdue' | 'active' | 'name'
@@ -351,7 +351,7 @@ export default function ReportsTeamWorkload({
                             <p className="font-semibold text-text-primary group-hover:text-primary transition-colors">
                               {m.name}
                             </p>
-                            {viewMode === 'assigned' && delegatedCount > 0 && (
+                            {(viewMode === 'assigned' || viewMode === 'all') && delegatedCount > 0 && (
                               <span
                                 title={`Assigned / created ${delegatedCount} task${delegatedCount === 1 ? '' : 's'} for others`}
                                 className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20"
