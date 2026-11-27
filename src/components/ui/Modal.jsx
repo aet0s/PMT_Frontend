@@ -11,7 +11,8 @@ const SIZES = {
   xl: 'sm:max-w-4xl',
   '2xl': 'sm:max-w-5xl',
   '3xl': 'sm:max-w-6xl',
-  full: 'sm:max-w-7xl'
+  full: 'sm:max-w-7xl',
+  fullscreen: 'max-w-none w-screen h-screen max-h-screen sm:max-h-screen sm:rounded-none border-0'
 };
 
 export function Modal({
@@ -103,6 +104,7 @@ export function Modal({
   if (!isOpen) return null;
 
   const sizeClass = SIZES[size] || SIZES.md;
+  const isFullscreen = size === 'fullscreen';
 
   return createPortal(
     <div
@@ -110,7 +112,7 @@ export function Modal({
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
       aria-describedby={description ? 'modal-desc' : undefined}
-      className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center p-0 sm:p-4 select-none`}
+      className={`fixed inset-0 ${zIndex} flex ${isFullscreen ? 'items-stretch justify-stretch p-0' : 'items-end sm:items-center justify-center p-0 sm:p-4'} select-none`}
     >
       {/* Soft light backdrop */}
       <div
@@ -122,7 +124,7 @@ export function Modal({
       {/* Modal Dialog Card */}
       <div
         ref={modalRef}
-        className={`relative z-10 w-full ${sizeClass} bg-surface border border-border sm:rounded-3xl shadow-xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden transition-all text-left ${className}`}
+        className={`relative z-10 w-full ${sizeClass} bg-surface flex flex-col overflow-hidden transition-all text-left ${isFullscreen ? '' : 'border border-border sm:rounded-3xl shadow-xl max-h-[92vh] sm:max-h-[85vh]'} ${className}`}
       >
         {/* Header */}
         {(title || showCloseButton) && (
