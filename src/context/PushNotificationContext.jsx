@@ -117,10 +117,25 @@ export function PushNotificationProvider({ children }) {
     const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
     const messaging = getMessaging(app);
 
-    // Suppress OS notification in foreground (toast and sound already notify)
+    // Show OS notification for explicit test pushes or when tab is hidden; suppress duplicate regular foreground pushes
     try {
-      onMessage(messaging, () => {
-        // Foreground event handled cleanly without OS notification duplicate
+      onMessage(messaging, (payload) => {
+        const isTest = payload?.data?.event_type === 'push.test';
+        if ((isTest || document.hidden) && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          const title = payload?.notification?.title || payload?.data?.title || 'TaskFlow Notification';
+          const body = payload?.notification?.body || payload?.data?.body || '';
+          try {
+            new Notification(title, {
+              body,
+              icon: '/icons/icon-192.png'
+            });
+          } catch {
+            // Some browsers require serviceWorkerRegistration.showNotification
+            navigator.serviceWorker?.ready?.then((reg) =>
+              reg.showNotification(title, { body, icon: '/icons/icon-192.png' })
+            ).catch(() => {});
+          }
+        }
       });
     } catch {
       // Ignore foreground listener setup failure
@@ -237,8 +252,10 @@ export function PushNotificationProvider({ children }) {
     setLoading(true);
     try {
       const token = localStorage.getItem(LAST_TOKEN_KEY);
+      const deviceId = deviceIdRef.current || getOrCreateDeviceId();
+      deviceIdRef.current = deviceId;
       await revokeCurrentDeviceSubscription({
-        device_id: deviceIdRef.current,
+        device_id: deviceId,
         token: token || undefined
       });
 
